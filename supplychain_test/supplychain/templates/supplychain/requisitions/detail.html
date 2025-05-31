@@ -1,0 +1,93 @@
+{# supplychain/templates/supplychain/requisitions/detail.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Requisition #{{ requisition.id }} Detail{% endblock %}
+
+{% block content %}
+  <h1>Requisition #{{ requisition.id }}</h1>
+  <p>
+    <strong>Requester:</strong> {{ requisition.requester.get_full_name }}<br>
+    <strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}<br>
+    <strong>Status:</strong>
+    {% if requisition.status == 'PENDING' %}
+      <span class="badge badge-warning">Pending</span>
+    {% elif requisition.status == 'APPROVED' %}
+      <span class="badge badge-success">Approved</span>
+    {% elif requisition.status == 'DENIED' %}
+      <span class="badge badge-danger">Denied</span>
+    {% elif requisition.status == 'QUERIED' %}
+      <span class="badge badge-info">Queried</span>
+    {% endif %}<br>
+    <strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}<br>
+    {% if requisition.evidence %}
+      <strong>Evidence:</strong>
+      <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>
+    {% endif %}
+  </p>
+
+  <h3>Items Requested</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Product</th>
+        <th>Quantity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ item.product.name }}</td>
+          <td>{{ item.quantity }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Audit Trail</h3>
+  {% if approvals %}
+    <ul class="list-group">
+      {% for a in approvals %}
+        <li class="list-group-item">
+          <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
+          {{ a.approver.get_full_name }} – {{ a.get_action_display }}
+          {% if a.notes %}
+            <br><em>Notes:</em> {{ a.notes }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No actions have been taken yet.</p>
+  {% endif %}
+
+  {# Only show the approval form if the user can approve and status is PENDING #}
+  {% if can_approve %}
+    <hr>
+    <h3>Take Action</h3>
+    <form method="post">
+      {% csrf_token %}
+      {{ approval_form.non_field_errors }}
+
+      <div class="form-group">
+        {{ approval_form.action.label_tag }}<br>
+        {{ approval_form.action }}
+        {% if approval_form.action.errors %}
+          <div class="text-danger">{{ approval_form.action.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        {{ approval_form.notes.label_tag }}
+        {{ approval_form.notes }}
+        {% if approval_form.notes.errors %}
+          <div class="text-danger">{{ approval_form.notes.errors }}</div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  {% endif %}
+{% endblock %}

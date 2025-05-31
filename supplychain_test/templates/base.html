@@ -14,26 +14,50 @@
                 <li><a href="{% url 'supplychain:dashboard' %}">Dashboard</a></li>
 
                 {% if user.is_authenticated %}
-                    <!-- Requisition Links (stubs until you add real URLs) -->
+                    <!-- Requisition Links -->
                     <li>
                         <a href="#">Requisitions</a>
                         <ul>
                             {% if perms.supplychain.submit_requisition %}
-                                <li><a href="#">Submit Requisition</a></li>
+                                <li>
+                                    <a href="{% url 'supplychain:requisition-create' %}">
+                                        Submit Requisition
+                                    </a>
+                                </li>
                             {% else %}
-                                <li><span class="disabled">Submit Requisition (No Permission)</span></li>
+                                <li>
+                                    <span class="disabled">
+                                        Submit Requisition (No Permission)
+                                    </span>
+                                </li>
                             {% endif %}
 
                             {% if perms.supplychain.submit_requisition %}
-                                <li><a href="#">My Requisitions</a></li>
+                                <li>
+                                    <a href="{% url 'supplychain:requisition-list' %}">
+                                        My Requisitions
+                                    </a>
+                                </li>
                             {% else %}
-                                <li><span class="disabled">My Requisitions (No Permission)</span></li>
+                                <li>
+                                    <span class="disabled">
+                                        My Requisitions (No Permission)
+                                    </span>
+                                </li>
                             {% endif %}
 
                             {% if perms.supplychain.approve_requisition %}
-                                <li><a href="#">Pending Requisitions</a></li>
+                                <li>
+                                    <a href="{% url 'supplychain:requisition-pending' %}">
+                                        Pending Requisitions
+                                    </a>
+                                </li>
                             {% else %}
-                                <li><span class="disabled">Pending Requisitions (No Permission)</span></li>
+                                <li>
+                                    <span class="disabled">
+                                        Pending Requisitions (No Permission)
+                                    </span>
+                                </li>
                             {% endif %}
                         </ul>
                     </li>
@@ -133,30 +157,31 @@
 
                     <!-- User Account / Logout -->
                     <li>
-                        <span>Welcome, {{ user.get_full_name|default:user.username }}</span>
+                        <span>
+                            Welcome, {{ user.get_full_name|default:user.username }}
+                        </span>
                         <ul>
-                             <li>
-      <form action="{% url 'logout' %}" method="post" style="display:inline;">
-        {% csrf_token %}
-        <button
-          type="submit"
-          style="
-            background:none;
-            border:none;
-            padding:0;
-            margin:0;
-            font:inherit;
-            color:blue;
-            text-decoration:underline;
-            cursor:pointer;
-          ">
-          Log out
-        </button>
-      </form>
-    </li>
-  </ul>
-</li>
-
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        style="
+                                            background:none;
+                                            border:none;
+                                            padding:0;
+                                            margin:0;
+                                            font:inherit;
+                                            color:blue;
+                                            text-decoration:underline;
+                                            cursor:pointer;
+                                        ">
+                                        Log out
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
                 {% else %}
                     <li><a href="{% url 'login' %}">Log in</a></li>
                 {% endif %}

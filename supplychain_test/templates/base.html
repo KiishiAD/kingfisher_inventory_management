@@ -135,9 +135,28 @@
                     <li>
                         <span>Welcome, {{ user.get_full_name|default:user.username }}</span>
                         <ul>
-                            <li><a href="{% url 'logout' %}">Log out</a></li>
-                        </ul>
-                    </li>
+                             <li>
+      <form action="{% url 'logout' %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button
+          type="submit"
+          style="
+            background:none;
+            border:none;
+            padding:0;
+            margin:0;
+            font:inherit;
+            color:blue;
+            text-decoration:underline;
+            cursor:pointer;
+          ">
+          Log out
+        </button>
+      </form>
+    </li>
+  </ul>
+</li>
+
                 {% else %}
                     <li><a href="{% url 'login' %}">Log in</a></li>
                 {% endif %}

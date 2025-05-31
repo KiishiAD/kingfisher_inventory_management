@@ -406,7 +406,7 @@ class StockTransaction(TimeStampedModel):
 
 
 class LowStockAlert(TimeStampedModel):
-        class Meta:
+    class Meta:
         permissions = [
             ("acknowledge_lowstock",  "Can acknowledge low-stock alerts"),
         ]

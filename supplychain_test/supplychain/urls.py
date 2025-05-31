@@ -1,9 +1,12 @@
 from django.urls import path, include
+from .views import *
 
+app_name = "supplychain"
 
 urlpatterns = [
     # Dashboard route
-    path("dashboard/", views.dashboard, name="dashboard"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
+
     
 ]
 

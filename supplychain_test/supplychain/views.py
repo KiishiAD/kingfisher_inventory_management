@@ -212,14 +212,16 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                     # Save the approval action
                     form.save(requisition=requisition, approver=request.user)
 
-                    # If approved and destined for supplier, trigger PO creation
-                    if (
-                        requisition.status == Requisition.APPROVED
-                        and requisition.destination == Requisition.SUPPLIER
-                    ):
-                        generate_po_for_requisition(
-                            requisition, created_by=request.user
-                        )
+                    # If approved, trigger downstream process based on destination
+                    if requisition.status == Requisition.APPROVED:
+                        if requisition.destination.name == Destination.SUPPLIER:
+                            generate_po_for_requisition(
+                                requisition, created_by=request.user
+                            )
+                        elif requisition.destination.name == Destination.STORE:
+                            generate_issuance_for_requisition(
+                                requisition, created_by=request.user
+                            )
 
                 messages.success(
                     request,

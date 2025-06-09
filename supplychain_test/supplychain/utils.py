@@ -10,9 +10,11 @@ def generate_po_for_requisition(requisition, created_by):
     if hasattr(requisition, 'purchase_order'):
         return requisition.purchase_order
 
-    # Determine supplier (dummy logic here—choose first vendor)
+    # Determine supplier (choose first vendor on first item)
     first_item = requisition.items.first()
-    vendor = first_item.product.vendors.first()
+    vendor = first_item.product.vendors.first() if first_item else None
+    if vendor is None:
+        raise ValueError("Cannot create PO: no supplier found for requisition items")
 
     po = PurchaseOrder.objects.create(
         requisition=requisition,

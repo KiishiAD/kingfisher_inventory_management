@@ -15,7 +15,7 @@
     </div>
 
     <!-- Pending Requisition Approvals (for users with perm) -->
-    {% if perms.requisitions.approve_requisition %}
+    {% if perms.supplychain.approve_requisition %}
       <div class="widget">
         <h3>Pending Requisitions</h3>
         <p>{{ pending_reqs_count }} waiting</p>

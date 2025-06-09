@@ -20,6 +20,7 @@
       <span class="badge badge-info">Queried</span>
     {% endif %}<br>
     <strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}<br>
+    <strong>Destination:</strong> {{ requisition.get_destination_display }}<br>
     {% if requisition.evidence %}
       <strong>Evidence:</strong>
       <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>

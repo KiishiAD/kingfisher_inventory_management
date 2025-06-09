@@ -19,11 +19,11 @@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link {% if section == 'dashboard' %}active{% endif %}" href="{% url 'supplychain:dashboard' %}">Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'requisitions' %}active{% endif %}" href="{% url 'supplychain:requisition-list' %}">Requisitions</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Purchase Orders</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Receiving</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Issuance</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Inventory</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Payments</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'purchase_orders' %}active{% endif %}" href="{% url 'supplychain:po-list' %}">Purchase Orders</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'receiving' %}active{% endif %}" href="{% url 'supplychain:receiving-list' %}">Receiving</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'issuance' %}active{% endif %}" href="{% url 'supplychain:issuance-list' %}">Issuance</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-levels' %}">Inventory</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'payments' %}active{% endif %}" href="{% url 'supplychain:payments-list' %}">Payments</a></li>
                 </ul>
                 {% if user.is_authenticated %}
                 <span class="navbar-text me-3">Welcome, {{ user.get_full_name|default:user.username }}</span>
@@ -67,9 +67,9 @@
                         <div id="collapsePO" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="#">All POs</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">Create PO</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">Pending Approvals</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-list' %}">All POs</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-create' %}">Create PO</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-pending' %}">Pending Approvals</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -83,8 +83,8 @@
                         <div id="collapseRec" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="#">GRN List</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">Record Goods Received</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:receiving-list' %}">GRN List</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:receiving-record' %}">Record Goods Received</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -98,9 +98,9 @@
                         <div id="collapseIss" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="#">Submit Issuance</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">My Issuance Requests</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">Pending Issuance</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:issuance-create' %}">Submit Issuance</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:issuance-list' %}">My Issuance Requests</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:issuance-pending' %}">Pending Issuance</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -114,8 +114,8 @@
                         <div id="collapseInv" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="#">Current Stock Levels</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="#">Low Stock Alerts</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-levels' %}">Current Stock Levels</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-alerts' %}">Low Stock Alerts</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -129,7 +129,7 @@
                         <div id="collapsePay" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="#">Pending Payments</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:payments-list' %}">Pending Payments</a></li>
                                 </ul>
                             </div>
                         </div>

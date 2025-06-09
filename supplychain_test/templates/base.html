@@ -5,208 +5,142 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Kingfisher Supplychain{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" />
+    <style>
+      body { min-height: 100vh; }
+      .sidebar { min-height: 100vh; }
+    </style>
 </head>
 <body>
-    <header>
-        <nav>
-            <ul>
-                {# Dashboard link (assumes you have supplychain:dashboard defined) #}
-                <li><a href="{% url 'supplychain:dashboard' %}">Dashboard</a></li>
-
-                {% if user.is_authenticated %}
-                    <!-- Requisition Links -->
-                    <li>
-                        <a href="#">Requisitions</a>
-                        <ul>
-                            {% if perms.supplychain.submit_requisition %}
-                                <li>
-                                    <a href="{% url 'supplychain:requisition-create' %}">
-                                        Submit Requisition
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li>
-                                    <span class="disabled">
-                                        Submit Requisition (No Permission)
-                                    </span>
-                                </li>
-                            {% endif %}
-
-                            {% if perms.supplychain.submit_requisition %}
-                                <li>
-                                    <a href="{% url 'supplychain:requisition-list' %}">
-                                        My Requisitions
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li>
-                                    <span class="disabled">
-                                        My Requisitions (No Permission)
-                                    </span>
-                                </li>
-                            {% endif %}
-
-                            {% if perms.supplychain.approve_requisition %}
-                                <li>
-                                    <a href="{% url 'supplychain:requisition-pending' %}">
-                                        Pending Requisitions
-                                    </a>
-                                </li>
-                            {% else %}
-                                <li>
-                                    <span class="disabled">
-                                        Pending Requisitions (No Permission)
-                                    </span>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- Purchase Order Links (stubs) -->
-                    <li>
-                        <a href="#">Purchase Orders</a>
-                        <ul>
-                            {% if perms.supplychain.create_purchaseorder or perms.supplychain.approve_purchaseorder %}
-                                <li><a href="#">All POs</a></li>
-                            {% else %}
-                                <li><span class="disabled">All POs (No Permission)</span></li>
-                            {% endif %}
-
-                            {% if perms.supplychain.create_purchaseorder %}
-                                <li><a href="#">Create PO</a></li>
-                            {% else %}
-                                <li><span class="disabled">Create PO (No Permission)</span></li>
-                            {% endif %}
-
-                            {% if perms.supplychain.approve_purchaseorder %}
-                                <li><a href="#">Pending Approvals</a></li>
-                            {% else %}
-                                <li><span class="disabled">Pending Approvals (No Permission)</span></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- Receiving & Invoice Links (stubs) -->
-                    <li>
-                        <a href="#">Receiving</a>
-                        <ul>
-                            {% if perms.supplychain.record_receiving or perms.supplychain.approve_purchaseorder %}
-                                <li><a href="#">GRN List</a></li>
-                            {% else %}
-                                <li><span class="disabled">GRN List (No Permission)</span></li>
-                            {% endif %}
-
-                            {% if perms.supplychain.record_receiving %}
-                                <li><a href="#">Record Goods Received</a></li>
-                            {% else %}
-                                <li><span class="disabled">Record Goods Received (No Permission)</span></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- Issuance Links (stubs) -->
-                    <li>
-                        <a href="#">Issuance</a>
-                        <ul>
-                            {% if perms.supplychain.submit_issuance %}
-                                <li><a href="#">Submit Issuance</a></li>
-                            {% else %}
-                                <li><span class="disabled">Submit Issuance (No Permission)</span></li>
-                            {% endif %}
-
-                            {% if perms.supplychain.submit_issuance %}
-                                <li><a href="#">My Issuance Requests</a></li>
-                            {% else %}
-                                <li><span class="disabled">My Issuance Requests (No Permission)</span></li>
-                            {% endif %}
-
-                            {% if perms.supplychain.approve_issuance %}
-                                <li><a href="#">Pending Issuance</a></li>
-                            {% else %}
-                                <li><span class="disabled">Pending Issuance (No Permission)</span></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- Inventory & Alerts Links (stubs) -->
-                    <li>
-                        <a href="#">Inventory</a>
-                        <ul>
-                            {# Everyone can view levels; adjust with perms if needed #}
-                            <li><a href="#">Current Stock Levels</a></li>
-
-                            {% if perms.supplychain.acknowledge_lowstock %}
-                                <li><a href="#">Low Stock Alerts</a></li>
-                            {% else %}
-                                <li><span class="disabled">Low Stock Alerts (No Permission)</span></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- Payment Links (stubs) -->
-                    <li>
-                        <a href="#">Payments</a>
-                        <ul>
-                            {% if perms.supplychain.process_payment %}
-                                <li><a href="#">Pending Payments</a></li>
-                            {% else %}
-                                <li><span class="disabled">Pending Payments (No Permission)</span></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-
-                    <!-- User Account / Logout -->
-                    <li>
-                        <span>
-                            Welcome, {{ user.get_full_name|default:user.username }}
-                        </span>
-                        <ul>
-                            <li>
-                                <form action="{% url 'logout' %}" method="post" style="display:inline;">
-                                    {% csrf_token %}
-                                    <button
-                                        type="submit"
-                                        style="
-                                            background:none;
-                                            border:none;
-                                            padding:0;
-                                            margin:0;
-                                            font:inherit;
-                                            color:blue;
-                                            text-decoration:underline;
-                                            cursor:pointer;
-                                        ">
-                                        Log out
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </li>
-                {% else %}
-                    <li><a href="{% url 'login' %}">Log in</a></li>
-                {% endif %}
-            </ul>
-        </nav>
+    <header class="navbar navbar-dark bg-primary sticky-top">
+        <a class="navbar-brand ms-3" href="{% url 'supplychain:dashboard' %}">Kingfisher SCM</a>
     </header>
-
-    <main>
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-                        {{ message }}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-
-        {% block content %}
-        <!-- Page-specific content will go here -->
-        {% endblock %}
-    </main>
-
-    <footer>
-        <p>&copy; 2025 Kingfisher Supplychain Management</p>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block bg-light sidebar py-4">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:dashboard' %}">Dashboard</a></li>
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="nav-link">Requisitions</span>
+                            <ul class="nav flex-column ms-3">
+                                {% if perms.supplychain.submit_requisition %}
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-create' %}">Submit Requisition</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-list' %}">My Requisitions</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Submit Requisition (No Permission)</span></li>
+                                    <li class="nav-item"><span class="nav-link disabled">My Requisitions (No Permission)</span></li>
+                                {% endif %}
+                                {% if perms.supplychain.approve_requisition %}
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-pending' %}">Pending Requisitions</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Pending Requisitions (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Purchase Orders</span>
+                            <ul class="nav flex-column ms-3">
+                                {% if perms.supplychain.create_purchaseorder or perms.supplychain.approve_purchaseorder %}
+                                    <li class="nav-item"><a class="nav-link" href="#">All POs</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">All POs (No Permission)</span></li>
+                                {% endif %}
+                                {% if perms.supplychain.create_purchaseorder %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Create PO</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Create PO (No Permission)</span></li>
+                                {% endif %}
+                                {% if perms.supplychain.approve_purchaseorder %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Pending Approvals</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Pending Approvals (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Receiving</span>
+                            <ul class="nav flex-column ms-3">
+                                {% if perms.supplychain.record_receiving or perms.supplychain.approve_purchaseorder %}
+                                    <li class="nav-item"><a class="nav-link" href="#">GRN List</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">GRN List (No Permission)</span></li>
+                                {% endif %}
+                                {% if perms.supplychain.record_receiving %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Record Goods Received</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Record Goods Received (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Issuance</span>
+                            <ul class="nav flex-column ms-3">
+                                {% if perms.supplychain.submit_issuance %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Submit Issuance</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="#">My Issuance Requests</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Submit Issuance (No Permission)</span></li>
+                                    <li class="nav-item"><span class="nav-link disabled">My Issuance Requests (No Permission)</span></li>
+                                {% endif %}
+                                {% if perms.supplychain.approve_issuance %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Pending Issuance</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Pending Issuance (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Inventory</span>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item"><a class="nav-link" href="#">Current Stock Levels</a></li>
+                                {% if perms.supplychain.acknowledge_lowstock %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Low Stock Alerts</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Low Stock Alerts (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Payments</span>
+                            <ul class="nav flex-column ms-3">
+                                {% if perms.supplychain.process_payment %}
+                                    <li class="nav-item"><a class="nav-link" href="#">Pending Payments</a></li>
+                                {% else %}
+                                    <li class="nav-item"><span class="nav-link disabled">Pending Payments (No Permission)</span></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">Welcome, {{ user.get_full_name|default:user.username }}</span>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-link p-0">Log out</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Log in</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                {% if messages %}
+                    <div class="mb-3">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <footer class="text-center py-3 border-top mt-auto">
+        <small>&copy; 2025 Kingfisher Supplychain Management</small>
     </footer>
 </body>
 </html>

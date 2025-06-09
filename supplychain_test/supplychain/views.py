@@ -4,6 +4,7 @@ from django.views.generic import TemplateView, CreateView, ListView, DetailView,
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.views import View
+from django.db import transaction
 from .utils import *
 
 from .models import *
@@ -32,7 +33,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["user_reqs_count"] = user_reqs.count()
 
         # If the user has permission to approve requisitions, count all pending ones
-        if self.request.user.has_perm("requisitions.approve_requisition"):
+        if self.request.user.has_perm("supplychain.approve_requisition"):
             context["pending_reqs_count"] = Requisition.objects.filter(
                 status=Requisition.PENDING
             ).count()
@@ -206,15 +207,26 @@ class RequisitionDetailView(LoginRequiredMixin, View):
 
         form = RequisitionApprovalForm(request.POST)
         if form.is_valid():
-            # Save the approval action
-            form.save(requisition=requisition, approver=request.user)
-            messages.success(request, f"Requisition #{requisition.id} marked {requisition.status.lower()}.")
+            try:
+                with transaction.atomic():
+                    # Save the approval action
+                    form.save(requisition=requisition, approver=request.user)
 
-            # If approved, trigger PO creation (see next section)
-            if requisition.status == Requisition.APPROVED:
-                # We can call a helper function or rely on a signal to auto-generate the PO.
-                generate_po_for_requisition(requisition, created_by=request.user)
+                    # If approved and destined for supplier, trigger PO creation
+                    if (
+                        requisition.status == Requisition.APPROVED
+                        and requisition.destination == Requisition.SUPPLIER
+                    ):
+                        generate_po_for_requisition(
+                            requisition, created_by=request.user
+                        )
 
+                messages.success(
+                    request,
+                    f"Requisition #{requisition.id} marked {requisition.status.lower()}.",
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
             return redirect('supplychain:requisition-detail', pk=pk)
         else:
             # If form is invalid, re-render with errors

@@ -82,12 +82,24 @@ class Requisition(TimeStampedModel):
         (QUERIED, 'Queried'),
     ]
 
+    SUPPLIER = 'SUPPLIER'
+    STORE = 'STORE'
+    DESTINATION_CHOICES = [
+        (SUPPLIER, 'Supplier'),
+        (STORE, 'Store'),
+    ]
+
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='requisitions'
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    destination = models.CharField(
+        max_length=10,
+        choices=DESTINATION_CHOICES,
+        default=SUPPLIER,
+    )
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
     urgent = models.BooleanField(default=False)
 

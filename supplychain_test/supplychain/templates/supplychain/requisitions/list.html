@@ -18,6 +18,7 @@
           <th>#</th>
           <th>Created At</th>
           <th>Status</th>
+          <th>Destination</th>
           <th>Urgent</th>
           <th>Actions</th>
         </tr>
@@ -38,6 +39,7 @@
                 <span class="badge badge-info">Queried</span>
               {% endif %}
             </td>
+            <td>{{ req.get_destination_display }}</td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

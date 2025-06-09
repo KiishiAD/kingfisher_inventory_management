@@ -28,6 +28,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # First get the default context
         context = super().get_context_data(**kwargs)
 
+        context["section"] = "dashboard"
+
         # Count how many Requisitions this user has submitted
         user_reqs = Requisition.objects.filter(requester=self.request.user)
         context["user_reqs_count"] = user_reqs.count()
@@ -75,6 +77,7 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
         Add the inline formset for RequisitionItem.
         """
         context = super().get_context_data(**kwargs)
+        context["section"] = "requisitions"
         if self.request.POST:
             context['item_formset'] = RequisitionItemFormSet(
                 self.request.POST
@@ -127,6 +130,11 @@ class RequisitionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     permission_required = 'supplychain.submit_requisition'
     paginate_by = 20
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["section"] = "requisitions"
+        return context
+
     def get_queryset(self):
         return Requisition.objects.filter(requester=self.request.user).order_by('-created_at')
 
@@ -145,6 +153,11 @@ class RequisitionPendingListView(LoginRequiredMixin, PermissionRequiredMixin, Li
     context_object_name = 'pending_requisitions'
     permission_required = 'supplychain.approve_requisition'
     paginate_by = 20
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["section"] = "requisitions"
+        return context
 
     def get_queryset(self):
         return Requisition.objects.filter(status=Requisition.PENDING).order_by('created_at')
@@ -185,6 +198,7 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 'approvals': requisition.approvals.select_related('approver').order_by('-timestamp'),
                 'approval_form': approval_form,
                 'can_approve': can_approve,
+                'section': 'requisitions',
             }
             return render(request, 'supplychain/requisitions/detail.html', context)
         else:
@@ -238,5 +252,6 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 'approvals': requisition.approvals.select_related('approver').order_by('-timestamp'),
                 'approval_form': form,
                 'can_approve': True,
+                'section': 'requisitions',
             }
             return render(request, 'supplychain/requisitions/detail.html', context)

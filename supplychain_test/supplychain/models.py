@@ -56,7 +56,23 @@ class Product(TimeStampedModel):
 
     def __str__(self):
         return self.name
-    
+
+
+class Destination(models.Model):
+    """Possible requisition destinations (Supplier vs Store)."""
+
+    SUPPLIER = "SUPPLIER"
+    STORE = "STORE"
+    DESTINATION_CHOICES = [
+        (SUPPLIER, "Supplier"),
+        (STORE, "Store"),
+    ]
+
+    name = models.CharField(max_length=10, choices=DESTINATION_CHOICES, unique=True)
+
+    def __str__(self):
+        return self.get_name_display()
+
 
 
 
@@ -82,29 +98,25 @@ class Requisition(TimeStampedModel):
         (QUERIED, 'Queried'),
     ]
 
-    SUPPLIER = 'SUPPLIER'
-    STORE = 'STORE'
-    DESTINATION_CHOICES = [
-        (SUPPLIER, 'Supplier'),
-        (STORE, 'Store'),
-    ]
-
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='requisitions'
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
-    destination = models.CharField(
-        max_length=10,
-        choices=DESTINATION_CHOICES,
-        default=SUPPLIER,
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        related_name='requisitions'
     )
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
     urgent = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Requisition #{self.id} by {self.requester}"  
+        return f"Requisition #{self.id} by {self.requester}"
+
+    def get_destination_display(self):
+        return self.destination.get_name_display()
     
 
 class RequisitionItem(models.Model):
@@ -370,6 +382,13 @@ class IssuanceRequest(TimeStampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='issuance_requests'
+    )
+    requisition = models.OneToOneField(
+        'Requisition',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='issuance_request'
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     issue_slip = models.FileField(upload_to='issue_slips/', blank=True)

@@ -1,6 +1,11 @@
 # supplychain/utils.py
 
-from .models import PurchaseOrder, PurchaseOrderItem
+from .models import (
+    PurchaseOrder,
+    PurchaseOrderItem,
+    IssuanceRequest,
+    IssuanceItem,
+)
 
 def generate_po_for_requisition(requisition, created_by):
     """
@@ -30,3 +35,21 @@ def generate_po_for_requisition(requisition, created_by):
             unit_cost=item.product.unit_cost,
         )
     return po
+
+
+def generate_issuance_for_requisition(requisition, created_by):
+    """Create an IssuanceRequest from an approved store requisition."""
+    if hasattr(requisition, 'issuance_request'):
+        return requisition.issuance_request
+
+    iss = IssuanceRequest.objects.create(
+        requester=created_by,
+        status=IssuanceRequest.PENDING,
+    )
+    for item in requisition.items.all():
+        IssuanceItem.objects.create(
+            issuance_request=iss,
+            product=item.product,
+            quantity=item.quantity,
+        )
+    return iss

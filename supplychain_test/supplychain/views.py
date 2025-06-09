@@ -215,7 +215,8 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                     # If approved and destined for supplier, trigger PO creation
                     if (
                         requisition.status == Requisition.APPROVED
-                        and requisition.destination == Requisition.SUPPLIER
+                        and requisition.destination
+                        and requisition.destination.dest_type == Destination.SUPPLIER
                     ):
                         generate_po_for_requisition(
                             requisition, created_by=request.user

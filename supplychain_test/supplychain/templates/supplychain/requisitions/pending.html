@@ -25,7 +25,7 @@
             <td>{{ req.id }}</td>
             <td>{{ req.requester.get_full_name }}</td>
             <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
-            <td>{{ req.get_destination_display }}</td>
+            <td>{{ req.destination.name }}</td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

@@ -41,6 +41,29 @@ class Supplier(TimeStampedModel):
         return self.name
 
 
+class Destination(TimeStampedModel):
+    """Where requisitioned goods should be delivered."""
+
+    SUPPLIER = 'SUPPLIER'
+    STORE = 'STORE'
+    TYPE_CHOICES = [
+        (SUPPLIER, 'Supplier'),
+        (STORE, 'Store'),
+    ]
+
+    name = models.CharField(max_length=200)
+    dest_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='destinations'
+    )
+
+    def __str__(self):
+        return self.name
+
 class Product(TimeStampedModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -82,23 +105,17 @@ class Requisition(TimeStampedModel):
         (QUERIED, 'Queried'),
     ]
 
-    SUPPLIER = 'SUPPLIER'
-    STORE = 'STORE'
-    DESTINATION_CHOICES = [
-        (SUPPLIER, 'Supplier'),
-        (STORE, 'Store'),
-    ]
-
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='requisitions'
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
-    destination = models.CharField(
-        max_length=10,
-        choices=DESTINATION_CHOICES,
-        default=SUPPLIER,
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        related_name='requisitions',
+        null=True,
     )
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
     urgent = models.BooleanField(default=False)

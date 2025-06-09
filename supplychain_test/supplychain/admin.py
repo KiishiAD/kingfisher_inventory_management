@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    UnitOfMeasure, Category, Supplier, Product,
+    UnitOfMeasure, Category, Supplier, Product, Destination,
     Requisition, RequisitionItem, RequisitionApproval,
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderApproval,
     Receiving, ReceivingItem, InvoiceLineApproval,
@@ -23,6 +23,12 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ('name', 'contact_email', 'phone_number')
+    search_fields = ('name',)
+
+@admin.register(Destination)
+class DestinationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'dest_type', 'supplier')
+    list_filter = ('dest_type',)
     search_fields = ('name',)
 
 @admin.register(Product)

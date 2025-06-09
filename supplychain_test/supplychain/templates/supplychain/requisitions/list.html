@@ -39,7 +39,7 @@
                 <span class="badge badge-info">Queried</span>
               {% endif %}
             </td>
-            <td>{{ req.get_destination_display }}</td>
+            <td>{{ req.destination.name }}</td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

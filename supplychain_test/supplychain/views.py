@@ -32,7 +32,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["user_reqs_count"] = user_reqs.count()
 
         # If the user has permission to approve requisitions, count all pending ones
-        if self.request.user.has_perm("requisitions.approve_requisition"):
+        if self.request.user.has_perm("supplychain.approve_requisition"):
             context["pending_reqs_count"] = Requisition.objects.filter(
                 status=Requisition.PENDING
             ).count()

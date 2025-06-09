@@ -11,7 +11,7 @@
     <div class="widget">
       <h3>My Requisitions</h3>
       <p>{{ user_reqs_count }} total</p>
-      <p><a href="#">View My Requisitions</a></p>
+      <p><a href="{% url 'supplychain:requisition-list' %}">View My Requisitions</a></p>
     </div>
 
     <!-- Pending Requisition Approvals (for users with perm) -->
@@ -19,7 +19,7 @@
       <div class="widget">
         <h3>Pending Requisitions</h3>
         <p>{{ pending_reqs_count }} waiting</p>
-        <p><a href="#">Review Pending</a></p>
+        <p><a href="{% url 'supplychain:requisition-pending' %}">Review Pending</a></p>
       </div>
     {% endif %}
 
@@ -27,7 +27,7 @@
     <div class="widget">
       <h3>Low Stock Alerts</h3>
       <p>{{ low_stock_count }} active</p>
-      <p><a href="#">View Alerts</a></p>
+      <p><a href="{% url 'supplychain:inventory-alerts' %}">View Alerts</a></p>
     </div>
   </div>
 {% endblock %}

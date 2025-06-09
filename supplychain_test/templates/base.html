@@ -44,7 +44,7 @@
                 <div class="accordion" id="sideMenu">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingReq">
-                            <button class="accordion-button {% if section != 'requisitions' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReq" aria-expanded="{{ section == 'requisitions' }}" aria-controls="collapseReq">
+                            <button class="accordion-button {% if section != 'requisitions' %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReq" aria-expanded="{% if section == 'requisitions' %}true{% else %}false{% endif %}" aria-controls="collapseReq">
                                 Requisitions
                             </button>
                         </h2>

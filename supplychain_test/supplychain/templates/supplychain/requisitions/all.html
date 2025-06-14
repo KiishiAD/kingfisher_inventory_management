@@ -1,6 +1,6 @@
 {# supplychain/templates/supplychain/requisitions/all.html #}
 {% extends "base.html" %}
-{% load static %}
+{% load static status_tags %}
 
 {% block title %}All Requisitions{% endblock %}
 
@@ -28,6 +28,10 @@
       {{ filter_form.urgent.label_tag }}
       {{ filter_form.urgent }}
     </div>
+    <div class="col-md-2">
+      {{ filter_form.status.label_tag }}
+      {{ filter_form.status }}
+    </div>
     <div class="col-md-1">
       <button type="submit" class="btn btn-primary">Filter</button>
     </div>
@@ -53,15 +57,7 @@
             <td>{{ req.requester.get_full_name|default:req.requester.username }}</td>
             <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
             <td>
-              {% if req.status == 'PENDING' %}
-                <span class="badge badge-warning">Pending</span>
-              {% elif req.status == 'APPROVED' %}
-                <span class="badge badge-success">Approved</span>
-              {% elif req.status == 'DENIED' %}
-                <span class="badge badge-danger">Denied</span>
-              {% elif req.status == 'QUERIED' %}
-                <span class="badge badge-info">Queried</span>
-              {% endif %}
+          {{ req.status|status_badge }}
             </td>
             <td>{{ req.get_destination_display }}</td>
             <td>

@@ -41,13 +41,13 @@ footer {
 
 .timeline {
     position: relative;
-    padding-left: 1.5rem;
+    padding-left: 2rem;
 }
 
 .timeline::before {
     content: "";
     position: absolute;
-    left: 0.6rem;
+    left: 0.75rem;
     top: 0;
     bottom: 0;
     width: 2px;
@@ -56,18 +56,23 @@ footer {
 
 .timeline-item {
     position: relative;
+    display: flex;
+    align-items: flex-start;
     margin-bottom: 1rem;
 }
 
-.timeline-item::before {
-    content: "";
+.timeline-dot {
     position: absolute;
-    left: -0.1rem;
-    top: 0.3rem;
-    width: 0.6rem;
-    height: 0.6rem;
+    left: 0.55rem;
+    top: 0.4rem;
+    width: 0.75rem;
+    height: 0.75rem;
     background-color: #0d6efd;
     border-radius: 50%;
+}
+
+.timeline-content {
+    margin-left: 2rem;
 }
 
 /* Hide formset delete checkboxes */

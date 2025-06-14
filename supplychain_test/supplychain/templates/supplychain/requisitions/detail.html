@@ -53,14 +53,20 @@
   <h3>Audit Trail</h3>
   <div class="timeline">
     <div class="timeline-item">
-      <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
-      {{ requisition.requester.get_full_name }} created the requisition
+      <span class="timeline-dot"></span>
+      <div class="timeline-content card p-2">
+        <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
+        {{ requisition.requester.get_full_name }} created the requisition
+      </div>
     </div>
     {% for a in approvals %}
       <div class="timeline-item">
-        <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
-        {{ a.approver.get_full_name }} – {{ a.get_action_display }}
-        {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
+        <span class="timeline-dot"></span>
+        <div class="timeline-content card p-2">
+          <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
+          {{ a.approver.get_full_name }} – {{ a.get_action_display }}
+          {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
+        </div>
       </div>
     {% empty %}
       <p>No actions have been taken yet.</p>

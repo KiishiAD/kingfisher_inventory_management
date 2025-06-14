@@ -171,6 +171,8 @@ class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
                 qs = qs.filter(urgent=True)
             elif data.get('urgent') == 'no':
                 qs = qs.filter(urgent=False)
+            if data.get('status'):
+                qs = qs.filter(status=data['status'])
         return qs
 
     def get_context_data(self, **kwargs):

@@ -107,4 +107,9 @@ class RequisitionFilterForm(forms.Form):
         required=False,
         label=_("Urgent"),
     )
+    status = forms.ChoiceField(
+        choices=[("", "---------")] + Requisition.STATUS_CHOICES,
+        required=False,
+        label=_("Status"),
+    )
 

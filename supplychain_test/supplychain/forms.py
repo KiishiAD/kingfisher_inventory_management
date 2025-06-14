@@ -6,7 +6,7 @@ from .models import *
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['urgent', 'evidence', 'destination']
+        fields = ['urgent', 'evidence', 'destination', 'notes']
         # Exclude: 'requester', 'status' (default pending)
 
     def __init__(self, *args, **kwargs):

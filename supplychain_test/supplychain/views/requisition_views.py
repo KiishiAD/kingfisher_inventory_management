@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.views.generic import TemplateView, CreateView, ListView, DetailView, FormView
+from django.views.generic import TemplateView, CreateView, ListView, DetailView, FormView, UpdateView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.views import View
@@ -49,6 +49,50 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
 
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to submit requisitions.")
+        return super().handle_no_permission()
+
+
+class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    """Allow requester to update a queried requisition and resubmit."""
+    model = Requisition
+    form_class = RequisitionForm
+    template_name = 'supplychain/requisitions/update.html'
+    permission_required = 'supplychain.submit_requisition'
+    success_url = reverse_lazy('supplychain:requisition-list')
+
+    def get_queryset(self):
+        return Requisition.objects.filter(requester=self.request.user, status=Requisition.QUERIED)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["section"] = "requisitions"
+        if self.request.POST:
+            context['item_formset'] = RequisitionItemFormSet(self.request.POST, instance=self.object)
+        else:
+            context['item_formset'] = RequisitionItemFormSet(instance=self.object)
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        item_formset = context['item_formset']
+        if item_formset.is_valid():
+            self.object = form.save()
+            item_formset.instance = self.object
+            item_formset.save()
+            self.object.status = Requisition.PENDING
+            self.object.save(update_fields=['status', 'updated_at'])
+            messages.success(self.request, f"Requisition #{self.object.id} updated and resubmitted for approval.")
+            return redirect(self.success_url)
+        else:
+            return self.render_to_response(self.get_context_data(form=form))
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You do not have permission to update requisitions.")
         return super().handle_no_permission()
 
 

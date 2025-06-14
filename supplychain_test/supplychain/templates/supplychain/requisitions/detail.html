@@ -25,6 +25,9 @@
       <strong>Evidence:</strong>
       <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>
     {% endif %}
+    {% if requisition.notes %}
+      <strong>Notes:</strong> {{ requisition.notes|linebreaksbr }}<br>
+    {% endif %}
   </p>
 
   <h3>Items Requested</h3>

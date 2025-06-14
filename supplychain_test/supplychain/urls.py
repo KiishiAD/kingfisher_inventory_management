@@ -6,6 +6,7 @@ from .views.requisition_views import (
     RequisitionListView,
     RequisitionPendingListView,
     RequisitionDetailView,
+    RequisitionUpdateView,
 )
 from .views.purchaseorder_views import (
     PurchaseOrderListView,
@@ -39,6 +40,9 @@ urlpatterns = [
     path('requisitions/', RequisitionListView.as_view(), name='requisition-list'),
     # PROCUREMENT: List of pending requisitions
     path('requisitions/pending/', RequisitionPendingListView.as_view(), name='requisition-pending'),
+
+    # Update queried requisition
+    path('requisitions/<int:pk>/update/', RequisitionUpdateView.as_view(), name='requisition-update'),
 
     # DETAIL & APPROVAL: View a single requisition and show approval form
     path('requisitions/<int:pk>/', RequisitionDetailView.as_view(), name='requisition-detail'),

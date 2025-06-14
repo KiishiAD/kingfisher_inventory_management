@@ -109,6 +109,7 @@ class Requisition(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name='requisitions'
     )
+    notes = models.TextField(blank=True)
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
     urgent = models.BooleanField(default=False)
 

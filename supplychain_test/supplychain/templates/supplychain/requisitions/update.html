@@ -2,10 +2,10 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Create Requisition{% endblock %}
+{% block title %}Update Requisition{% endblock %}
 
 {% block content %}
-  <h1>Create New Requisition</h1>
+  <h1>Update Requisition</h1>
 
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
@@ -84,25 +84,25 @@
       </tr>
     </template>
 
-      <button type="submit" class="btn btn-primary">Submit Requisition</button>
-    </form>
+    <button type="submit" class="btn btn-primary">Update Requisition</button>
+  </form>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function(){
-      var addBtn = document.getElementById('add-item');
-      var formPrefix = '{{ item_formset.prefix }}';
-      var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-      if(addBtn){
-        addBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          var formCount = parseInt(totalForms.value);
-          if (formCount >= {{ item_formset.max_num }}) return;
-          var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
-          var tbody = document.querySelector('table tbody');
-          tbody.insertAdjacentHTML('beforeend', template);
-          totalForms.value = formCount + 1;
-        });
-      }
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var addBtn = document.getElementById('add-item');
+  var formPrefix = '{{ item_formset.prefix }}';
+  var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+  if(addBtn){
+    addBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      var formCount = parseInt(totalForms.value);
+      if(formCount >= {{ item_formset.max_num }}) return;
+      var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
+      var tbody = document.querySelector('table tbody');
+      tbody.insertAdjacentHTML('beforeend', template);
+      totalForms.value = formCount + 1;
     });
-  </script>
-  {% endblock %}
+  }
+});
+</script>
+{% endblock %}

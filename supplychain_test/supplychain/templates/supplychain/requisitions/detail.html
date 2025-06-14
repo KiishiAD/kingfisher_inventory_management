@@ -25,6 +25,9 @@
       <strong>Evidence:</strong>
       <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>
     {% endif %}
+    {% if requisition.notes %}
+      <strong>Notes:</strong> {{ requisition.notes|linebreaksbr }}<br>
+    {% endif %}
   </p>
 
   <h3>Items Requested</h3>
@@ -48,21 +51,27 @@
   </table>
 
   <h3>Audit Trail</h3>
-  {% if approvals %}
-    <ul class="list-group">
-      {% for a in approvals %}
-        <li class="list-group-item">
+  <div class="timeline">
+    <div class="timeline-item">
+      <span class="timeline-dot"></span>
+      <div class="timeline-content card p-2">
+        <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
+        {{ requisition.requester.get_full_name }} created the requisition
+      </div>
+    </div>
+    {% for a in approvals %}
+      <div class="timeline-item">
+        <span class="timeline-dot"></span>
+        <div class="timeline-content card p-2">
           <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
           {{ a.approver.get_full_name }} – {{ a.get_action_display }}
-          {% if a.notes %}
-            <br><em>Notes:</em> {{ a.notes }}
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>No actions have been taken yet.</p>
-  {% endif %}
+          {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <p>No actions have been taken yet.</p>
+    {% endfor %}
+  </div>
 
   {# Only show the approval form if the user can approve and status is PENDING #}
   {% if can_approve %}

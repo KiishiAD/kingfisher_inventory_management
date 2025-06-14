@@ -2,10 +2,10 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Create Requisition{% endblock %}
+{% block title %}Update Requisition{% endblock %}
 
 {% block content %}
-  <h1>Create New Requisition</h1>
+  <h1>Update Requisition</h1>
 
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
@@ -89,43 +89,43 @@
 
     <div class="d-flex gap-2 mb-3">
       <button id="add-item" class="btn btn-primary">Add Product</button>
-      <button type="submit" class="btn btn-primary ms-auto">Submit Requisition</button>
+      <button type="submit" class="btn btn-primary ms-auto">Update Requisition</button>
     </div>
   </form>
 
-  <script>
-    function attachDeleteHandlers() {
-      document.querySelectorAll('.remove-item').forEach(function(btn){
-        if (!btn.dataset.listener) {
-          btn.addEventListener('click', function(e){
-            e.preventDefault();
-            var row = btn.closest('tr');
-            var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-            if(del){ del.checked = true; }
-            row.classList.add('d-none');
-          });
-          btn.dataset.listener = true;
-        }
+<script>
+function attachDeleteHandlers(){
+  document.querySelectorAll('.remove-item').forEach(function(btn){
+    if(!btn.dataset.listener){
+      btn.addEventListener('click', function(e){
+        e.preventDefault();
+        var row = btn.closest('tr');
+        var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if(del){ del.checked = true; }
+        row.classList.add('d-none');
       });
+      btn.dataset.listener = true;
     }
+  });
+}
 
-    document.addEventListener('DOMContentLoaded', function(){
-      var addBtn = document.getElementById('add-item');
-      var formPrefix = '{{ item_formset.prefix }}';
-      var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+document.addEventListener('DOMContentLoaded', function(){
+  var addBtn = document.getElementById('add-item');
+  var formPrefix = '{{ item_formset.prefix }}';
+  var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+  attachDeleteHandlers();
+  if(addBtn){
+    addBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      var formCount = parseInt(totalForms.value);
+      if(formCount >= {{ item_formset.max_num }}) return;
+      var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
+      var tbody = document.querySelector('table tbody');
+      tbody.insertAdjacentHTML('beforeend', template);
+      totalForms.value = formCount + 1;
       attachDeleteHandlers();
-      if(addBtn){
-        addBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          var formCount = parseInt(totalForms.value);
-          if (formCount >= {{ item_formset.max_num }}) return;
-          var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
-          var tbody = document.querySelector('table tbody');
-          tbody.insertAdjacentHTML('beforeend', template);
-          totalForms.value = formCount + 1;
-          attachDeleteHandlers();
-        });
-      }
     });
-  </script>
-  {% endblock %}
+  }
+});
+</script>
+{% endblock %}

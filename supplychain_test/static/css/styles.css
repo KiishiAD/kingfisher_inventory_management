@@ -69,3 +69,8 @@ footer {
     background-color: #0d6efd;
     border-radius: 50%;
 }
+
+/* Hide formset delete checkboxes */
+input[name$='-DELETE'] {
+    display: none;
+}

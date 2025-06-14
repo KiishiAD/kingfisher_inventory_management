@@ -5,6 +5,7 @@ from .views.requisition_views import (
     RequisitionCreateView,
     RequisitionListView,
     RequisitionPendingListView,
+    RequisitionAllListView,
     RequisitionDetailView,
     RequisitionUpdateView,
 )
@@ -38,6 +39,8 @@ urlpatterns = [
 
     # REQUESTER: List all requisitions owned by the logged-in user
     path('requisitions/', RequisitionListView.as_view(), name='requisition-list'),
+    # MANAGEMENT: View all requisitions
+    path('requisitions/all/', RequisitionAllListView.as_view(), name='requisition-all'),
     # PROCUREMENT: List of pending requisitions
     path('requisitions/pending/', RequisitionPendingListView.as_view(), name='requisition-pending'),
 

@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
 from .models import *
 
 class RequisitionForm(forms.ModelForm):
@@ -77,3 +78,33 @@ class RequisitionApprovalForm(forms.Form):
         )
 
         return requisition
+
+
+User = get_user_model()
+
+
+class RequisitionFilterForm(forms.Form):
+    """Filters for the All Requisitions page."""
+
+    requester = forms.ModelChoiceField(
+        queryset=User.objects.all(), required=False, label=_("Requester")
+    )
+    start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("Start Date"),
+    )
+    end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("End Date"),
+    )
+    destination = forms.ModelChoiceField(
+        queryset=Destination.objects.all(), required=False, label=_("Destination")
+    )
+    urgent = forms.ChoiceField(
+        choices=[("", "---------"), ("yes", "Yes"), ("no", "No")],
+        required=False,
+        label=_("Urgent"),
+    )
+

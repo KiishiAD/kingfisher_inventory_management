@@ -23,7 +23,7 @@
         {% for req in pending_requisitions %}
           <tr>
             <td>{{ req.id }}</td>
-            <td>{{ req.requester.get_full_name }}</td>
+            <td>{{ req.requester.get_full_name|default:req.requester.username }}</td>
             <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
             <td>{{ req.get_destination_display }}</td>
             <td>

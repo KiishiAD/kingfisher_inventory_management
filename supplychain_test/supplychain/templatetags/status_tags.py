@@ -4,10 +4,10 @@ from django.utils.html import format_html
 register = template.Library()
 
 STATUS_CLASSES = {
-    'PENDING': 'badge-warning',
-    'APPROVED': 'badge-success',
-    'DENIED': 'badge-danger',
-    'QUERIED': 'badge-info',
+    'PENDING': 'text-bg-warning',
+    'APPROVED': 'text-bg-success',
+    'DENIED': 'text-bg-danger',
+    'QUERIED': 'text-bg-info',
 }
 
 STATUS_LABELS = {
@@ -19,6 +19,6 @@ STATUS_LABELS = {
 
 @register.filter
 def status_badge(status):
-    css_class = STATUS_CLASSES.get(status, 'badge-secondary')
+    css_class = STATUS_CLASSES.get(status, 'text-bg-secondary')
     label = STATUS_LABELS.get(status, status.title())
     return format_html('<span class="badge {}">{}</span>', css_class, label)

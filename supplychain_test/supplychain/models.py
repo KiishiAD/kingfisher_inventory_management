@@ -80,9 +80,10 @@ class Destination(models.Model):
 
 class Requisition(TimeStampedModel):
     class Meta:
-           permissions = [
+        permissions = [
             ("submit_requisition",   "Can submit and view requisitions"),
             ("approve_requisition",  "Can approve/deny/query requisitions"),
+            ("view_all_requisitions", "Can view all requisitions"),
         ]
            
 

@@ -94,6 +94,27 @@ class RequisitionPendingListView(LoginRequiredMixin, PermissionRequiredMixin, Li
         return super().handle_no_permission()
 
 
+class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """List all requisitions regardless of requester."""
+    model = Requisition
+    template_name = 'supplychain/requisitions/all.html'
+    context_object_name = 'requisitions'
+    permission_required = 'supplychain.view_all_requisitions'
+    paginate_by = 20
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["section"] = "requisitions"
+        return context
+
+    def get_queryset(self):
+        return Requisition.objects.all().order_by('-created_at')
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You do not have permission to view all requisitions.")
+        return super().handle_no_permission()
+
+
 class RequisitionDetailView(LoginRequiredMixin, View):
     """Show requisition details and optionally approval form."""
 

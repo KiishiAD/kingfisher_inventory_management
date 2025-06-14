@@ -7,6 +7,32 @@
 {% block content %}
   <h1>All Requisitions</h1>
 
+  <form method="get" class="row g-3 align-items-end mb-3">
+    <div class="col-md-2">
+      {{ filter_form.requester.label_tag }}
+      {{ filter_form.requester }}
+    </div>
+    <div class="col-md-2">
+      {{ filter_form.start_date.label_tag }}
+      {{ filter_form.start_date }}
+    </div>
+    <div class="col-md-2">
+      {{ filter_form.end_date.label_tag }}
+      {{ filter_form.end_date }}
+    </div>
+    <div class="col-md-2">
+      {{ filter_form.destination.label_tag }}
+      {{ filter_form.destination }}
+    </div>
+    <div class="col-md-2">
+      {{ filter_form.urgent.label_tag }}
+      {{ filter_form.urgent }}
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
   {% if requisitions %}
     <table class="table table-hover">
       <thead>

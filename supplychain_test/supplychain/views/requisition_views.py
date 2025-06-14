@@ -95,20 +95,39 @@ class RequisitionPendingListView(LoginRequiredMixin, PermissionRequiredMixin, Li
 
 
 class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
-    """List all requisitions regardless of requester."""
+    """List all requisitions regardless of requester with optional filtering."""
+
     model = Requisition
     template_name = 'supplychain/requisitions/all.html'
     context_object_name = 'requisitions'
     permission_required = 'supplychain.view_all_requisitions'
     paginate_by = 20
+    form_class = RequisitionFilterForm
+
+    def get_queryset(self):
+        qs = Requisition.objects.all().order_by('-created_at')
+        self.filter_form = self.form_class(self.request.GET or None)
+        if self.filter_form.is_valid():
+            data = self.filter_form.cleaned_data
+            if data.get('requester'):
+                qs = qs.filter(requester=data['requester'])
+            if data.get('start_date'):
+                qs = qs.filter(created_at__date__gte=data['start_date'])
+            if data.get('end_date'):
+                qs = qs.filter(created_at__date__lte=data['end_date'])
+            if data.get('destination'):
+                qs = qs.filter(destination=data['destination'])
+            if data.get('urgent') == 'yes':
+                qs = qs.filter(urgent=True)
+            elif data.get('urgent') == 'no':
+                qs = qs.filter(urgent=False)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
+        context["filter_form"] = getattr(self, 'filter_form', self.form_class())
         return context
-
-    def get_queryset(self):
-        return Requisition.objects.all().order_by('-created_at')
 
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to view all requisitions.")

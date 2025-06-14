@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+db.sqlite3
+.DS_Store
+# Virtual environment
+venv/
+.env
+
+# Byte-compiled / optimizations
+*.pyo
+*.pyd
+# Django stuff:
+*.log
+
+# Unit test / coverage
+coverage/
+*.cover
+.cache
+.pytest_cache/
+
+# Misc
+*.swp

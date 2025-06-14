@@ -1,5 +1,25 @@
 from django.urls import path, include
-from .views import *
+
+from .views.dashboard_views import DashboardView
+from .views.requisition_views import (
+    RequisitionCreateView,
+    RequisitionListView,
+    RequisitionPendingListView,
+    RequisitionDetailView,
+)
+from .views.purchaseorder_views import (
+    PurchaseOrderListView,
+    PurchaseOrderCreateView,
+    PurchaseOrderPendingListView,
+)
+from .views.receiving_views import ReceivingListView, ReceivingRecordView
+from .views.issuance_views import (
+    IssuanceListView,
+    IssuanceCreateView,
+    IssuancePendingListView,
+)
+from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
+from .views.payments_views import PaymentsListView
 
 app_name = "supplychain"
 

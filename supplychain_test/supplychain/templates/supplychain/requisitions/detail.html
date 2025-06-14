@@ -51,21 +51,21 @@
   </table>
 
   <h3>Audit Trail</h3>
-  {% if approvals %}
-    <ul class="list-group">
-      {% for a in approvals %}
-        <li class="list-group-item">
-          <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
-          {{ a.approver.get_full_name }} – {{ a.get_action_display }}
-          {% if a.notes %}
-            <br><em>Notes:</em> {{ a.notes }}
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>No actions have been taken yet.</p>
-  {% endif %}
+  <div class="timeline">
+    <div class="timeline-item">
+      <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
+      {{ requisition.requester.get_full_name }} created the requisition
+    </div>
+    {% for a in approvals %}
+      <div class="timeline-item">
+        <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
+        {{ a.approver.get_full_name }} – {{ a.get_action_display }}
+        {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
+      </div>
+    {% empty %}
+      <p>No actions have been taken yet.</p>
+    {% endfor %}
+  </div>
 
   {# Only show the approval form if the user can approve and status is PENDING #}
   {% if can_approve %}

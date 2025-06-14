@@ -7,6 +7,9 @@ class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
         fields = ['urgent', 'evidence', 'destination', 'notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+        }
         # Exclude: 'requester', 'status' (default pending)
 
     def __init__(self, *args, **kwargs):

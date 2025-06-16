@@ -13,3 +13,4 @@ ENV/
 .vscode/
 *.egg-info/
 
+app_env/

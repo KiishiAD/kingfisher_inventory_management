@@ -22,7 +22,7 @@ services:
           property: connectionString
 
 databases:                              
-  - name: supplychain-db                
+  - name: kingfisher-supplychain-postgres                
     plan: free
     databaseName: supplychain            # initial DB name inside Postgres
     ipAllowList: []                      # empty → accessible only from Render

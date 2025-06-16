@@ -53,7 +53,6 @@ STATICFILES_STORAGE = (
 
 INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",         # must be before django.contrib.staticfiles
-    "django.contrib.staticfiles",
     "supplychain",
     'django.contrib.admin',
     'django.contrib.auth',

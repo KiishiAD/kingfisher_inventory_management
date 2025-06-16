@@ -6,6 +6,9 @@ services:
     env: python
     plan: free
     branch: main
+
+    rootDirectory: supplychain_test
+
     buildCommand: |
       pip install -r requirements.txt
       python supplychain_test/manage.py collectstatic --noinput
@@ -13,7 +16,7 @@ services:
     startCommand: gunicorn supplychain_test.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: supplychain_test.settings
+        value: supplychain_test.supplychain_test.settings
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL                # ⬅ inject Postgres URL into Django

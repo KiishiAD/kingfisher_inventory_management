@@ -1,0 +1,19 @@
+services:
+- type: web
+  name: supplychain-web
+  env: python
+  plan: free
+  branch: main
+  buildCommand: |
+    pip install -r requirements.txt
+    python manage.py collectstatic --noinput
+    python manage.py migrate --noinput
+  startCommand: gunicorn supplychain_test.wsgi:application
+  envVars:
+    - key: DJANGO_SETTINGS_MODULE
+      value: supplychain_test.settings
+    - key: SECRET_KEY
+      generateValue: true         # Render will create a random value
+- type: postgres
+  name: supplychain-db
+  plan: free

@@ -7,25 +7,28 @@ services:
     plan: free
     branch: main
 
-    rootDirectory: supplychain_test
+    rootDirectory: supplychain_test      # keep this
 
     buildCommand: |
-      pip install -r requirements.txt
-      python supplychain_test/manage.py collectstatic --noinput
-      python supplychain_test/manage.py migrate --noinput
+      pip install -r ../requirements.txt   # ↑ one level up
+      python manage.py collectstatic --noinput
+      python manage.py migrate --noinput
+
+    # inner package still called "supplychain_test"
     startCommand: gunicorn supplychain_test.wsgi:application
+
     envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: supplychain_test.supplychain_test.settings
+      - key: DJANGO_SETTINGS_MODULE       # match what manage.py expects
+        value: supplychain_test.settings
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL                # ⬅ inject Postgres URL into Django
+      - key: DATABASE_URL
         fromDatabase:
-          name: kingfisher-supplychain-postgres           # must match the database’s name
+          name: kingfisher-supplychain-postgres
           property: connectionString
 
-databases:                              
-  - name: kingfisher-supplychain-postgres                
+databases:
+  - name: kingfisher-supplychain-postgres
     plan: free
-    databaseName: supplychain            # initial DB name inside Postgres
-    ipAllowList: []                      # empty → accessible only from Render
+    databaseName: supplychain
+    ipAllowList: []

@@ -57,6 +57,9 @@
           <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
           {{ a.approver.get_full_name }} – {{ a.action|status_badge }}
           {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
+          {% if a.snapshot %}
+            <pre class="mb-0">{{ a.snapshot|pprint }}</pre>
+          {% endif %}
         </div>
       </div>
     {% empty %}

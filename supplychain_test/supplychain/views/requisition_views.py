@@ -86,11 +86,13 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
             item_formset.save()
             self.object.status = Requisition.PENDING
             self.object.save(update_fields=['status', 'updated_at'])
+            from ..utils import capture_requisition_snapshot
             RequisitionApproval.objects.create(
                 requisition=self.object,
                 approver=self.request.user,
                 action=Requisition.PENDING,
-                notes='Requisition updated'
+                notes='Requisition updated',
+                snapshot=capture_requisition_snapshot(self.object)
             )
             messages.success(self.request, f"Requisition #{self.object.id} updated and resubmitted for approval.")
             return redirect(self.success_url)

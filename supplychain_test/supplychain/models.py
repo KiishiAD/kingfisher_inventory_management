@@ -154,6 +154,7 @@ class RequisitionApproval(models.Model):
         choices=Requisition.STATUS_CHOICES
     )
     notes = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

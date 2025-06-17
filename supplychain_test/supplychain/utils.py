@@ -53,3 +53,17 @@ def generate_issuance_for_requisition(requisition, created_by):
             quantity=item.quantity,
         )
     return iss
+
+
+def capture_requisition_snapshot(requisition):
+    """Return a dict snapshot of a requisition including line items."""
+    return {
+        "status": requisition.status,
+        "destination": requisition.get_destination_display(),
+        "urgent": requisition.urgent,
+        "notes": requisition.notes,
+        "items": [
+            {"product": item.product.name, "quantity": str(item.quantity)}
+            for item in requisition.items.select_related("product").all()
+        ],
+    }

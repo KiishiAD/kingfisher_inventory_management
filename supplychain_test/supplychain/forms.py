@@ -70,11 +70,14 @@ class RequisitionApprovalForm(forms.Form):
         requisition.save(update_fields=['status', 'updated_at'])
 
         # 2. Create a RequisitionApproval audit record
+        from .utils import capture_requisition_snapshot
+
         RequisitionApproval.objects.create(
             requisition=requisition,
             approver=approver,
             action=action,
             notes=notes,
+            snapshot=capture_requisition_snapshot(requisition),
         )
 
         return requisition

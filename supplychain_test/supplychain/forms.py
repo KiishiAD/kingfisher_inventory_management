@@ -7,7 +7,7 @@ from .models import *
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['urgent', 'evidence', 'destination', 'notes']
+        fields = ['urgent', 'evidence', 'requisition_type', 'purchase_category', 'notes']
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
@@ -99,8 +99,13 @@ class RequisitionFilterForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}),
         label=_("End Date"),
     )
-    destination = forms.ModelChoiceField(
-        queryset=Destination.objects.all(), required=False, label=_("Destination")
+    requisition_type = forms.ModelChoiceField(
+        queryset=RequisitionType.objects.all(), required=False, label=_("Type")
+    )
+    purchase_category = forms.ChoiceField(
+        choices=[("", "---------")] + Requisition.PURCHASE_CATEGORIES,
+        required=False,
+        label=_("Purchase Category"),
     )
     urgent = forms.ChoiceField(
         choices=[("", "---------"), ("yes", "Yes"), ("no", "No")],

@@ -14,7 +14,7 @@
           <th>#</th>
           <th>Requester</th>
           <th>Created At</th>
-          <th>Destination</th>
+          <th>Type</th>
           <th>Urgent</th>
           <th>View / Approve</th>
         </tr>
@@ -25,7 +25,12 @@
             <td>{{ req.id }}</td>
             <td>{{ req.requester.get_full_name|default:req.requester.username }}</td>
             <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
-            <td>{{ req.get_destination_display }}</td>
+            <td>
+              {{ req.get_requisition_type_display }}
+              {% if req.purchase_category %}
+                - {{ req.get_purchase_category_display }}
+              {% endif %}
+            </td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

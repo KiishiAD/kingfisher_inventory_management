@@ -165,8 +165,10 @@ class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
                 qs = qs.filter(created_at__date__gte=data['start_date'])
             if data.get('end_date'):
                 qs = qs.filter(created_at__date__lte=data['end_date'])
-            if data.get('destination'):
-                qs = qs.filter(destination=data['destination'])
+            if data.get('requisition_type'):
+                qs = qs.filter(requisition_type=data['requisition_type'])
+            if data.get('purchase_category'):
+                qs = qs.filter(purchase_category=data['purchase_category'])
             if data.get('urgent') == 'yes':
                 qs = qs.filter(urgent=True)
             elif data.get('urgent') == 'no':
@@ -226,11 +228,11 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 with transaction.atomic():
                     form.save(requisition=requisition, approver=request.user)
                     if requisition.status == Requisition.APPROVED:
-                        if requisition.destination.name == Destination.SUPPLIER:
+                        if requisition.requisition_type.name == RequisitionType.PURCHASE:
                             generate_po_for_requisition(
                                 requisition, created_by=request.user
                             )
-                        elif requisition.destination.name == Destination.STORE:
+                        elif requisition.requisition_type.name == RequisitionType.STORE:
                             generate_issuance_for_requisition(
                                 requisition, created_by=request.user
                             )

@@ -19,9 +19,15 @@
     </div>
 
     <div class="form-group">
-      {{ form.destination.label_tag }} {{ form.destination }}
-      {% if form.destination.errors %}
-        <div class="text-danger">{{ form.destination.errors }}</div>
+      {{ form.requisition_type.label_tag }} {{ form.requisition_type }}
+      {% if form.requisition_type.errors %}
+        <div class="text-danger">{{ form.requisition_type.errors }}</div>
+      {% endif %}
+    </div>
+    <div class="form-group">
+      {{ form.purchase_category.label_tag }} {{ form.purchase_category }}
+      {% if form.purchase_category.errors %}
+        <div class="text-danger">{{ form.purchase_category.errors }}</div>
       {% endif %}
     </div>
 

@@ -18,7 +18,7 @@
           <th>#</th>
           <th>Created At</th>
           <th>Status</th>
-          <th>Destination</th>
+          <th>Type</th>
           <th>Urgent</th>
           <th>Actions</th>
         </tr>
@@ -31,7 +31,12 @@
             <td>
           {{ req.status|status_badge }}
             </td>
-            <td>{{ req.get_destination_display }}</td>
+            <td>
+              {{ req.get_requisition_type_display }}
+              {% if req.purchase_category %}
+                - {{ req.get_purchase_category_display }}
+              {% endif %}
+            </td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

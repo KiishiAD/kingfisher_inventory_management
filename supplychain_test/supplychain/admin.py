@@ -35,8 +35,16 @@ class ProductAdmin(admin.ModelAdmin):
 # Requisition & Approval
 @admin.register(Requisition)
 class RequisitionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'requester', 'status', 'destination', 'urgent', 'created_at')
-    list_filter = ('status', 'destination', 'urgent', 'created_at')
+    list_display = (
+        'id',
+        'requester',
+        'status',
+        'requisition_type',
+        'purchase_category',
+        'urgent',
+        'created_at',
+    )
+    list_filter = ('status', 'requisition_type', 'purchase_category', 'urgent', 'created_at')
 
 @admin.register(RequisitionItem)
 class RequisitionItemAdmin(admin.ModelAdmin):

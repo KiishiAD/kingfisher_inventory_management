@@ -11,7 +11,10 @@
     <strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}<br>
     <strong>Status:</strong> {{ requisition.status|status_badge }}<br>
     <strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}<br>
-    <strong>Destination:</strong> {{ requisition.get_destination_display }}<br>
+    <strong>Type:</strong> {{ requisition.get_requisition_type_display }}<br>
+    {% if requisition.purchase_category %}
+      <strong>Category:</strong> {{ requisition.get_purchase_category_display }}<br>
+    {% endif %}
     {% if requisition.evidence %}
       <strong>Evidence:</strong>
       <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>

@@ -21,8 +21,12 @@
       {{ filter_form.end_date }}
     </div>
     <div class="col-md-2">
-      {{ filter_form.destination.label_tag }}
-      {{ filter_form.destination }}
+      {{ filter_form.requisition_type.label_tag }}
+      {{ filter_form.requisition_type }}
+    </div>
+    <div class="col-md-2">
+      {{ filter_form.purchase_category.label_tag }}
+      {{ filter_form.purchase_category }}
     </div>
     <div class="col-md-2">
       {{ filter_form.urgent.label_tag }}
@@ -45,7 +49,7 @@
           <th>Requester</th>
           <th>Created At</th>
           <th>Status</th>
-          <th>Destination</th>
+          <th>Type</th>
           <th>Urgent</th>
           <th>Actions</th>
         </tr>
@@ -59,7 +63,12 @@
             <td>
           {{ req.status|status_badge }}
             </td>
-            <td>{{ req.get_destination_display }}</td>
+            <td>
+              {{ req.get_requisition_type_display }}
+              {% if req.purchase_category %}
+                - {{ req.get_purchase_category_display }}
+              {% endif %}
+            </td>
             <td>
               {% if req.urgent %}
                 <span class="text-danger"><strong>Yes</strong></span>

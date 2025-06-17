@@ -58,17 +58,18 @@ class Product(TimeStampedModel):
         return self.name
 
 
-class Destination(models.Model):
-    """Possible requisition destinations (Supplier vs Store)."""
+class RequisitionType(models.Model):
+    """Top level requisition classification."""
 
-    SUPPLIER = "SUPPLIER"
+    PURCHASE = "PURCHASE"
     STORE = "STORE"
-    DESTINATION_CHOICES = [
-        (SUPPLIER, "Supplier"),
-        (STORE, "Store"),
+
+    TYPE_CHOICES = [
+        (PURCHASE, "Purchase Requisition"),
+        (STORE, "Store Requisition"),
     ]
 
-    name = models.CharField(max_length=10, choices=DESTINATION_CHOICES, unique=True)
+    name = models.CharField(max_length=15, choices=TYPE_CHOICES, unique=True)
 
     def __str__(self):
         return self.get_name_display()
@@ -105,10 +106,24 @@ class Requisition(TimeStampedModel):
         related_name='requisitions'
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
-    destination = models.ForeignKey(
-        Destination,
+
+    PURCHASE_CONSUMABLE = 'CONSUMABLE'
+    PURCHASE_SERVICE = 'SERVICE'
+    PURCHASE_CATEGORIES = [
+        (PURCHASE_CONSUMABLE, 'Consumables'),
+        (PURCHASE_SERVICE, 'Services'),
+    ]
+
+    requisition_type = models.ForeignKey(
+        RequisitionType,
         on_delete=models.PROTECT,
-        related_name='requisitions'
+        related_name='requisitions',
+        null=True,
+    )
+    purchase_category = models.CharField(
+        max_length=12,
+        choices=PURCHASE_CATEGORIES,
+        blank=True,
     )
     notes = models.TextField(blank=True)
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
@@ -117,8 +132,8 @@ class Requisition(TimeStampedModel):
     def __str__(self):
         return f"Requisition #{self.id} by {self.requester}"
 
-    def get_destination_display(self):
-        return self.destination.get_name_display()
+    def get_requisition_type_display(self):
+        return self.requisition_type.get_name_display()
     
 
 class RequisitionItem(models.Model):

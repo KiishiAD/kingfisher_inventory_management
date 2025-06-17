@@ -31,6 +31,19 @@ class Category(TimeStampedModel):
         return self.name
 
 
+class SubCategory(TimeStampedModel):
+    """Logical grouping under a Category."""
+    name = models.CharField(max_length=50, unique=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="subcategories",
+    )
+
+    def __str__(self):
+        return f"{self.category.name} - {self.name}"
+
+
 class Supplier(TimeStampedModel):
     name = models.CharField(max_length=200)
     contact_email = models.EmailField(blank=True)
@@ -46,7 +59,13 @@ class Product(TimeStampedModel):
     description = models.TextField(blank=True)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)
     uom = models.ForeignKey(UnitOfMeasure, on_delete=models.PROTECT, related_name="products")
-    categories = models.ManyToManyField(Category, blank=True)
+    subcategory = models.ForeignKey(
+        SubCategory,
+        on_delete=models.PROTECT,
+        related_name="products",
+        null=True,
+        blank=True,
+    )
     vendors = models.ManyToManyField(Supplier, blank=True)
     assigned_users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,

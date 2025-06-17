@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import *
+from .models import Category, SubCategory, Product, Requisition, RequisitionItem, Destination, RequisitionApproval
 
 class RequisitionForm(forms.ModelForm):
     class Meta:
@@ -25,19 +25,27 @@ class RequisitionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class RequisitionItemForm(forms.ModelForm):
+    category = forms.ModelChoiceField(queryset=Category.objects.all(), required=False)
+    subcategory = forms.ModelChoiceField(queryset=SubCategory.objects.all(), required=False)
+
+    class Meta:
+        model = RequisitionItem
+        fields = ['category', 'subcategory', 'product', 'quantity']
     
 # We will allow up to 10 line items by default; you can adjust max_num as needed.
 RequisitionItemFormSet = inlineformset_factory(
     parent_model=Requisition,
     model=RequisitionItem,
+    form=RequisitionItemForm,
     fields=['product', 'quantity'],
     extra=1,
     can_delete=True,
     max_num=10,
 )
 
-
-from django.utils.translation import gettext_lazy as _
 
 class RequisitionApprovalForm(forms.Form):
     ACTION_CHOICES = [

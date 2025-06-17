@@ -45,6 +45,8 @@
     <table class="table">
       <thead>
         <tr>
+          <th>Category</th>
+          <th>Subcategory</th>
           <th>Product</th>
           <th>Quantity</th>
           <th></th>
@@ -54,6 +56,18 @@
         {% for form in item_formset %}
           <tr>
             {{ form.id }}
+            <td>
+              {{ form.category }}
+              {% if form.category.errors %}
+                <div class="text-danger">{{ form.category.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ form.subcategory }}
+              {% if form.subcategory.errors %}
+                <div class="text-danger">{{ form.subcategory.errors }}</div>
+              {% endif %}
+            </td>
             <td>
               {{ form.product }}
               {% if form.product.errors %}
@@ -78,6 +92,8 @@
     <template id="empty-form-template">
       <tr>
         {{ item_formset.empty_form.id }}
+        <td>{{ item_formset.empty_form.category }}</td>
+        <td>{{ item_formset.empty_form.subcategory }}</td>
         <td>{{ item_formset.empty_form.product }}</td>
         <td>{{ item_formset.empty_form.quantity }}</td>
         <td>
@@ -94,6 +110,47 @@
   </form>
 
   <script>
+    const categoryData = JSON.parse('{{ category_data|escapejs }}');
+
+    function initRow(row){
+      const catSelect = row.querySelector('select[name$="-category"]');
+      const subSelect = row.querySelector('select[name$="-subcategory"]');
+      const prodSelect = row.querySelector('select[name$="-product"]');
+
+      function populateSub(){
+        const catId = catSelect.value;
+        subSelect.innerHTML = '<option value="">---------</option>';
+        prodSelect.innerHTML = '<option value="">---------</option>';
+        if(categoryData[catId]){
+          const subs = categoryData[catId].subcategories;
+          Object.keys(subs).forEach(id => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = subs[id].name;
+            subSelect.appendChild(opt);
+          });
+        }
+      }
+
+      function populateProd(){
+        const catId = catSelect.value;
+        const subId = subSelect.value;
+        prodSelect.innerHTML = '<option value="">---------</option>';
+        if(categoryData[catId] && categoryData[catId].subcategories[subId]){
+          const prods = categoryData[catId].subcategories[subId].products;
+          prods.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            prodSelect.appendChild(opt);
+          });
+        }
+      }
+
+      catSelect.addEventListener('change', populateSub);
+      subSelect.addEventListener('change', populateProd);
+    }
+
     function attachDeleteHandlers() {
       document.querySelectorAll('.remove-item').forEach(function(btn){
         if (!btn.dataset.listener) {
@@ -114,6 +171,7 @@
       var formPrefix = '{{ item_formset.prefix }}';
       var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
       attachDeleteHandlers();
+      document.querySelectorAll('table tbody tr').forEach(initRow);
       if(addBtn){
         addBtn.addEventListener('click', function(e){
           e.preventDefault();
@@ -124,6 +182,8 @@
           tbody.insertAdjacentHTML('beforeend', template);
           totalForms.value = formCount + 1;
           attachDeleteHandlers();
+          var newRow = tbody.querySelector('tr:last-child');
+          initRow(newRow);
         });
       }
     });

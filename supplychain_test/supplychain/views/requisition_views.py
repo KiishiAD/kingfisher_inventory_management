@@ -5,9 +5,9 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.views import View
 from django.db import transaction
-from ..utils import *
-from ..models import *
-from ..forms import *
+from ..utils import generate_po_for_requisition, generate_issuance_for_requisition, get_category_hierarchy_json
+from ..models import Requisition, RequisitionApproval, Destination
+from ..forms import RequisitionForm, RequisitionItemFormSet, RequisitionApprovalForm, RequisitionFilterForm
 
 
 class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -30,6 +30,7 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
             context['item_formset'] = RequisitionItemFormSet(self.request.POST)
         else:
             context['item_formset'] = RequisitionItemFormSet()
+        context['category_data'] = get_category_hierarchy_json()
         return context
 
     def form_valid(self, form):
@@ -75,6 +76,7 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
             context['item_formset'] = RequisitionItemFormSet(self.request.POST, instance=self.object)
         else:
             context['item_formset'] = RequisitionItemFormSet(instance=self.object)
+        context['category_data'] = get_category_hierarchy_json()
         return context
 
     def form_valid(self, form):

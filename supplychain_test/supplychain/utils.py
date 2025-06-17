@@ -5,7 +5,30 @@ from .models import (
     PurchaseOrderItem,
     IssuanceRequest,
     IssuanceItem,
+    Category,
 )
+
+import json
+
+
+def get_category_hierarchy_json():
+    """Return categories, subcategories and products as nested JSON."""
+    data = {}
+    categories = Category.objects.prefetch_related('subcategories__products')
+    for cat in categories:
+        subs = {}
+        for sub in cat.subcategories.all():
+            subs[sub.id] = {
+                'name': sub.name,
+                'products': [
+                    {'id': p.id, 'name': p.name} for p in sub.products.all()
+                ],
+            }
+        data[cat.id] = {
+            'name': cat.name,
+            'subcategories': subs,
+        }
+    return json.dumps(data)
 
 def generate_po_for_requisition(requisition, created_by):
     """

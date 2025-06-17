@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    UnitOfMeasure, Category, Supplier, Product,
+    UnitOfMeasure, Category, SubCategory, Supplier, Product,
     Requisition, RequisitionItem, RequisitionApproval,
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderApproval,
     Receiving, ReceivingItem, InvoiceLineApproval,
@@ -20,6 +20,12 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
 
+@admin.register(SubCategory)
+class SubCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category')
+    list_filter = ('category',)
+    search_fields = ('name',)
+
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ('name', 'contact_email', 'phone_number')
@@ -27,10 +33,10 @@ class SupplierAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'unit_cost', 'uom')
-    list_filter = ('uom',)
+    list_display = ('name', 'unit_cost', 'uom', 'subcategory')
+    list_filter = ('uom', 'subcategory')
     search_fields = ('name',)
-    filter_horizontal = ('categories', 'vendors', 'assigned_users')
+    filter_horizontal = ('vendors', 'assigned_users')
 
 # Requisition & Approval
 @admin.register(Requisition)

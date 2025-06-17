@@ -14,7 +14,9 @@ python supplychain_test/manage.py migrate
 
 The SQLite database file is located at `supplychain_test/db.sqlite3`.
 
-3. Start the development server:
+3. Ensure the `DJANGO_ENV` variable is set to `development` (the default). Then
+   start the development server:
 ```bash
+export DJANGO_ENV=development  # optional, defaults to development
 python supplychain_test/manage.py runserver
 ```

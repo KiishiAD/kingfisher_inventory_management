@@ -20,6 +20,8 @@ services:
     envVars:
       - key: DJANGO_SETTINGS_MODULE       # match what manage.py expects
         value: supplychain_test.settings
+      - key: DJANGO_ENV
+        value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL

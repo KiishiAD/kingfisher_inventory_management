@@ -4,7 +4,8 @@ from pathlib import Path
 # Shared settings for all environments
 # Ref: https://docs.djangoproject.com/en/stable/topics/settings/
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Path to project root (contains manage.py)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",

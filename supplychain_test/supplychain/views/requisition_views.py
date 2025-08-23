@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.views import View
 from django.db import transaction
 from ..utils import *
-from ..models import *
+from ..models import Requisition, RequisitionApproval, Destination
 from ..forms import *
 
 

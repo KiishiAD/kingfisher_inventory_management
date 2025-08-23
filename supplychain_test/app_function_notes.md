@@ -16,7 +16,7 @@
 ---
 
 ### Purchase Order & Approval
-- **Mum** reviews the **PO lines**:
+- **manager** reviews the **PO lines**:
   - Chooses **Approve / Deny / Query**
 - Once Mum **signs off**:
   - PO is marked **Sent**

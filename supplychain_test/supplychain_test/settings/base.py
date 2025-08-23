@@ -71,3 +71,11 @@ from django.urls import reverse_lazy
 
 LOGIN_REDIRECT_URL = reverse_lazy("supplychain:dashboard")
 LOGOUT_REDIRECT_URL = reverse_lazy("login")
+
+
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://localhost:8000",
+    "https://127.0.0.1:8000",
+]

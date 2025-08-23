@@ -26,6 +26,13 @@
     </div>
 
     <div class="form-group">
+      {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
+      {% if form.Supplier_destination_sub_category.errors %}
+        <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
       {{ form.evidence.label_tag }} {{ form.evidence }}
       {% if form.evidence.errors %}
         <div class="text-danger">{{ form.evidence.errors }}</div>

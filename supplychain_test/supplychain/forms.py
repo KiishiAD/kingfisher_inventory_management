@@ -7,7 +7,7 @@ from .models import *
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['urgent', 'evidence', 'destination', 'notes']
+        fields = ['urgent', 'evidence', 'destination', 'notes', 'Supplier_destination_sub_category']
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }

@@ -6,7 +6,7 @@ from .models import (
     Receiving, ReceivingItem, InvoiceLineApproval,
     Payment,
     IssuanceRequest, IssuanceItem,
-    StockTransaction, LowStockAlert
+    StockTransaction, LowStockAlert, Supplier_destination_sub_category,Destination
 )
 
 # Master Data
@@ -23,6 +23,16 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ('name', 'contact_email', 'phone_number')
+    search_fields = ('name',)
+
+@admin.register(Supplier_destination_sub_category)
+class SupplierDestinationSubCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(Destination)
+class DestinationAdmin(admin.ModelAdmin):
+    list_display = ('name',)
     search_fields = ('name',)
 
 @admin.register(Product)

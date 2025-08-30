@@ -1,3 +1,17 @@
+"""Shared test helpers for supplychain model tests.
+
+This module contains factory helper functions (using model_bakery) that
+produce model instances with sensible defaults. Tests import these helpers
+to keep setup consistent and to ensure Decimal usage where string
+formatting is asserted.
+
+Helpers:
+- make_user, make_uom, make_category, make_supplier, make_product,
+  make_destination, make_requisition, make_po, make_po_item
+
+Use these to create objects in tests instead of repeating model_bakery calls.
+"""
+
 from decimal import Decimal
 import os
 import shutil

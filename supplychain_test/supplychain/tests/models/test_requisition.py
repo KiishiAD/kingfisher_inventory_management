@@ -1,3 +1,11 @@
+"""Requisition model tests.
+
+Covers Destination choices, Requisition defaults and string output,
+RequisitionItem cascade behavior, and RequisitionApproval validation.
+These tests ensure choice validation, protect/cascade delete semantics,
+and formatted string outputs used across the UI.
+"""
+
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from django.test import TestCase

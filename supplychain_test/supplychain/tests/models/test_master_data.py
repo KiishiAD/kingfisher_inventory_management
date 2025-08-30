@@ -1,3 +1,11 @@
+"""Tests for master data models: UnitOfMeasure, Category, Supplier, Product.
+
+These tests validate string representations, uniqueness constraints,
+many-to-many behavior, and foreign-key delete protection semantics.
+Use the helpers in ``.helpers`` to create model instances with sensible
+defaults (notably Decimal values for currency/quantities).
+"""
+
 from decimal import Decimal
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError

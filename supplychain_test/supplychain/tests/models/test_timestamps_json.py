@@ -1,3 +1,10 @@
+"""Tests for timestamp auto-fields and JSONField independence.
+
+Checks that `created_at` and `updated_at` auto-fields behave correctly on
+creation and update, and that JSON-like fields (e.g., `flagged_for`)
+are instance-local and not shared between model instances.
+"""
+
 import time
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile

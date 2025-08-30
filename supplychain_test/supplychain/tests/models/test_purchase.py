@@ -1,3 +1,10 @@
+"""Purchase order model tests.
+
+Validates PurchaseOrder and PurchaseOrderItem behavior: defaults and
+string formatting, delete-protection for suppliers/products, and
+validation of approval actions.
+"""
+
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.test import TestCase

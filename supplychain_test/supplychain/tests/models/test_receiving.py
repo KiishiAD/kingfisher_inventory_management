@@ -1,3 +1,12 @@
+"""Receiving and invoice-line tests.
+
+Tests ensure supplier invoice files are handled, Receiving/ReceivingItem
+string formatting is correct, deletion protections when receipts exist are
+enforced, and InvoiceLineApproval string variants reflect approval state.
+_MediaRootMixin provides a temporary MEDIA_ROOT so uploaded files do not
+pollute the real media directory.
+"""
+
 import os
 import shutil
 import tempfile

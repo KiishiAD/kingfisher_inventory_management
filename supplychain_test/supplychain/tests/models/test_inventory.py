@@ -1,3 +1,10 @@
+"""Inventory tests for StockTransaction and LowStockAlert.
+
+Verifies string formatting for transactions (Decimal-aware), deletion
+protections while transactions exist, and default/formatting behavior for
+low-stock alerts.
+"""
+
 from decimal import Decimal
 from django.db.models.deletion import ProtectedError
 from django.test import TestCase

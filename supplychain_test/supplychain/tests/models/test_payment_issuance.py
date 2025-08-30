@@ -1,3 +1,10 @@
+"""Payment and issuance model tests.
+
+Covers Payment defaults and uniqueness constraints, cascading behavior
+on PurchaseOrder deletion, and IssuanceRequest/IssuanceItem defaults and
+string formatting.
+"""
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase

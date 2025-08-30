@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import *
+from .models import Requisition, RequisitionItem, Destination, RequisitionApproval
 
 class RequisitionForm(forms.ModelForm):
     class Meta:

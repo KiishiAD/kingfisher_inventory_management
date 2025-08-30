@@ -39,6 +39,24 @@ class Supplier(TimeStampedModel):
 
     def __str__(self):
         return self.name
+    
+
+class Supplier_destination_sub_category(models.Model):
+    CONSUMABLES = "CONSUMABLES"
+    SERVICES = "SERVICES"
+    SUBCATEGORY_CHOICES = [
+        (CONSUMABLES, "CONSUMABLES"),
+        (SERVICES, "Services"),
+    ]
+    name = models.CharField(
+        max_length=20,
+        choices=SUBCATEGORY_CHOICES,
+        unique=True,
+    )
+
+    def __str__(self):
+        return self.get_name_display()
+
 
 
 class Product(TimeStampedModel):
@@ -103,6 +121,14 @@ class Requisition(TimeStampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='requisitions'
+    )
+
+    Supplier_destination_sub_category = models.ForeignKey(
+        Supplier_destination_sub_category,
+        on_delete=models.PROTECT,
+        related_name="requisitions",
+        verbose_name="Supplier Sub-Category",
+        null=True,
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     destination = models.ForeignKey(

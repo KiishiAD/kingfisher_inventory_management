@@ -240,10 +240,10 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                             generate_po_for_requisition(
                                 requisition, created_by=request.user
                             )
-                        elif requisition.destination.name == Destination.STORE:
-                            generate_issuance_for_requisition(
-                                requisition, created_by=request.user
-                            )
+                        # elif requisition.destination.name == Destination.STORE:
+                        #     generate_issuance_for_requisition(
+                        #         requisition, created_by=request.user
+                        #     )
                 messages.success(
                     request,
                     f"Requisition #{requisition.id} marked {requisition.status.lower()}.",

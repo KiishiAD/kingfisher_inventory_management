@@ -26,6 +26,13 @@
     </div>
 
     <div class="form-group">
+      {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
+      {% if form.Supplier_destination_sub_category.errors %}
+        <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
       {{ form.evidence.label_tag }} {{ form.evidence }}
       {% if form.evidence.errors %}
         <div class="text-danger">{{ form.evidence.errors }}</div>
@@ -42,6 +49,8 @@
 
     <h3>Line Items</h3>
     {{ item_formset.management_form }}
+    {{ item_formset.non_form_errors }}
+
     <table class="table">
       <thead>
         <tr>
@@ -88,7 +97,7 @@
     </template>
 
     <div class="d-flex gap-2 mb-3">
-      <button id="add-item" class="btn btn-primary">Add Product</button>
+    <button id="add-item" class="btn btn-primary" type="button">Add Product</button>
       <button type="submit" class="btn btn-primary ms-auto">Update Requisition</button>
     </div>
   </form>
@@ -104,7 +113,7 @@ function attachDeleteHandlers(){
         if(del){ del.checked = true; }
         row.classList.add('d-none');
       });
-      btn.dataset.listener = true;
+      btn.dataset.listener = "1";
     }
   });
 }
@@ -113,19 +122,22 @@ document.addEventListener('DOMContentLoaded', function(){
   var addBtn = document.getElementById('add-item');
   var formPrefix = '{{ item_formset.prefix }}';
   var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+  var maxNum = {{ item_formset.max_num|default_if_none:"9999" }};
+
   attachDeleteHandlers();
+
   if(addBtn){
     addBtn.addEventListener('click', function(e){
       e.preventDefault();
-      var formCount = parseInt(totalForms.value);
-      if(formCount >= {{ item_formset.max_num }}) return;
-      var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
-      var tbody = document.querySelector('table tbody');
-      tbody.insertAdjacentHTML('beforeend', template);
-      totalForms.value = formCount + 1;
+      var count = parseInt(totalForms.value);
+      if(count >= maxNum) return;
+      var tmpl = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, count);
+      document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
+      totalForms.value = count + 1;
       attachDeleteHandlers();
     });
   }
 });
 </script>
+
 {% endblock %}

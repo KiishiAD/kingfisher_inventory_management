@@ -47,7 +47,7 @@
       <span class="timeline-dot"></span>
       <div class="timeline-content card p-2">
         <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
-        {{ requisition.requester.get_full_name }} created the requisition
+        {{ requisition.requester.username }} created the requisition
       </div>
     </div>
     {% for a in approvals %}
@@ -55,7 +55,7 @@
         <span class="timeline-dot"></span>
         <div class="timeline-content card p-2">
           <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
-          {{ a.approver.get_full_name }} – {{ a.action|status_badge }}
+          {{ a.approver.username }} queried – {{ a.action|status_badge }}
           {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
         </div>
       </div>

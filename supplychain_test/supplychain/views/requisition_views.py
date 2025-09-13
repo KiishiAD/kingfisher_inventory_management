@@ -3,11 +3,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.views.generic import TemplateView, CreateView, ListView, DetailView, FormView, UpdateView
 from django.urls import reverse_lazy
 from django.contrib import messages
+import logging
 from django.views import View
 from django.db import transaction
 from ..utils import *
 from ..models import Requisition, RequisitionApproval, Destination
 from ..forms import *
+
+logger = logging.getLogger(__name__)
 
 
 class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -76,6 +79,13 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         else:
             context['item_formset'] = RequisitionItemFormSet(instance=self.object)
         return context
+
+    def post(self, request, *args, **kwargs):
+        # ensure self.object is set (helpful for logging) and log POST for debugging
+        self.object = self.get_object()
+        logger.debug("RequisitionUpdateView POST keys: %s", list(request.POST.keys()))
+        logger.debug("RequisitionUpdateView FILES keys: %s", list(request.FILES.keys()))
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         context = self.get_context_data()

@@ -45,7 +45,7 @@ class Supplier_destination_sub_category(models.Model):
     SERVICES = "SERVICES"
     SUBCATEGORY_CHOICES = [
         (CONSUMABLES, "CONSUMABLES"),
-        (SERVICES, "Services"),
+        (SERVICES, "SERVICES"),
     ]
     name = models.CharField(
         max_length=20,

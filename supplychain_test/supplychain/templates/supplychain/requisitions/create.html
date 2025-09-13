@@ -54,6 +54,7 @@
         <tr>
           <th>Product</th>
           <th>Quantity</th>
+          <th>Supplier</th>
           <th></th>
         </tr>
       </thead>
@@ -74,6 +75,11 @@
               {% endif %}
             </td>
             <td>
+              {{ form.supplier }}
+              {% if form.supplier.errors %}
+                <div class="text-danger">{{ form.supplier.errors }}</div>
+              {% endif %}
+            <td>
               <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
               {{ form.DELETE }}
             </td>
@@ -87,6 +93,7 @@
         {{ item_formset.empty_form.id }}
         <td>{{ item_formset.empty_form.product }}</td>
         <td>{{ item_formset.empty_form.quantity }}</td>
+        <td>{{ item_formset.empty_form.supplier }}</td>
         <td>
           <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
           {{ item_formset.empty_form.DELETE }}

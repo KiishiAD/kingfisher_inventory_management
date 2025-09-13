@@ -6,9 +6,9 @@ from django.contrib import messages
 import logging
 from django.views import View
 from django.db import transaction
-from ..utils import *
 from ..models import Requisition, RequisitionApproval, Destination
-from ..forms import *
+from ..forms import RequisitionForm, RequisitionItemFormSet, RequisitionApprovalForm, RequisitionFilterForm
+from ..utils import generate_po_for_requisition
 
 logger = logging.getLogger(__name__)
 
@@ -261,3 +261,4 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 'section': 'requisitions',
             }
             return render(request, 'supplychain/requisitions/detail.html', context)
+        

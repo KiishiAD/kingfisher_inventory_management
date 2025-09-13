@@ -55,7 +55,7 @@
         <span class="timeline-dot"></span>
         <div class="timeline-content card p-2">
           <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
-          {{ a.approver.username }} queried – {{ a.action|status_badge }}
+          {{ a.approver.username }} actioned – {{ a.action|status_badge }}
           {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
         </div>
       </div>

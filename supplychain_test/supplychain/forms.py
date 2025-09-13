@@ -30,7 +30,7 @@ class RequisitionForm(forms.ModelForm):
 RequisitionItemFormSet = inlineformset_factory(
     parent_model=Requisition,
     model=RequisitionItem,
-    fields=['product', 'quantity'],
+    fields=['product', 'quantity', 'supplier'],
     extra=1,
     can_delete=True,
     max_num=10,

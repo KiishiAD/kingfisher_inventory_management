@@ -13,6 +13,7 @@ from .views.purchaseorder_views import (
     PurchaseOrderListView,
     PurchaseOrderCreateView,
     PurchaseOrderPendingListView,
+    PurchaseOrderDetailView,
 )
 from .views.receiving_views import ReceivingListView, ReceivingRecordView
 from .views.issuance_views import (
@@ -33,6 +34,7 @@ urlpatterns = [
     path('purchase-orders/', PurchaseOrderListView.as_view(), name='po-list'),
     path('purchase-orders/create/', PurchaseOrderCreateView.as_view(), name='po-create'),
     path('purchase-orders/pending/', PurchaseOrderPendingListView.as_view(), name='po-pending'),
+    path('purchase-orders/<int:pk>/', PurchaseOrderDetailView.as_view(), name='po-detail'),
 
     # REQUESTER: Create a new requisition
     path('requisitions/create/', RequisitionCreateView.as_view(), name='requisition-create'),

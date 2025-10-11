@@ -12,15 +12,13 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 # import actual models from master_data
-from supplychain.models.master_data import (
+from models.helpers import (
     UnitOfMeasure,
     Category,
     Supplier,
-    Product,
+    Product, 
     Profile,
-)
-
-User = get_user_model()
+    User,)
 
 
 class UnitOfMeasureModelTests(TestCase):

@@ -1,0 +1,47 @@
+
+{% extends "base.html" %}
+{% block title %}Purchase Order {{ purchase_order.id }}{% endblock %}
+
+{% block content %}
+  <h1>Purchase Order #{{ purchase_order.id }}</h1>
+
+  <p><strong>Requisition:</strong> {% if purchase_order.requisition %}{{ purchase_order.requisition.id }}{% else %}—{% endif %}</p>
+  <p><strong>Supplier:</strong> {{ purchase_order.supplier.name }}</p>
+  <p><strong>Status:</strong> {{ purchase_order.status }}</p>
+  <p><strong>Created by:</strong> {{ purchase_order.created_by.username }}</p>
+  <p><strong>Created at:</strong> {{ purchase_order.created_at|date:"Y-m-d H:i" }}</p>
+  <p><strong>Sent at:</strong> {% if purchase_order.sent_at %}{{ purchase_order.sent_at|date:"Y-m-d H:i" }}{% else %}Not sent{% endif %}</p>
+
+  <h2>Items</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Unit cost</th>
+        <th>Line total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ item.product.name }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.unit_cost }}</td>
+          <td>{{ item.quantity|floatformat:2|floatformat }}{% comment %} simple display; adjust formatting if needed {% endcomment %} {% if item.unit_cost %} = {{ item.quantity|floatformat:2 }} × {{ item.unit_cost }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Approvals</h2>
+  <ul>
+    {% for a in approvals %}
+      <li>{{ a.timestamp|date:"Y-m-d H:i" }} — {{ a.get_action_display }} by {{ a.approver.username }}</li>
+    {% empty %}
+      <li>No approvals yet.</li>
+    {% endfor %}
+  </ul>
+
+  <p><a href="{% url 'supplychain:po-list' %}">Back to list</a></p>
+{% endblock %}

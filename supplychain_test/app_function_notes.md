@@ -18,7 +18,7 @@
 ### Purchase Order & Approval
 - **manager** reviews the **PO lines**:
   - Chooses **Approve / Deny / Query**
-- Once Mum **signs off**:
+- Once  **signs off**:
   - PO is marked **Sent**
   - System **emails** the Purchase Order to the **Supplier**
 

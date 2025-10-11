@@ -47,6 +47,7 @@ from supplychain.models import (
     IssuanceItem,
     StockTransaction,
     LowStockAlert,
+    Profile,
 )
 
 

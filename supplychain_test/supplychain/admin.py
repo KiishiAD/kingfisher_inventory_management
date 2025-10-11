@@ -6,7 +6,7 @@ from .models import (
     Receiving, ReceivingItem, InvoiceLineApproval,
     Payment,
     IssuanceRequest, IssuanceItem,
-    StockTransaction, LowStockAlert, Supplier_destination_sub_category,Destination
+    StockTransaction, LowStockAlert, Supplier_destination_sub_category,Destination, Profile
 )
 
 # Master Data
@@ -116,3 +116,8 @@ class StockTransactionAdmin(admin.ModelAdmin):
 class LowStockAlertAdmin(admin.ModelAdmin):
     list_display = ('product', 'threshold', 'triggered_at', 'acknowledged')
     list_filter = ('acknowledged',)
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone_number')
+    search_fields = ('user__username', 'phone_number')

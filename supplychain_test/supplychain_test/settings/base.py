@@ -56,7 +56,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Africa/Lagos"
 USE_I18N = True
 USE_TZ = True
 
@@ -79,3 +79,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost:8000",
     "https://127.0.0.1:8000",
 ]
+
+# settings.py
+TEXTBELT_API_KEY = os.getenv("TEXTBELT_API_KEY", "textbelt")  # 'textbelt' works for free test
+TEXTBELT_ENDPOINT = "https://textbelt.com/text"
+

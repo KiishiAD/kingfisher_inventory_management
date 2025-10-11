@@ -248,6 +248,17 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                     request,
                     f"Requisition #{requisition.id} marked {requisition.status.lower()}.",
                 )
+                def _notify():
+                    try:
+                        if requisition.status == Requisition.APPROVED:
+                            from ..services.notifications import notify_requisition_approved_to_all
+                            notify_requisition_approved_to_all(requisition)
+                        elif requisition.status == Requisition.DENIED:
+                            from ..services.notifications import notify_requisition_denied_to_all
+                            notify_requisition_denied_to_all(requisition)
+                    except Exception as exc:
+                        logger.exception("Error sending notification for requisition #%s", requisition.id)
+                transaction.on_commit(_notify)
             except ValueError as exc:
                 messages.error(request, str(exc))
             return redirect('supplychain:requisition-detail', pk=pk)

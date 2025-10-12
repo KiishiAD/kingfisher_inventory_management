@@ -2,7 +2,7 @@
 import os
 import logging
 from typing import List, Dict, Any
-from ..models import Profile
+from ...models import Profile
 import requests
 from django.conf import settings
 from django.utils import timezone

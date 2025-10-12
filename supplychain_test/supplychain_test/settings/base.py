@@ -84,3 +84,12 @@ CSRF_TRUSTED_ORIGINS = [
 TEXTBELT_API_KEY = os.getenv("TEXTBELT_API_KEY", "textbelt")  # 'textbelt' works for free test
 TEXTBELT_ENDPOINT = "https://textbelt.com/text"
 
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.mailersend.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = 'MS_8UZSgW@test-yxj6lj9okz74do2r.mlsender.net'
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

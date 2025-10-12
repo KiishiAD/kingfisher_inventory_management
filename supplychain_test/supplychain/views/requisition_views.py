@@ -251,10 +251,10 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 def _notify():
                     try:
                         if requisition.status == Requisition.APPROVED:
-                            from ..services.notifications import notify_requisition_approved_to_all
+                            from ..services.notifications.email_notifications import notify_requisition_approved_to_all
                             notify_requisition_approved_to_all(requisition)
                         elif requisition.status == Requisition.DENIED:
-                            from ..services.notifications import notify_requisition_denied_to_all
+                            from ..services.notifications.email_notifications import notify_requisition_denied_to_all
                             notify_requisition_denied_to_all(requisition)
                     except Exception as exc:
                         logger.exception("Error sending notification for requisition #%s", requisition.id)

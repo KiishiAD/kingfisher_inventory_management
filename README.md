@@ -41,7 +41,6 @@ It provides a structured workflow that streamlines the movement of goods and app
 
 ## System Architecture
 
-The system follows a modular design, separating procurement, inventory, and finance workflows into distinct Django apps.  
+The system follows a modular design, separating procurement, inventory, and finance workflows.  
 Environment-specific settings, credentials, and deployment scripts are not included in this repository.  
 
-The following files and directories are excluded from version control using `.gitignore`:

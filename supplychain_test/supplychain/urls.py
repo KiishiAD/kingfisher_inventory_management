@@ -56,11 +56,6 @@ urlpatterns = [
     path('receiving/', ReceivingListView.as_view(), name='receiving-list'),
     path('receiving/record/', ReceivingRecordView.as_view(), name='receiving-record'),
 
-    # Issuance
-    path('issuance/', IssuanceListView.as_view(), name='issuance-list'),
-    path('issuance/create/', IssuanceCreateView.as_view(), name='issuance-create'),
-    path('issuance/pending/', IssuancePendingListView.as_view(), name='issuance-pending'),
-
     # Inventory
     path('inventory/levels/', InventoryLevelsView.as_view(), name='inventory-levels'),
     path('inventory/alerts/', InventoryAlertsView.as_view(), name='inventory-alerts'),

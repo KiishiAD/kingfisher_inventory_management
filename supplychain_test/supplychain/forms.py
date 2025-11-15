@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import Requisition, RequisitionItem, Destination, RequisitionApproval
+from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem
 
 class RequisitionForm(forms.ModelForm):
     class Meta:
@@ -72,8 +72,7 @@ class RequisitionApprovalForm(forms.Form):
 
     def save(self, requisition, approver):
         """
-        Apply the chosen action to the requisition, record an audit trail,
-        send notifications, and return the updated Requisition instance.
+        Apply the chosen action to the requisition, record an audit trail, and return the updated Requisition instance.
         """
         action = self.cleaned_data['action']
         notes = self.cleaned_data.get('notes', '').strip()
@@ -126,3 +125,50 @@ class RequisitionFilterForm(forms.Form):
         label=_("Status"),
     )
 
+
+
+
+class PurchaseOrderApprovalForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrderApproval
+        fields = ["action", "notes"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Lock choices to COO-level actions only
+        self.fields["action"].choices = [
+            (PurchaseOrder.APPROVED, "Approve"),
+            (PurchaseOrder.DENIED, "Deny"),
+            (PurchaseOrder.QUERIED, "Query"),
+        ]
+
+    def save(self, *, purchase_order, approver, commit=True):
+        self.instance.purchase_order = purchase_order
+        self.instance.approver = approver
+        return super().save(commit=commit)
+
+class PurchaseOrderItemForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ['product', 'quantity', 'unit_cost']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make unit_cost read-only in the UI; still submitted as a normal field.
+        self.fields['unit_cost'].widget.attrs['readonly'] = 'readonly'
+
+
+
+class PurchaseOrderForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrder
+        fields = ['requisition', 'supplier']  # 'requisition' optional
+
+PurchaseOrderItemFormSet = inlineformset_factory(
+    PurchaseOrder,
+    PurchaseOrderItem,
+    form=PurchaseOrderItemForm,
+    fields=['product', 'quantity', 'unit_cost'],
+    extra=1,
+    can_delete=True,
+)

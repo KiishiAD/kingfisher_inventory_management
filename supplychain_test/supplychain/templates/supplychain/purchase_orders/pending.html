@@ -1,33 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Purchase Orders{% endblock %}
-
+{% block title %}Pending Purchase Orders{% endblock %}
 {% block content %}
-<h1>Purchase Orders - Pending</h1>
+<h1>Purchase Orders Awaiting COO Approval</h1>
+
 <table class="table">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Requisition</th>
-            <th>Supplier</th>
-            <th>Status</th>
-            <th>Created At</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for po in purchase_orders %}
-        <tr>
-            <td>{{ po.id }}</td>
-            <td>{{ po.requisition.id }}</td>
-            <td>{{ po.supplier.name }}</td>
-            <td>{{ po.status }}</td>
-            <td>{{ po.created_at }}</td>
-            <td><a href="{% url 'supplychain:purchase_order_detail' po.id %}">View</a></td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="6">No pending purchase orders found.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
+  <thead>
+    <tr>
+      <th>PO #</th>
+      <th>Supplier</th>
+      <th>From Requisition</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for po in pending_purchase_orders %}
+      <tr>
+        <td>{{ po.id }}</td>
+        <td>{{ po.supplier }}</td>
+        <td>
+          {% if po.requisition %}
+            #{{ po.requisition.id }}
+          {% else %}
+            –
+          {% endif %}
+        </td>
+        <td>{{ po.get_status_display }}</td>
+        <td>{{ po.created_at|date:"Y-m-d H:i" }}</td>
+        <td>
+          <a href="{% url 'supplychain:purchaseorder-detail' po.id %}">View</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">No purchase orders awaiting approval.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% endblock %}

@@ -98,9 +98,21 @@ def generate_issuance_for_requisition(requisition, created_by):
     return iss
 
 def build_workitem_timeline(requisition):
+    """
+    Unified workflow timeline rooted at a Requisition.
+
+    Shows:
+    - Requisition creation
+    - Requisition approvals / conversations
+    - All purchase orders linked to this requisition
+      (created automatically or manually)
+    - PO approvals
+    - Payment (if any)
+    - IssuanceRequest (if any)
+    """
     events = []
 
-    # Requisition created (no details; the initial note is logged as an approval now)
+    # 1. Requisition created
     events.append({
         "timestamp": requisition.created_at,
         "who": requisition.requester,
@@ -108,7 +120,7 @@ def build_workitem_timeline(requisition):
         "details": "",
     })
 
-    # All approvals & conversations (includes requester + approvers)
+    # 2. All requisition approvals & conversations
     for a in requisition.approvals.select_related("approver"):
         events.append({
             "timestamp": a.timestamp,
@@ -117,17 +129,25 @@ def build_workitem_timeline(requisition):
             "details": a.notes,
         })
 
-    # Purchase order (OneToOne from Requisition)
-    po = getattr(requisition, "purchase_order", None)
-    if po:
+    # 3. All purchase orders associated to this requisition
+    #    (covers auto-generated POs and manual POs that link a requisition)
+    pos = (
+        PurchaseOrder.objects
+        .filter(requisition=requisition)
+        .select_related("created_by", "supplier")
+        .prefetch_related("approvals__approver")
+    )
+
+    for po in pos:
         events.append({
             "timestamp": po.created_at,
             "who": po.created_by,
             "label": f"PO #{po.id} created",
-            "details": "",
+            "details": f"Supplier: {po.supplier}",
         })
 
-        for a in po.approvals.select_related("approver"):
+        # PO approvals / queries / denies
+        for a in po.approvals.all():
             events.append({
                 "timestamp": a.timestamp,
                 "who": a.approver,
@@ -135,16 +155,19 @@ def build_workitem_timeline(requisition):
                 "details": a.notes,
             })
 
+        # Payment, if you have a one-to-one payment model
         payment = getattr(po, "payment", None)
         if payment:
             events.append({
                 "timestamp": payment.processed_at,
-                "who": None,  # or payment.processed_by if you add it later
+                "who": getattr(payment, "processed_by", None),
                 "label": f"Payment processed ({payment.payment_type})",
                 "details": payment.payment_notes,
             })
 
-    # Issuance (OneToOne from Requisition)
+        # Later if you add receiving records tied to PO, add them here too.
+
+    # 4. Issuance (currently linked from requisition)
     issuance = getattr(requisition, "issuance_request", None)
     if issuance:
         events.append({
@@ -153,8 +176,53 @@ def build_workitem_timeline(requisition):
             "label": f"IssuanceRequest #{issuance.id} created",
             "details": "",
         })
+        # If you later add issuance approvals / completions, append them here.
 
-    # Sort chronologically
+    # 5. Sort chronologically
+    events.sort(key=lambda e: e["timestamp"])
+    return events
+
+
+    
+def build_workitem_timeline_for_po(po):
+    """
+    Unified workflow timeline starting from a PurchaseOrder.
+
+    - If the PO is linked to a requisition, reuse the requisition-rooted
+      timeline so you see the full life cycle from requisition through PO.
+    - If there is no requisition (manual PO), build a PO-only timeline.
+    """
+    if po.requisition_id:
+        # Re-use the one canonical workflow builder.
+        return build_workitem_timeline(po.requisition)
+
+    # Manual PO with no requisition – PO is the root.
+    events = [{
+        "timestamp": po.created_at,
+        "who": po.created_by,
+        "label": f"PO #{po.id} created",
+        "details": f"Supplier: {po.supplier}",
+    }]
+
+    for a in po.approvals.select_related("approver"):
+        events.append({
+            "timestamp": a.timestamp,
+            "who": a.approver,
+            "label": f"PO {a.action}",
+            "details": a.notes,
+        })
+
+    payment = getattr(po, "payment", None)
+    if payment:
+        events.append({
+            "timestamp": payment.processed_at,
+            "who": getattr(payment, "processed_by", None),
+            "label": f"Payment processed ({payment.payment_type})",
+            "details": payment.payment_notes,
+        })
+
+    # If you later model receiving/issuance directly from PO, add them here.
+
     events.sort(key=lambda e: e["timestamp"])
     return events
 

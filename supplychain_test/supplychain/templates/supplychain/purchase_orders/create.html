@@ -1,7 +1,259 @@
 {% extends "base.html" %}
-{% block title %}Purchase Orders{% endblock %}
+{% load static %}
+
+{% block title %}Create Purchase Order{% endblock %}
 
 {% block content %}
-<h1>Purchase Orders - Create</h1>
-<p class="text-muted">This section is under construction.</p>
+  <h1>Create Purchase Order</h1>
+
+  <p class="text-muted">
+    Create a purchase order manually, or link it to an existing approved requisition.
+  </p>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    <div class="form-group">
+      {{ form.requisition.label_tag }} {{ form.requisition }}
+      {% if form.requisition.errors %}
+        <div class="text-danger">{{ form.requisition.errors }}</div>
+      {% endif %}
+      <small class="form-text text-muted">
+        Optional. If set, this PO will be linked to that requisition.
+      </small>
+    </div>
+
+    <div class="form-group">
+      {{ form.supplier.label_tag }} {{ form.supplier }}
+      {% if form.supplier.errors %}
+        <div class="text-danger">{{ form.supplier.errors }}</div>
+      {% endif %}
+    </div>
+
+    <h3>Line Items</h3>
+    {{ item_formset.management_form }}
+    {% if item_formset.non_form_errors %}
+      <div class="text-danger">
+        {{ item_formset.non_form_errors }}
+      </div>
+    {% endif %}
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Unit cost</th>
+          <th>Line total </th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for form in item_formset %}
+          <tr class="po-item-row">
+            {{ form.id }}
+            <td>
+              {{ form.product }}
+              {% if form.product.errors %}
+                <div class="text-danger">{{ form.product.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ form.quantity }}
+              {% if form.quantity.errors %}
+                <div class="text-danger">{{ form.quantity.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ form.unit_cost }}
+              {% if form.unit_cost.errors %}
+                <div class="text-danger">{{ form.unit_cost.errors }}</div>
+              {% endif %}
+            </td>
+            <td class="line-total-cell">
+              0.00
+            </td>
+            <td>
+              <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+              {{ form.DELETE }}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="3" class="text-end">Total (sum of line totals):</th>
+          <th id="po-grand-total">0.00</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+
+    <template id="po-empty-form-template">
+      <tr class="po-item-row">
+        {{ item_formset.empty_form.id }}
+        <td>{{ item_formset.empty_form.product }}</td>
+        <td>{{ item_formset.empty_form.quantity }}</td>
+        <td>{{ item_formset.empty_form.unit_cost }}</td>
+        <td class="line-total-cell">0.00</td>
+        <td>
+          <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+          {{ item_formset.empty_form.DELETE }}
+        </td>
+      </tr>
+    </template>
+
+    <div class="d-flex gap-2 mb-3">
+      <button id="add-item" class="btn btn-primary">Add Product</button>
+      <a href="{% url 'supplychain:po-list' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary ms-auto">Save &amp; Send for COO Approval</button>
+    </div>
+  </form>
+
+  <script>
+    // Product -> meta mapping (unit_cost + UoM)
+    const PRODUCT_META = {
+      {% for p in products %}
+        "{{ p.id }}": {
+          unit_cost: "{{ p.unit_cost }}",
+          uom: "{{ p.uom.code|escapejs }}"
+        },
+      {% endfor %}
+    };
+
+    function toNumber(value) {
+      var n = parseFloat(value);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function formatNumber(value) {
+      return value.toFixed(2);
+    }
+
+    function updateGrandTotal() {
+      let grand = 0;
+      document.querySelectorAll('.po-item-row').forEach(function(row) {
+        if (row.classList.contains('d-none')) {
+          return;
+        }
+        const lineCell = row.querySelector('.line-total-cell');
+        if (!lineCell) return;
+
+        // lineCell.textContent is "123.45 (KG)" → strip non-numeric prefix
+        const text = lineCell.textContent.split('(')[0].trim();
+        grand += toNumber(text);
+      });
+      const grandEl = document.getElementById('po-grand-total');
+      if (grandEl) {
+        grandEl.textContent = formatNumber(grand);
+      }
+    }
+
+    function updateRowTotals(row) {
+      const productSelect = row.querySelector('select[name$="-product"]');
+      const quantityInput = row.querySelector('input[name$="-quantity"]');
+      const unitCostInput = row.querySelector('input[name$="-unit_cost"]');
+      const lineTotalCell = row.querySelector('.line-total-cell');
+
+      if (!productSelect || !quantityInput || !unitCostInput || !lineTotalCell) {
+        return;
+      }
+
+      const productId = productSelect.value;
+      const meta = PRODUCT_META[productId] || {};
+      const unitCost = toNumber(meta.unit_cost || unitCostInput.value || "0");
+      const uom = meta.uom || "";
+      const qty = toNumber(quantityInput.value || "0");
+
+      // Keep unit_cost field in sync with master data (read-only for user)
+      if (unitCostInput) {
+        unitCostInput.value = formatNumber(unitCost);
+      }
+
+      const lineTotal = unitCost * qty;
+      const totalText = formatNumber(lineTotal) + (uom ? " (" + uom + ")" : "");
+      lineTotalCell.textContent = totalText;
+
+      updateGrandTotal();
+    }
+
+    function attachRowHandlers(row) {
+      const productSelect = row.querySelector('select[name$="-product"]');
+      const quantityInput = row.querySelector('input[name$="-quantity"]');
+      const removeBtn = row.querySelector('.remove-item');
+
+      if (productSelect && !productSelect.dataset.listener) {
+        productSelect.addEventListener('change', function () {
+          updateRowTotals(row);
+        });
+        productSelect.dataset.listener = "true";
+      }
+
+      if (quantityInput && !quantityInput.dataset.listener) {
+        quantityInput.addEventListener('input', function () {
+          updateRowTotals(row);
+        });
+        quantityInput.dataset.listener = "true";
+      }
+
+      if (removeBtn && !removeBtn.dataset.listener) {
+        removeBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+          if (del) { del.checked = true; }
+          row.classList.add('d-none');
+          updateGrandTotal();
+        });
+        removeBtn.dataset.listener = "true";
+      }
+
+      // Initial calculation
+      updateRowTotals(row);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const addBtn = document.getElementById('add-item');
+      const formPrefix = '{{ item_formset.prefix }}';
+      const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+
+      // Attach handlers to existing rows
+      document.querySelectorAll('.po-item-row').forEach(function (row) {
+        attachRowHandlers(row);
+      });
+
+      if (addBtn) {
+        addBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          let formCount = parseInt(totalForms.value, 10);
+          {% if item_formset.max_num is not None %}
+          if (formCount >= {{ item_formset.max_num }}) return;
+          {% endif %}
+
+          const templateHtml = document
+            .getElementById('po-empty-form-template')
+            .innerHTML.replace(/__prefix__/g, formCount);
+
+          const tbody = document.querySelector('table tbody');
+          tbody.insertAdjacentHTML('beforeend', templateHtml);
+
+          totalForms.value = formCount + 1;
+
+          const newRow = tbody.querySelectorAll('.po-item-row')[tbody.querySelectorAll('.po-item-row').length - 1];
+          attachRowHandlers(newRow);
+        });
+      }
+
+      updateGrandTotal();
+    });
+  </script>
 {% endblock %}

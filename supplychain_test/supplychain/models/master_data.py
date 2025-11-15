@@ -78,11 +78,11 @@ class Product(TimeStampedModel):
 class Destination(models.Model):
     """Possible requisition destinations (Supplier vs Store)."""
 
-    SUPPLIER = "SUPPLIER"
+    PURCHASE = "PURCHASE"
     STORE = "STORE"
     DESTINATION_CHOICES = [
-        (SUPPLIER, "Supplier"),
-        (STORE, "Store"),
+        (PURCHASE, "PURCHASE"),
+        (STORE, "STORE"),
     ]
 
     name = models.CharField(max_length=10, choices=DESTINATION_CHOICES, unique=True)

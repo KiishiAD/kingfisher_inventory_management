@@ -18,6 +18,19 @@ class RequisitionForm(forms.ModelForm):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
 
+
+    def clean(self):
+        cleaned_data = super().clean()
+        destination = cleaned_data.get('destination')
+        sub_category = cleaned_data.get('Supplier_destination_sub_category')
+
+        if destination and sub_category:
+            if destination.name == destination.STORE and sub_category.name is not None:
+                error_msg =  "Supplier sub category should be empty when destination is STORE."
+                self.add_error('Supplier_destination_sub_category', error_msg)
+
+        return cleaned_data
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.request and not instance.requester_id:

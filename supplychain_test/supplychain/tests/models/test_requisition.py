@@ -20,8 +20,8 @@ from supplychain.models import Destination, Requisition, RequisitionItem, Requis
 
 class DestinationModelTests(TestCase):
     def test_str_returns_humanized_choice(self):
-        d = make_destination(Destination.SUPPLIER)
-        self.assertEqual(str(d), "Supplier")
+        d = make_destination(Destination.PURCHASE)
+        self.assertEqual(str(d), "PURCHASE")
 
     def test_invalid_choice_rejected_by_full_clean(self):
         d = Destination(name="NOT_A_REAL_CHOICE")
@@ -37,10 +37,10 @@ class RequisitionModelTests(TestCase):
         self.assertEqual(r.status, Requisition.PENDING)
         self.assertFalse(r.urgent)
         self.assertIn("Requisition #", str(r))
-        self.assertEqual(r.get_destination_display(), "Store")
+        self.assertEqual(r.get_destination_display(), "STORE")
 
     def test_destination_protects_from_deletion(self):
-        dest = make_destination(Destination.SUPPLIER)
+        dest = make_destination(Destination.PURCHASE)
         make_requisition(destination=dest)
         with self.assertRaises(ProtectedError):
             dest.delete()

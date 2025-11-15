@@ -97,5 +97,67 @@ def generate_issuance_for_requisition(requisition, created_by):
         )
     return iss
 
+def build_workitem_timeline(requisition):
+    events = []
+
+    # Requisition created (no details; the initial note is logged as an approval now)
+    events.append({
+        "timestamp": requisition.created_at,
+        "who": requisition.requester,
+        "label": f"Requisition #{requisition.id} created",
+        "details": "",
+    })
+
+    # All approvals & conversations (includes requester + approvers)
+    for a in requisition.approvals.select_related("approver"):
+        events.append({
+            "timestamp": a.timestamp,
+            "who": a.approver,
+            "label": f"Requisition {a.action}",
+            "details": a.notes,
+        })
+
+    # Purchase order (OneToOne from Requisition)
+    po = getattr(requisition, "purchase_order", None)
+    if po:
+        events.append({
+            "timestamp": po.created_at,
+            "who": po.created_by,
+            "label": f"PO #{po.id} created",
+            "details": "",
+        })
+
+        for a in po.approvals.select_related("approver"):
+            events.append({
+                "timestamp": a.timestamp,
+                "who": a.approver,
+                "label": f"PO {a.action}",
+                "details": a.notes,
+            })
+
+        payment = getattr(po, "payment", None)
+        if payment:
+            events.append({
+                "timestamp": payment.processed_at,
+                "who": None,  # or payment.processed_by if you add it later
+                "label": f"Payment processed ({payment.payment_type})",
+                "details": payment.payment_notes,
+            })
+
+    # Issuance (OneToOne from Requisition)
+    issuance = getattr(requisition, "issuance_request", None)
+    if issuance:
+        events.append({
+            "timestamp": issuance.created_at,
+            "who": issuance.requester,
+            "label": f"IssuanceRequest #{issuance.id} created",
+            "details": "",
+        })
+
+    # Sort chronologically
+    events.sort(key=lambda e: e["timestamp"])
+    return events
+
+
 
     

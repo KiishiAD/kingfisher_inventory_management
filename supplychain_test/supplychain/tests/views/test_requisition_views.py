@@ -17,7 +17,7 @@ class RequisitionViewsTestCase(TestCase):
         # master data created once for the TestCase to avoid duplicate unique inserts
         cls.uom, _ = UnitOfMeasure.objects.get_or_create(code='EA', defaults={'name': 'Each'})
         cls.product, _ = Product.objects.get_or_create(name='Paper', defaults={'unit_cost': '1.00', 'uom': cls.uom})
-        cls.destination_supplier, _ = Destination.objects.get_or_create(name=Destination.SUPPLIER)
+        cls.destination_supplier, _ = Destination.objects.get_or_create(name=Destination.PURCHASE)
         cls.destination_store, _ = Destination.objects.get_or_create(name=Destination.STORE)
         cls.subcat, _ = Supplier_destination_sub_category.objects.get_or_create(name=Supplier_destination_sub_category.CONSUMABLES)
 

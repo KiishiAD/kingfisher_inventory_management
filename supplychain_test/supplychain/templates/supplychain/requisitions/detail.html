@@ -41,28 +41,23 @@
     </tbody>
   </table>
 
-  <h3>Audit Trail</h3>
-  <div class="timeline">
+ <h3>Audit Trail</h3>
+<div class="timeline">
+  {% for e in timeline %}
     <div class="timeline-item">
       <span class="timeline-dot"></span>
       <div class="timeline-content card p-2">
-        <strong>{{ requisition.created_at|date:"Y-m-d H:i" }}:</strong>
-        {{ requisition.requester.username }} created the requisition
+        <strong>{{ e.timestamp|date:"Y-m-d H:i" }}:</strong>
+        {% if e.who %}{{ e.who.username }} – {% endif %}{{ e.label }}
+        {% if e.details %}
+          <br><em>Notes:</em> {{ e.details|linebreaksbr }}
+        {% endif %}
       </div>
     </div>
-    {% for a in approvals %}
-      <div class="timeline-item">
-        <span class="timeline-dot"></span>
-        <div class="timeline-content card p-2">
-          <strong>{{ a.timestamp|date:"Y-m-d H:i" }}:</strong>
-          {{ a.approver.username }} actioned – {{ a.action|status_badge }}
-          {% if a.notes %}<br><em>Notes:</em> {{ a.notes }}{% endif %}
-        </div>
-      </div>
-    {% empty %}
-      <p>No actions have been taken yet.</p>
-    {% endfor %}
-  </div>
+  {% empty %}
+    <p>No actions have been taken yet.</p>
+  {% endfor %}
+</div>
 
   {# Only show the approval form if the user can approve and status is PENDING #}
   {% if can_approve %}

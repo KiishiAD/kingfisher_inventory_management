@@ -9,6 +9,8 @@ from django.db import transaction
 from ..models import Requisition, RequisitionApproval, Destination
 from ..forms import RequisitionForm, RequisitionItemFormSet, RequisitionApprovalForm, RequisitionFilterForm
 from ..utils import generate_po_for_requisition
+from ..utils import build_workitem_timeline
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,16 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
             self.object = form.save()
             item_formset.instance = self.object
             item_formset.save()
+
+        #log the requester’s initial note as an approval entry
+        initial_note = (form.cleaned_data.get('notes') or "").strip()
+        if initial_note:
+            RequisitionApproval.objects.create(
+                requisition=self.object,
+                approver=self.request.user,     # requester here
+                action=Requisition.PENDING,
+                notes=f"Requester note: {initial_note}",
+            )
             messages.success(
                 self.request,
                 f"Requisition #{self.object.id} created successfully!"
@@ -49,6 +61,8 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
             return redirect(self.success_url)
         else:
             return self.render_to_response(self.get_context_data(form=form))
+        
+
 
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to submit requisitions.")
@@ -90,23 +104,90 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
     def form_valid(self, form):
         context = self.get_context_data()
         item_formset = context['item_formset']
-        if item_formset.is_valid():
-            self.object = form.save()
-            item_formset.instance = self.object
-            item_formset.save()
-            self.object.status = Requisition.PENDING
-            self.object.save(update_fields=['status', 'updated_at'])
-            RequisitionApproval.objects.create(
-                requisition=self.object,
-                approver=self.request.user,
-                action=Requisition.PENDING,
-                notes='Requisition updated'
-            )
-            messages.success(self.request, f"Requisition #{self.object.id} updated and resubmitted for approval.")
-            return redirect(self.success_url)
-        else:
+
+        if not item_formset.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 
+        # --- Build a simple summary of item-level changes BEFORE saving ---
+        item_changes = []
+
+        for f in item_formset.forms:
+            if not f.has_changed():
+                continue
+
+            # new item (added)
+            if f.instance.pk is None and not f.cleaned_data.get('DELETE', False):
+                item_changes.append(
+                    f"Added {f.cleaned_data.get('product')} × {f.cleaned_data.get('quantity')}"
+                )
+                continue
+
+            # deleted item
+            if f.cleaned_data.get('DELETE', False):
+                # Only log if this row actually existed in the DB
+                if f.instance.pk is not None:
+                    item_changes.append(
+                        f"Removed {f.instance.product} × {f.instance.quantity}"
+                    )
+                # if pk is None it was never saved, so we just ignore it
+                continue
+
+            # updated existing item
+            line_bits = []
+            if 'product' in f.changed_data:
+                line_bits.append(
+                    f"product: {f.instance.product} → {f.cleaned_data.get('product')}"
+                )
+            if 'quantity' in f.changed_data:
+                line_bits.append(
+                    f"quantity: {f.instance.quantity} → {f.cleaned_data.get('quantity')}"
+                )
+            if 'supplier' in f.changed_data:
+                line_bits.append(
+                    f"supplier: {f.instance.supplier} → {f.cleaned_data.get('supplier')}"
+                )
+
+            if line_bits:
+                item_changes.append(
+                    f"Updated item {f.instance.product}: " + "; ".join(line_bits)
+                )
+        # --- Save requisition + items ---
+        self.object = form.save()
+        item_formset.instance = self.object
+        item_formset.save()
+
+        # Set back to pending
+        self.object.status = Requisition.PENDING
+        self.object.save(update_fields=['status', 'updated_at'])
+
+        # --- Build the audit note text ---
+        requester_reply = (form.cleaned_data.get('notes') or "").strip()
+        note_parts = []
+
+        if requester_reply:
+            note_parts.append(f"Requester reply: {requester_reply}")
+
+        if item_changes:
+            note_parts.append("Changes: " + " | ".join(item_changes))
+
+        if not note_parts:
+            note_parts.append("Requisition updated")
+
+        # --- Log a NEW audit entry (conversation continues, nothing overwritten) ---
+        RequisitionApproval.objects.create(
+            requisition=self.object,
+            approver=self.request.user,        # requester here
+            action=Requisition.PENDING,
+            notes="\n".join(note_parts),
+        )
+
+        messages.success(
+            self.request,
+            f"Requisition #{self.object.id} updated and resubmitted for approval."
+        )
+        return redirect(self.success_url)
+    
+    
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to update requisitions.")
         return super().handle_no_permission()
@@ -216,6 +297,7 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 'approval_form': approval_form,
                 'can_approve': can_approve,
                 'section': 'requisitions',
+                'timeline': build_workitem_timeline(requisition)
             }
             return render(request, 'supplychain/requisitions/detail.html', context)
         else:
@@ -236,7 +318,7 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 with transaction.atomic():
                     form.save(requisition=requisition, approver=request.user)
                     if requisition.status == Requisition.APPROVED:
-                        if requisition.destination.name == Destination.SUPPLIER:
+                        if requisition.destination.name == Destination.PURCHASE:
                             generate_po_for_requisition(
                                 requisition, created_by=request.user
                             )
@@ -270,6 +352,7 @@ class RequisitionDetailView(LoginRequiredMixin, View):
                 'approval_form': form,
                 'can_approve': True,
                 'section': 'requisitions',
+                'timeline': build_workitem_timeline(requisition)
             }
             return render(request, 'supplychain/requisitions/detail.html', context)
         

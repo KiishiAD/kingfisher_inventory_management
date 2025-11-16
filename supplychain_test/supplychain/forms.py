@@ -40,11 +40,24 @@ class RequisitionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-    
+
+class RequisitionItemForm(forms.ModelForm):
+    class Meta:
+        model = RequisitionItem
+        fields = ['product', 'quantity', 'supplier']
+        widgets = {
+            # Add CSS classes so JS can hook into these selects
+            'product': forms.Select(attrs={'class': 'form-select select2-product'}),
+            'supplier': forms.Select(attrs={'class': 'form-select select2-supplier'}),
+        }
+
+
+
 # We will allow up to 10 line items by default; you can adjust max_num as needed.
 RequisitionItemFormSet = inlineformset_factory(
     parent_model=Requisition,
     model=RequisitionItem,
+    form=RequisitionItemForm,
     fields=['product', 'quantity', 'supplier'],
     extra=1,
     can_delete=True,

@@ -59,32 +59,32 @@
         </tr>
       </thead>
       <tbody>
-        {% for form in item_formset %}
-          <tr>
-            {{ form.id }}
-            <td>
-              {{ form.product }}
-              {% if form.product.errors %}
-                <div class="text-danger">{{ form.product.errors }}</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ form.quantity }}
-              {% if form.quantity.errors %}
-                <div class="text-danger">{{ form.quantity.errors }}</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ form.supplier }}
-              {% if form.supplier.errors %}
-                <div class="text-danger">{{ form.supplier.errors }}</div>
-              {% endif %}
-            <td>
-              <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-              {{ form.DELETE }}
-            </td>
-          </tr>
-        {% endfor %}
+{% for form in item_formset %}
+      <tr class="{% if form.DELETE.value %}d-none{% endif %}">
+        {{ form.id }}
+        <td>
+          {{ form.product }}
+          {% if form.product.errors %}
+            <div class="text-danger">{{ form.product.errors }}</div>
+          {% endif %}
+        </td>
+        <td>
+          {{ form.quantity }}
+          {% if form.quantity.errors %}
+            <div class="text-danger">{{ form.quantity.errors }}</div>
+          {% endif %}
+        </td>
+        <td>
+          {{ form.supplier }}
+          {% if form.supplier.errors %}
+            <div class="text-danger">{{ form.supplier.errors }}</div>
+          {% endif %}
+        <td>
+          <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+          {{ form.DELETE }}
+        </td>
+      </tr>
+{% endfor %}
       </tbody>
     </table>
 
@@ -107,39 +107,54 @@
     </div>
   </form>
 
-  <script>
-    function attachDeleteHandlers() {
-      document.querySelectorAll('.remove-item').forEach(function(btn){
-        if (!btn.dataset.listener) {
-          btn.addEventListener('click', function(e){
-            e.preventDefault();
-            var row = btn.closest('tr');
-            var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-            if(del){ del.checked = true; }
-            row.classList.add('d-none');
-          });
-          btn.dataset.listener = true;
-        }
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function(){
-      var addBtn = document.getElementById('add-item');
-      var formPrefix = '{{ item_formset.prefix }}';
-      var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-      attachDeleteHandlers();
-      if(addBtn){
-        addBtn.addEventListener('click', function(e){
+ <script>
+  function attachDeleteHandlers() {
+    document.querySelectorAll('.remove-item').forEach(function(btn){
+      if (!btn.dataset.listener) {
+        btn.addEventListener('click', function(e){
           e.preventDefault();
-          var formCount = parseInt(totalForms.value);
-          if (formCount >= {{ item_formset.max_num }}) return;
-          var template = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, formCount);
-          var tbody = document.querySelector('table tbody');
-          tbody.insertAdjacentHTML('beforeend', template);
-          totalForms.value = formCount + 1;
-          attachDeleteHandlers();
+          var row = btn.closest('tr');
+          var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+          if(del){ del.checked = true; }
+          row.classList.add('d-none');
         });
+        btn.dataset.listener = true;
       }
     });
-  </script>
-  {% endblock %}
+  }
+
+  function initSelect2ForLineItems() {
+    // Initialise Select2 on current selects
+    // Using jQuery because Select2 depends on it
+    $('.select2-product').select2({ width: 'resolve' });
+    $('.select2-supplier').select2({ width: 'resolve' });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var addBtn = document.getElementById('add-item');
+    var formPrefix = '{{ item_formset.prefix }}';
+    var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+
+    attachDeleteHandlers();
+    initSelect2ForLineItems();  // Initialise for existing rows
+
+    if(addBtn){
+      addBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        var formCount = parseInt(totalForms.value);
+        if (formCount >= {{ item_formset.max_num }}) return;
+
+        var template = document.getElementById('empty-form-template').innerHTML
+          .replace(/__prefix__/g, formCount);
+        var tbody = document.querySelector('table tbody');
+        tbody.insertAdjacentHTML('beforeend', template);
+        totalForms.value = formCount + 1;
+
+        attachDeleteHandlers();
+        initSelect2ForLineItems();   // Re-init so new row gets Select2
+      });
+    }
+  });
+</script>
+
+{% endblock %}

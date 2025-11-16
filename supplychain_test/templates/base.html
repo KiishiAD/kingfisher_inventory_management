@@ -7,6 +7,12 @@
     <title>{% block title %}Kingfisher Supplychain{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+
+    {# Select2 CSS for searchable dropdowns #}
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    {# Optional: extra CSS hook for pages #}
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
@@ -140,6 +146,13 @@
         <small>&copy; 2025 Kingfisher Supplychain Management</small>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+
+    {# jQuery + Select2 JS (needed for the type-ahead selects) #}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    {# Optional: per-page JS hook (your create/update scripts can go in this block) #}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

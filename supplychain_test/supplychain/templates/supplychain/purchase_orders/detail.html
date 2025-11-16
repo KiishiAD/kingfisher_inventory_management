@@ -11,29 +11,33 @@
   <p><strong>Created by:</strong> {{ purchase_order.created_by.username }}</p>
   <p><strong>Created at:</strong> {{ purchase_order.created_at|date:"Y-m-d H:i" }}</p>
   <p><strong>Sent at:</strong> {% if purchase_order.sent_at %}{{ purchase_order.sent_at|date:"Y-m-d H:i" }}{% else %}Not sent{% endif %}</p>
-
   <h2>Items</h2>
-  <table class="table">
-    <thead>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Quantity</th>
+      <th>Unit cost</th>
+      <th>Line total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
       <tr>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Unit cost</th>
-        <th>Line total</th>
+        <td>{{ item.product.name }}</td>
+        <td>{{ item.quantity }} </td>
+        <td>{{ item.unit_cost|floatformat:2 }} {{ item.product.uom.code }}</td>
+        <td>{{ item.line_total|floatformat:2 }}</td>
       </tr>
-    </thead>
-    <tbody>
-      {% for item in items %}
-        <tr>
-          <td>{{ item.product.name }}</td>
-          <td>{{ item.quantity }}</td>
-          <td>{{ item.unit_cost }}</td>
-          <td>{{ item.quantity|floatformat:2|floatformat }}{% comment %} simple display; adjust formatting if needed {% endcomment %} {% if item.unit_cost %} = {{ item.quantity|floatformat:2 }} × {{ item.unit_cost }}{% endif %}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <th colspan="3" class="text-end">Total:</th>
+      <th>{{ po_total_amount|floatformat:2 }}</th>
+    </tr>
+  </tfoot>
+</table>
   <h2>Approvals</h2>
   <ul>
     {% for a in approvals %}

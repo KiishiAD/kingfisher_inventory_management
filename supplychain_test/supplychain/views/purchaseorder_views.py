@@ -5,6 +5,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.views import View
 from django.db import transaction
+from decimal import Decimal
 
 from ..models.master_data import Product
 from ..models import (
@@ -48,17 +49,24 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, View)
         po = get_object_or_404(PurchaseOrder, pk=pk)
         can_approve = request.user.has_perm('supplychain.approve_purchaseorder')
 
+        items = po.items.select_related('product').all()
+
+        total_amount = sum(
+            (item.line_total for item in items),
+            Decimal("0")
+        )
+
         context = {
             'purchase_order': po,
-            'items': po.items.select_related('product').all(),
+            'items': items,
             'approvals': po.approvals.select_related('approver').order_by('timestamp'),
             'can_approve': can_approve,
             'section': 'purchase_orders',
-            # unified workflow timeline, requisition-rooted if available
-            'timeline': build_workitem_timeline_for_po(po),
+            'po_total_amount': total_amount,
         }
         return render(request, 'supplychain/purchase_orders/detail.html', context)
     
+
 class PurchaseOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
     Create a new Purchase Order.
@@ -70,7 +78,7 @@ class PurchaseOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, Creat
     form_class = PurchaseOrderForm
     template_name = 'supplychain/purchase_orders/create.html'
     permission_required = 'supplychain.create_purchaseorder'
-    success_url = reverse_lazy('supplychain:purchaseorder-list')
+    success_url = reverse_lazy('supplychain:po-list')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

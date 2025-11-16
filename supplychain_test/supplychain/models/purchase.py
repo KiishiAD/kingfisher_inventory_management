@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from decimal import Decimal
 
 from .master_data import Supplier, Product
 from .requisition import Requisition
@@ -66,9 +67,15 @@ class PurchaseOrderItem(models.Model):
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)
 
+    @property
+    def line_total(self) -> Decimal:
+        """Quantity × unit_cost for this line."""
+        if self.quantity is None or self.unit_cost is None:
+            return Decimal("0")
+        return self.quantity * self.unit_cost
+
     def __str__(self):
         return f"{self.quantity} x {self.product} @ {self.unit_cost}"
-    
 
 
 class PurchaseOrderApproval(models.Model):

@@ -29,7 +29,7 @@
         <td>{{ po.get_status_display }}</td>
         <td>{{ po.created_at|date:"Y-m-d H:i" }}</td>
         <td>
-          <a href="{% url 'supplychain:purchaseorder-detail' po.id %}">View</a>
+          <a href="{% url 'supplychain:po-detail' po.id %}">View</a>
         </td>
       </tr>
     {% empty %}

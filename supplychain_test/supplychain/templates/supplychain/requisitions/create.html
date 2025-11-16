@@ -1,107 +1,119 @@
-{# supplychain/templates/supplychain/requisitions/create.html #}
+{# supplychain/templates/supplychain/purchase_orders/create.html #}
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Create Requisition{% endblock %}
+{% block title %}Create Purchase Order{% endblock %}
 
 {% block content %}
-<h1>Create New Requisition</h1>
+<h1>Create Purchase Order</h1>
 
-<form method="post" enctype="multipart/form-data">
+<p class="text-muted">
+  Create a purchase order manually, or link it to an existing approved requisition.
+</p>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<form method="post">
   {% csrf_token %}
 
   {{ form.non_field_errors }}
-  <div class="form-group mb-2">
-    {{ form.urgent.label_tag }} {{ form.urgent }}
-    {% if form.urgent.errors %}
-      <div class="text-danger">{{ form.urgent.errors }}</div>
-    {% endif %}
-  </div>
 
   <div class="form-group mb-2">
-    {{ form.destination.label_tag }} {{ form.destination }}
-    {% if form.destination.errors %}
-      <div class="text-danger">{{ form.destination.errors }}</div>
+    {{ form.requisition.label_tag }} {{ form.requisition }}
+    {% if form.requisition.errors %}
+      <div class="text-danger">{{ form.requisition.errors }}</div>
     {% endif %}
-  </div>
-
-  <div class="form-group mb-2">
-    {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
-    {% if form.Supplier_destination_sub_category.errors %}
-      <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
-    {% endif %}
-  </div>
-
-  <div class="form-group mb-2">
-    {{ form.evidence.label_tag }} {{ form.evidence }}
-    {% if form.evidence.errors %}
-      <div class="text-danger">{{ form.evidence.errors }}</div>
-    {% endif %}
+    <small class="form-text text-muted">
+      Optional. If set, this PO will be linked to that requisition.
+    </small>
   </div>
 
   <div class="form-group mb-3">
-    {{ form.notes.label_tag }}
-    {{ form.notes }}
-    {% if form.notes.errors %}
-      <div class="text-danger">{{ form.notes.errors }}</div>
+    {{ form.supplier.label_tag }} {{ form.supplier }}
+    {% if form.supplier.errors %}
+      <div class="text-danger">{{ form.supplier.errors }}</div>
     {% endif %}
   </div>
 
   <h3>Line Items</h3>
   {{ item_formset.management_form }}
+  {% if item_formset.non_form_errors %}
+    <div class="text-danger">
+      {{ item_formset.non_form_errors }}
+    </div>
+  {% endif %}
 
   <table class="table table-sm align-middle">
-  <colgroup>
-    <col style="width: 50%;">   {# Product #}
-    <col style="width: 15%;">   {# Quantity #}
-    <col style="width: 25%;">   {# Supplier #}
-    <col style="width: 10%;">   {# Delete button #}
-  </colgroup>
+    <colgroup>
+      <col style="width: 40%;">   {# Product #}
+      <col style="width: 15%;">   {# Quantity #}
+      <col style="width: 20%;">   {# Unit cost #}
+      <col style="width: 15%;">   {# Line total #}
+      <col style="width: 10%;">   {# Delete #}
+    </colgroup>
     <thead>
       <tr>
         <th>Product</th>
         <th>Quantity</th>
-        <th>Supplier</th>
+        <th>Unit cost</th>
+        <th>Line total</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
-      {% for li_form in item_formset %}
-        <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
-          {{ li_form.id }}
+      {% for form in item_formset %}
+        <tr class="po-item-row {% if form.DELETE.value %}d-none{% endif %}">
+          {{ form.id }}
           <td>
-            {{ li_form.product }}
-            {% if li_form.product.errors %}
-              <div class="text-danger">{{ li_form.product.errors }}</div>
+            {{ form.product }}
+            {% if form.product.errors %}
+              <div class="text-danger">{{ form.product.errors }}</div>
             {% endif %}
           </td>
           <td>
-            {{ li_form.quantity }}
-            {% if li_form.quantity.errors %}
-              <div class="text-danger">{{ li_form.quantity.errors }}</div>
+            {{ form.quantity }}
+            {% if form.quantity.errors %}
+              <div class="text-danger">{{ form.quantity.errors }}</div>
             {% endif %}
           </td>
           <td>
-            {{ li_form.supplier }}
-            {% if li_form.supplier.errors %}
-              <div class="text-danger">{{ li_form.supplier.errors }}</div>
+            {{ form.unit_cost }}
+            {% if form.unit_cost.errors %}
+              <div class="text-danger">{{ form.unit_cost.errors }}</div>
             {% endif %}
+          </td>
+          <td class="line-total-cell">
+            0.00
           </td>
           <td>
             <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-            {{ li_form.DELETE }}
+            {{ form.DELETE }}
           </td>
         </tr>
       {% endfor %}
     </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="3" class="text-end">Total (sum of line totals):</th>
+        <th id="po-grand-total">0.00</th>
+        <th></th>
+      </tr>
+    </tfoot>
   </table>
 
-  <template id="empty-form-template">
-    <tr>
+  <template id="po-empty-form-template">
+    <tr class="po-item-row">
       {{ item_formset.empty_form.id }}
       <td>{{ item_formset.empty_form.product }}</td>
       <td>{{ item_formset.empty_form.quantity }}</td>
-      <td>{{ item_formset.empty_form.supplier }}</td>
+      <td>{{ item_formset.empty_form.unit_cost }}</td>
+      <td class="line-total-cell">0.00</td>
       <td>
         <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
         {{ item_formset.empty_form.DELETE }}
@@ -111,60 +123,156 @@
 
   <div class="d-flex gap-2 mb-3">
     <button id="add-item" class="btn btn-primary" type="button">Add Product</button>
-    <button type="submit" class="btn btn-primary ms-auto">Submit Requisition</button>
+    <a href="{% url 'supplychain:po-list' %}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary ms-auto">Save &amp; Send for COO Approval</button>
   </div>
 </form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(function() {
-  function attachDeleteHandlers() {
-    document.querySelectorAll('.remove-item').forEach(function(btn) {
-      if (btn.dataset.listener) return;
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        const row = btn.closest('tr');
-        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-        if (del) del.checked = true;
-        row.classList.add('d-none');
-      });
-      btn.dataset.listener = "1";
-    });
+  // Product -> meta mapping (unit_cost + UoM)
+  const PRODUCT_META = {
+    {% for p in products %}
+      "{{ p.id }}": {
+        unit_cost: "{{ p.unit_cost }}",
+        uom: "{{ p.uom.code|escapejs }}"
+      },
+    {% endfor %}
+  };
+
+  function toNumber(value) {
+    var n = parseFloat(value);
+    return isNaN(n) ? 0 : n;
   }
 
+  function formatNumber(value) {
+    return value.toFixed(2);
+  }
+
+  function updateGrandTotal() {
+    let grand = 0;
+    document.querySelectorAll('.po-item-row').forEach(function(row) {
+      if (row.classList.contains('d-none')) {
+        return;
+      }
+      const lineCell = row.querySelector('.line-total-cell');
+      if (!lineCell) return;
+
+      const text = lineCell.textContent.split('(')[0].trim();
+      grand += toNumber(text);
+    });
+    const grandEl = document.getElementById('po-grand-total');
+    if (grandEl) {
+      grandEl.textContent = formatNumber(grand);
+    }
+  }
+
+  function updateRowTotals(row) {
+    const productSelect = row.querySelector('select[name$="-product"]');
+    const quantityInput = row.querySelector('input[name$="-quantity"]');
+    const unitCostInput = row.querySelector('input[name$="-unit_cost"]');
+    const lineTotalCell = row.querySelector('.line-total-cell');
+
+    if (!productSelect || !quantityInput || !unitCostInput || !lineTotalCell) {
+      return;
+    }
+
+    const productId = productSelect.value;
+    const meta = PRODUCT_META[productId] || {};
+    const unitCost = toNumber(meta.unit_cost || unitCostInput.value || "0");
+    const uom = meta.uom || "";
+    const qty = toNumber(quantityInput.value || "0");
+
+    if (unitCostInput) {
+      unitCostInput.value = formatNumber(unitCost);
+    }
+
+    const lineTotal = unitCost * qty;
+    const totalText = formatNumber(lineTotal) + (uom ? " (" + uom + ")" : "");
+    lineTotalCell.textContent = totalText;
+
+    updateGrandTotal();
+  }
+
+  // NEW: same as requisition create
   function initSelect2ForLineItems() {
     if (window.jQuery && $.fn.select2) {
       $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
-      $('.select2-supplier').not('.select2-hidden-accessible').select2({ width: '100%' });
     }
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
+  function attachRowHandlers(row) {
+    const productSelect = row.querySelector('select[name$="-product"]');
+    const quantityInput = row.querySelector('input[name$="-quantity"]');
+    const removeBtn = row.querySelector('.remove-item');
+
+    if (productSelect && !productSelect.dataset.listener) {
+      productSelect.addEventListener('change', function () {
+        updateRowTotals(row);
+      });
+      productSelect.dataset.listener = "true";
+    }
+
+    if (quantityInput && !quantityInput.dataset.listener) {
+      quantityInput.addEventListener('input', function () {
+        updateRowTotals(row);
+      });
+      quantityInput.dataset.listener = "true";
+    }
+
+    if (removeBtn && !removeBtn.dataset.listener) {
+      removeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (del) { del.checked = true; }
+        row.classList.add('d-none');
+        updateGrandTotal();
+      });
+      removeBtn.dataset.listener = "true";
+    }
+
+    updateRowTotals(row);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
     const addBtn = document.getElementById('add-item');
     const formPrefix = '{{ item_formset.prefix }}';
     const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-    const maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
 
-    attachDeleteHandlers();
-    initSelect2ForLineItems();
+    // Existing rows
+    document.querySelectorAll('.po-item-row').forEach(function (row) {
+      attachRowHandlers(row);
+    });
 
     if (addBtn && totalForms) {
-      addBtn.addEventListener('click', function(e) {
+      addBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        let count = parseInt(totalForms.value, 10);
-        if (count >= maxNum) return;
+        let formCount = parseInt(totalForms.value, 10);
+        {% if item_formset.max_num is not None %}
+        if (formCount >= {{ item_formset.max_num }}) return;
+        {% endif %}
 
-        const tmpl = document.getElementById('empty-form-template').innerHTML
-          .replace(/__prefix__/g, count);
-        document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
-        totalForms.value = count + 1;
+        const templateHtml = document
+          .getElementById('po-empty-form-template')
+          .innerHTML.replace(/__prefix__/g, formCount);
 
-        attachDeleteHandlers();
+        const tbody = document.querySelector('table tbody');
+        tbody.insertAdjacentHTML('beforeend', templateHtml);
+
+        totalForms.value = formCount + 1;
+
+        const newRow = tbody.querySelectorAll('.po-item-row')[tbody.querySelectorAll('.po-item-row').length - 1];
+        attachRowHandlers(newRow);
+
+        // IMPORTANT: re-init select2 for newly added row
         initSelect2ForLineItems();
       });
     }
+
+    // IMPORTANT: init Select2 for initial rows
+    initSelect2ForLineItems();
+    updateGrandTotal();
   });
-})();
 </script>
 {% endblock %}

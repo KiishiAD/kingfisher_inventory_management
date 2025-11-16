@@ -174,27 +174,63 @@ class PurchaseOrderApprovalForm(forms.ModelForm):
         self.instance.approver = approver
         return super().save(commit=commit)
 
-class PurchaseOrderItemForm(forms.ModelForm):
-    class Meta:
-        model = PurchaseOrderItem
-        fields = ['product', 'quantity', 'unit_cost']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make unit_cost read-only in the UI; still submitted as a normal field.
-        self.fields['unit_cost'].widget.attrs['readonly'] = 'readonly'
-
-
 
 class PurchaseOrderForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrder
         fields = ['requisition', 'supplier']  # 'requisition' optional
+        widgets = {
+            'requisition': forms.Select(
+                attrs={
+                    'class': 'form-select'
+                }
+            ),
+            'supplier': forms.Select(
+                attrs={
+                    'class': 'form-select'
+                }
+            ),
+        }
+
+
+class PurchaseOrderItemForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ['product', 'quantity', 'unit_cost']
+        widgets = {
+            # base widgets; we will enforce classes in __init__
+            'product': forms.Select(),
+            'quantity': forms.NumberInput(
+                attrs={
+                    'class': 'form-control form-control-sm w-100',
+                    'min': 1,
+                }
+            ),
+            'unit_cost': forms.NumberInput(
+                attrs={
+                    'class': 'form-control form-control-sm w-100',
+                    'step': '0.01',
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Ensure product has the Select2 + Bootstrap classes
+        product_widget = self.fields['product'].widget
+        existing = product_widget.attrs.get('class', '')
+        product_widget.attrs['class'] = (
+            existing + ' form-select form-select-sm select2-product w-100'
+        ).strip()
+
+        # Make unit_cost read-only in the UI; still submitted as a normal field.
+        self.fields['unit_cost'].widget.attrs['readonly'] = 'readonly'
 
 PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,
-    form=PurchaseOrderItemForm,
+    form=PurchaseOrderItemForm,  # ensure THIS form is referenced
     fields=['product', 'quantity', 'unit_cost'],
     extra=1,
     can_delete=True,

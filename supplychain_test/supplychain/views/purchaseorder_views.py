@@ -63,6 +63,8 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, View)
             'can_approve': can_approve,
             'section': 'purchase_orders',
             'po_total_amount': total_amount,
+            # ↓ add unified workflow audit trail
+            'timeline': build_workitem_timeline_for_po(po),
         }
         return render(request, 'supplychain/purchase_orders/detail.html', context)
     

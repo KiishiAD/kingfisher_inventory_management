@@ -38,30 +38,34 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        # Build context with the bound formset (incl. errors if any)
+        context = self.get_context_data(form=form)
         item_formset = context['item_formset']
-        if item_formset.is_valid():
+
+        # If item formset is invalid, re-render the page with errors
+        if not item_formset.is_valid():
+            return self.render_to_response(context)
+
+        # Both main form and formset are valid: save everything atomically
+        with transaction.atomic():
             self.object = form.save()
             item_formset.instance = self.object
             item_formset.save()
 
-        #log the requester’s initial note as an approval entry
-        initial_note = (form.cleaned_data.get('notes') or "").strip()
-        if initial_note:
-            RequisitionApproval.objects.create(
-                requisition=self.object,
-                approver=self.request.user,     # requester here
-                action=Requisition.PENDING,
-                notes=f"Requester note: {initial_note}",
-            )
-            messages.success(
-                self.request,
-                f"Requisition #{self.object.id} created successfully!"
-            )
-            return redirect(self.success_url)
-        else:
-            return self.render_to_response(self.get_context_data(form=form))
-        
+            initial_note = (form.cleaned_data.get('notes') or "").strip()
+            if initial_note:
+                RequisitionApproval.objects.create(
+                    requisition=self.object,
+                    approver=self.request.user,
+                    action=Requisition.PENDING,
+                    notes=f"Requester note: {initial_note}",
+                )
+
+        messages.success(
+            self.request,
+            f"Requisition #{self.object.id} created successfully!"
+        )
+        return redirect(self.success_url)
 
 
     def handle_no_permission(self):
@@ -78,7 +82,10 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
     success_url = reverse_lazy('supplychain:requisition-list')
 
     def get_queryset(self):
-        return Requisition.objects.filter(requester=self.request.user, status=Requisition.QUERIED)
+        return Requisition.objects.filter(
+            requester=self.request.user,
+            status=Requisition.QUERIED,
+        )
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -88,19 +95,35 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
+
+        # Line-item formset
         if self.request.POST:
-            context['item_formset'] = RequisitionItemFormSet(self.request.POST, instance=self.object)
+            context['item_formset'] = RequisitionItemFormSet(
+                self.request.POST,
+                instance=self.object,
+            )
         else:
-            context['item_formset'] = RequisitionItemFormSet(instance=self.object)
+            context['item_formset'] = RequisitionItemFormSet(
+                instance=self.object,
+            )
+
+        # --- Audit trail (same idea as detail view) ---
+        context["approvals"] = (
+            self.object.approvals
+            .select_related("approver")
+            .order_by("timestamp")
+        )
+        context["timeline"] = build_workitem_timeline(self.object)
+
         return context
 
     def post(self, request, *args, **kwargs):
-        # ensure self.object is set (helpful for logging) and log POST for debugging
         self.object = self.get_object()
         logger.debug("RequisitionUpdateView POST keys: %s", list(request.POST.keys()))
         logger.debug("RequisitionUpdateView FILES keys: %s", list(request.FILES.keys()))
         return super().post(request, *args, **kwargs)
 
+        
     def form_valid(self, form):
         context = self.get_context_data()
         item_formset = context['item_formset']

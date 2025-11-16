@@ -51,7 +51,10 @@ class Supplier_destination_sub_category(models.Model):
         max_length=20,
         choices=SUBCATEGORY_CHOICES,
         unique=True,
+        null=True,
+        blank = True
     )
+    
 
     def __str__(self):
         return self.get_name_display()

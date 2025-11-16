@@ -5,85 +5,199 @@
 {% block title %}Requisition #{{ requisition.id }} Detail{% endblock %}
 
 {% block content %}
-  <h1>Requisition #{{ requisition.id }}</h1>
-  <p>
-    <strong>Requester:</strong> {{ requisition.requester.get_full_name }}<br>
-    <strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}<br>
-    <strong>Status:</strong> {{ requisition.status|status_badge }}<br>
-    <strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}<br>
-    <strong>Destination:</strong> {{ requisition.get_destination_display }}<br>
-    {% if requisition.evidence %}
+<style>
+  .rq-header p { margin-bottom: .25rem; }
+
+  /* Scrollable audit trail card (same feel as PO page) */
+  .rq-timeline-card {
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    background-color: #ffffff;
+  }
+
+  .rq-timeline {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+
+  .rq-timeline::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #e9ecef;
+  }
+
+  .rq-timeline-item {
+    position: relative;
+    margin-bottom: 10px;
+  }
+
+  .rq-timeline-dot {
+    position: absolute;
+    left: -1px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+  }
+
+  .rq-timeline-body {
+    padding: .35rem .5rem;
+    border-radius: .25rem;
+    background-color: #f8f9fa;
+    font-size: .875rem;
+  }
+
+  .rq-timeline-body:hover { background-color: #e9ecef; }
+
+  .rq-timeline-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+    color: #6c757d;
+    margin-bottom: .15rem;
+  }
+
+  .rq-badge {
+    display: inline-block;
+    padding: .1rem .4rem;
+    border-radius: .5rem;
+    font-size: .7rem;
+    color: #fff;
+  }
+  .rq-badge-requisition { background-color: #0d6efd; }
+  .rq-badge-po          { background-color: #198754; }
+  .rq-badge-payment     { background-color: #0dcaf0; color: #000; }
+  .rq-badge-issuance    { background-color: #ffc107; color: #000; }
+  .rq-badge-other       { background-color: #6c757d; }
+</style>
+
+<h1>Requisition #{{ requisition.id }}</h1>
+
+<div class="rq-header">
+  <p><strong>Requester:</strong> {{ requisition.requester.get_full_name }}</p>
+  <p><strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}</p>
+  <p><strong>Status:</strong> {{ requisition.status|status_badge }}</p>
+  <p><strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}</p>
+  <p><strong>Destination:</strong> {{ requisition.get_destination_display }}</p>
+  {% if requisition.evidence %}
+    <p>
       <strong>Evidence:</strong>
-      <a href="{{ requisition.evidence.url }}" target="_blank">Download</a><br>
-    {% endif %}
-    {% if requisition.notes %}
-      <strong>Notes:</strong> {{ requisition.notes|linebreaksbr }}<br>
-    {% endif %}
-  </p>
-
-  <h3>Items Requested</h3>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Product</th>
-        <th>Quantity</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in items %}
-        <tr>
-          <td>{{ forloop.counter }}</td>
-          <td>{{ item.product.name }}</td>
-          <td>{{ item.quantity }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
- <h3>Audit Trail</h3>
-<div class="timeline">
-  {% for e in timeline %}
-    <div class="timeline-item">
-      <span class="timeline-dot"></span>
-      <div class="timeline-content card p-2">
-        <strong>{{ e.timestamp|date:"Y-m-d H:i" }}:</strong>
-        {% if e.who %}{{ e.who.username }} – {% endif %}{{ e.label }}
-        {% if e.details %}
-          <br><em>Notes:</em> {{ e.details|linebreaksbr }}
-        {% endif %}
-      </div>
-    </div>
-  {% empty %}
-    <p>No actions have been taken yet.</p>
-  {% endfor %}
+      <a href="{{ requisition.evidence.url }}" target="_blank">Download</a>
+    </p>
+  {% endif %}
+  {% if requisition.notes %}
+    <p>
+      <strong>Notes:</strong> {{ requisition.notes|linebreaksbr }}
+    </p>
+  {% endif %}
 </div>
 
-  {# Only show the approval form if the user can approve and status is PENDING #}
-  {% if can_approve %}
-    <hr>
-    <h3>Take Action</h3>
-    <form method="post">
-      {% csrf_token %}
-      {{ approval_form.non_field_errors }}
+<h3>Items Requested</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Product</th>
+      <th>Quantity</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ item.product.name }}</td>
+        <td>
+          {{ item.quantity }}
+          {% if item.product.uom %} {{ item.product.uom.code }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-      <div class="form-group">
-        {{ approval_form.action.label_tag }}<br>
-        {{ approval_form.action }}
-        {% if approval_form.action.errors %}
-          <div class="text-danger">{{ approval_form.action.errors }}</div>
-        {% endif %}
-      </div>
+<hr>
 
-      <div class="form-group">
-        {{ approval_form.notes.label_tag }}
-        {{ approval_form.notes }}
-        {% if approval_form.notes.errors %}
-          <div class="text-danger">{{ approval_form.notes.errors }}</div>
-        {% endif %}
-      </div>
+<div class="col-12 col-lg-8 mb-3">
+  <h3>Audit Trail</h3>
+  <div class="rq-timeline-card">
+    <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">Workflow timeline</span>
+      <span class="badge bg-secondary">{{ timeline|length }} events</span>
+    </div>
+    <div class="p-2">
+      {% if timeline %}
+        <ul class="rq-timeline mb-0">
+          {% for e in timeline %}
+            <li class="rq-timeline-item">
+              <span class="rq-timeline-dot"></span>
+              <div class="rq-timeline-body">
+                <div class="rq-timeline-meta">
+                  <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
+                  {% if "Requisition" in e.label %}
+                    <span class="rq-badge rq-badge-requisition">REQ</span>
+                  {% elif "PO " in e.label %}
+                    <span class="rq-badge rq-badge-po">PO</span>
+                  {% elif "Payment" in e.label %}
+                    <span class="rq-badge rq-badge-payment">PAY</span>
+                  {% elif "Issuance" in e.label %}
+                    <span class="rq-badge rq-badge-issuance">ISS</span>
+                  {% else %}
+                    <span class="rq-badge rq-badge-other">EVT</span>
+                  {% endif %}
+                </div>
+                <div>
+                  {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
+                  {{ e.label }}
+                </div>
+                {% if e.details %}
+                  <div class="mt-1 text-muted">
+                    {{ e.details|linebreaksbr }}
+                  </div>
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted mb-0 px-1">No actions have been taken yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
 
-      <button type="submit" class="btn btn-primary">Submit</button>
-    </form>
-  {% endif %}
+{% if can_approve %}
+  <hr>
+  <h3>Take Action</h3>
+  <form method="post">
+    {% csrf_token %}
+    {{ approval_form.non_field_errors }}
+
+    <div class="form-group">
+      {{ approval_form.action.label_tag }}<br>
+      {{ approval_form.action }}
+      {% if approval_form.action.errors %}
+        <div class="text-danger">{{ approval_form.action.errors }}</div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      {{ approval_form.notes.label_tag }}
+      {{ approval_form.notes }}
+      {% if approval_form.notes.errors %}
+        <div class="text-danger">{{ approval_form.notes.errors }}</div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% endif %}
 {% endblock %}

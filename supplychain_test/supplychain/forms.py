@@ -25,7 +25,7 @@ class RequisitionForm(forms.ModelForm):
         sub_category = cleaned_data.get('Supplier_destination_sub_category')
 
         if destination and sub_category:
-            if destination.name == destination.STORE and sub_category.name is not None:
+            if destination.name == destination.STORE and sub_category.name in ["CONSUMABLES", "SERVICES"]:
                 error_msg =  "Supplier sub category should be empty when destination is STORE."
                 self.add_error('Supplier_destination_sub_category', error_msg)
 

@@ -40,6 +40,7 @@ class Requisition(TimeStampedModel):
         related_name="requisitions",
         verbose_name="Supplier Sub-Category",
         null=True,
+        blank = True
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     destination = models.ForeignKey(

@@ -46,11 +46,23 @@ class RequisitionItemForm(forms.ModelForm):
         model = RequisitionItem
         fields = ['product', 'quantity', 'supplier']
         widgets = {
-            # Add CSS classes so JS can hook into these selects
-            'product': forms.Select(attrs={'class': 'form-select select2-product'}),
-            'supplier': forms.Select(attrs={'class': 'form-select select2-supplier'}),
+            'product': forms.Select(
+                attrs={
+                    'class': 'form-select form-select-sm select2-product w-100'
+                }
+            ),
+            'quantity': forms.NumberInput(
+                attrs={
+                    'class': 'form-control form-control-sm w-100',
+                    'min': 1,
+                }
+            ),
+            'supplier': forms.Select(
+                attrs={
+                    'class': 'form-select form-select-sm select2-supplier w-100'
+                }
+            ),
         }
-
 
 
 # We will allow up to 10 line items by default; you can adjust max_num as needed.

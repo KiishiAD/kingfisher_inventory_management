@@ -125,7 +125,13 @@
   {{ item_formset.management_form }}
   {{ item_formset.non_form_errors }}
 
-  <table class="table">
+ <table class="table table-sm align-middle">
+  <colgroup>
+    <col style="width: 50%;">   {# Product #}
+    <col style="width: 15%;">   {# Quantity #}
+    <col style="width: 25%;">   {# Supplier #}
+    <col style="width: 10%;">   {# Delete button #}
+  </colgroup>
     <thead>
       <tr>
         <th>Product</th>
@@ -135,33 +141,33 @@
       </tr>
     </thead>
     <tbody>
-{% for li_form in item_formset %}
-    <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
-      {{ li_form.id }}
-      <td>
-        {{ li_form.product }}
-        {% if li_form.product.errors %}
-          <div class="text-danger">{{ li_form.product.errors }}</div>
-        {% endif %}
-      </td>
-      <td>
-        {{ li_form.quantity }}
-        {% if li_form.quantity.errors %}
-          <div class="text-danger">{{ li_form.quantity.errors }}</div>
-        {% endif %}
-      </td>
-      <td>
-        {{ li_form.supplier }}
-        {% if li_form.supplier.errors %}
-          <div class="text-danger">{{ li_form.supplier.errors }}</div>
-        {% endif %}
-      </td>
-      <td>
-        <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-        {{ li_form.DELETE }}
-      </td>
-    </tr>
-{% endfor %}
+      {% for li_form in item_formset %}
+        <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
+          {{ li_form.id }}
+          <td>
+            {{ li_form.product }}
+            {% if li_form.product.errors %}
+              <div class="text-danger">{{ li_form.product.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {{ li_form.quantity }}
+            {% if li_form.quantity.errors %}
+              <div class="text-danger">{{ li_form.quantity.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {{ li_form.supplier }}
+            {% if li_form.supplier.errors %}
+              <div class="text-danger">{{ li_form.supplier.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+            {{ li_form.DELETE }}
+          </td>
+        </tr>
+      {% endfor %}
     </tbody>
   </table>
 
@@ -233,11 +239,14 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-function attachDeleteHandlers(){
-  document.querySelectorAll('.remove-item').forEach(function(btn){
-    if(!btn.dataset.listener){
+(function() {
+  function attachDeleteHandlers(){
+    document.querySelectorAll('.remove-item').forEach(function(btn){
+      if(btn.dataset.listener) return;
       btn.addEventListener('click', function(e){
         e.preventDefault();
         var row = btn.closest('tr');
@@ -246,38 +255,41 @@ function attachDeleteHandlers(){
         row.classList.add('d-none');
       });
       btn.dataset.listener = "1";
-    }
-  });
-}
-
-function initSelect2ForLineItems() {
-  $('.select2-product').select2({ width: 'resolve' });
-  $('.select2-supplier').select2({ width: 'resolve' });
-}
-
-document.addEventListener('DOMContentLoaded', function(){
-  var addBtn = document.getElementById('add-item');
-  var formPrefix = '{{ item_formset.prefix }}';
-  var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-  var maxNum = {{ item_formset.max_num|default_if_none:"9999" }};
-
-  attachDeleteHandlers();
-  initSelect2ForLineItems();  // For existing items on load
-
-  if(addBtn){
-    addBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      var count = parseInt(totalForms.value);
-      if(count >= maxNum) return;
-      var tmpl = document.getElementById('empty-form-template').innerHTML
-        .replace(/__prefix__/g, count);
-      document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
-      totalForms.value = count + 1;
-
-      attachDeleteHandlers();
-      initSelect2ForLineItems();   // New row gets Select2
     });
   }
-});
+
+  function initSelect2ForLineItems() {
+    if (window.jQuery && $.fn.select2) {
+      $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
+      $('.select2-supplier').not('.select2-hidden-accessible').select2({ width: '100%' });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var addBtn = document.getElementById('add-item');
+    var formPrefix = '{{ item_formset.prefix }}';
+    var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+    var maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
+
+    attachDeleteHandlers();
+    initSelect2ForLineItems();
+
+    if(addBtn && totalForms){
+      addBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        var count = parseInt(totalForms.value, 10);
+        if(count >= maxNum) return;
+
+        var tmpl = document.getElementById('empty-form-template').innerHTML
+          .replace(/__prefix__/g, count);
+        document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
+        totalForms.value = count + 1;
+
+        attachDeleteHandlers();
+        initSelect2ForLineItems();
+      });
+    }
+  });
+})();
 </script>
 {% endblock %}

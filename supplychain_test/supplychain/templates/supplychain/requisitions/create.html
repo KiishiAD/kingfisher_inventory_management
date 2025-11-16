@@ -5,156 +5,166 @@
 {% block title %}Create Requisition{% endblock %}
 
 {% block content %}
-  <h1>Create New Requisition</h1>
+<h1>Create New Requisition</h1>
 
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
 
-    {{ form.non_field_errors }}
-    <div class="form-group">
-      {{ form.urgent.label_tag }} {{ form.urgent }}
-      {% if form.urgent.errors %}
-        <div class="text-danger">{{ form.urgent.errors }}</div>
-      {% endif %}
-    </div>
+  {{ form.non_field_errors }}
+  <div class="form-group mb-2">
+    {{ form.urgent.label_tag }} {{ form.urgent }}
+    {% if form.urgent.errors %}
+      <div class="text-danger">{{ form.urgent.errors }}</div>
+    {% endif %}
+  </div>
 
-    <div class="form-group">
-      {{ form.destination.label_tag }} {{ form.destination }}
-      {% if form.destination.errors %}
-        <div class="text-danger">{{ form.destination.errors }}</div>
-      {% endif %}
-    </div>
+  <div class="form-group mb-2">
+    {{ form.destination.label_tag }} {{ form.destination }}
+    {% if form.destination.errors %}
+      <div class="text-danger">{{ form.destination.errors }}</div>
+    {% endif %}
+  </div>
 
-    <div class="form-group">
-      {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
-      {% if form.Supplier_destination_sub_category.errors %}
-        <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
-      {% endif %}
-    </div>
+  <div class="form-group mb-2">
+    {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
+    {% if form.Supplier_destination_sub_category.errors %}
+      <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
+    {% endif %}
+  </div>
 
-    <div class="form-group">
-      {{ form.evidence.label_tag }} {{ form.evidence }}
-      {% if form.evidence.errors %}
-        <div class="text-danger">{{ form.evidence.errors }}</div>
-      {% endif %}
-    </div>
+  <div class="form-group mb-2">
+    {{ form.evidence.label_tag }} {{ form.evidence }}
+    {% if form.evidence.errors %}
+      <div class="text-danger">{{ form.evidence.errors }}</div>
+    {% endif %}
+  </div>
 
-    <div class="form-group">
-      {{ form.notes.label_tag }}
-      {{ form.notes }}
-      {% if form.notes.errors %}
-        <div class="text-danger">{{ form.notes.errors }}</div>
-      {% endif %}
-    </div>
+  <div class="form-group mb-3">
+    {{ form.notes.label_tag }}
+    {{ form.notes }}
+    {% if form.notes.errors %}
+      <div class="text-danger">{{ form.notes.errors }}</div>
+    {% endif %}
+  </div>
 
-    <h3>Line Items</h3>
-    {{ item_formset.management_form }}
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Supplier</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-{% for form in item_formset %}
-      <tr class="{% if form.DELETE.value %}d-none{% endif %}">
-        {{ form.id }}
-        <td>
-          {{ form.product }}
-          {% if form.product.errors %}
-            <div class="text-danger">{{ form.product.errors }}</div>
-          {% endif %}
-        </td>
-        <td>
-          {{ form.quantity }}
-          {% if form.quantity.errors %}
-            <div class="text-danger">{{ form.quantity.errors }}</div>
-          {% endif %}
-        </td>
-        <td>
-          {{ form.supplier }}
-          {% if form.supplier.errors %}
-            <div class="text-danger">{{ form.supplier.errors }}</div>
-          {% endif %}
-        <td>
-          <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-          {{ form.DELETE }}
-        </td>
-      </tr>
-{% endfor %}
-      </tbody>
-    </table>
+  <h3>Line Items</h3>
+  {{ item_formset.management_form }}
 
-    <template id="empty-form-template">
+  <table class="table table-sm align-middle">
+  <colgroup>
+    <col style="width: 50%;">   {# Product #}
+    <col style="width: 15%;">   {# Quantity #}
+    <col style="width: 25%;">   {# Supplier #}
+    <col style="width: 10%;">   {# Delete button #}
+  </colgroup>
+    <thead>
       <tr>
-        {{ item_formset.empty_form.id }}
-        <td>{{ item_formset.empty_form.product }}</td>
-        <td>{{ item_formset.empty_form.quantity }}</td>
-        <td>{{ item_formset.empty_form.supplier }}</td>
-        <td>
-          <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-          {{ item_formset.empty_form.DELETE }}
-        </td>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Supplier</th>
+        <th></th>
       </tr>
-    </template>
+    </thead>
+    <tbody>
+      {% for li_form in item_formset %}
+        <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
+          {{ li_form.id }}
+          <td>
+            {{ li_form.product }}
+            {% if li_form.product.errors %}
+              <div class="text-danger">{{ li_form.product.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {{ li_form.quantity }}
+            {% if li_form.quantity.errors %}
+              <div class="text-danger">{{ li_form.quantity.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {{ li_form.supplier }}
+            {% if li_form.supplier.errors %}
+              <div class="text-danger">{{ li_form.supplier.errors }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+            {{ li_form.DELETE }}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-    <div class="d-flex gap-2 mb-3">
-      <button id="add-item" class="btn btn-primary">Add Product</button>
-      <button type="submit" class="btn btn-primary ms-auto">Submit Requisition</button>
-    </div>
-  </form>
+  <template id="empty-form-template">
+    <tr>
+      {{ item_formset.empty_form.id }}
+      <td>{{ item_formset.empty_form.product }}</td>
+      <td>{{ item_formset.empty_form.quantity }}</td>
+      <td>{{ item_formset.empty_form.supplier }}</td>
+      <td>
+        <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
+        {{ item_formset.empty_form.DELETE }}
+      </td>
+    </tr>
+  </template>
 
- <script>
+  <div class="d-flex gap-2 mb-3">
+    <button id="add-item" class="btn btn-primary" type="button">Add Product</button>
+    <button type="submit" class="btn btn-primary ms-auto">Submit Requisition</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
   function attachDeleteHandlers() {
-    document.querySelectorAll('.remove-item').forEach(function(btn){
-      if (!btn.dataset.listener) {
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          var row = btn.closest('tr');
-          var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-          if(del){ del.checked = true; }
-          row.classList.add('d-none');
-        });
-        btn.dataset.listener = true;
-      }
+    document.querySelectorAll('.remove-item').forEach(function(btn) {
+      if (btn.dataset.listener) return;
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const row = btn.closest('tr');
+        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (del) del.checked = true;
+        row.classList.add('d-none');
+      });
+      btn.dataset.listener = "1";
     });
   }
 
   function initSelect2ForLineItems() {
-    // Initialise Select2 on current selects
-    // Using jQuery because Select2 depends on it
-    $('.select2-product').select2({ width: 'resolve' });
-    $('.select2-supplier').select2({ width: 'resolve' });
+    if (window.jQuery && $.fn.select2) {
+      $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
+      $('.select2-supplier').not('.select2-hidden-accessible').select2({ width: '100%' });
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', function(){
-    var addBtn = document.getElementById('add-item');
-    var formPrefix = '{{ item_formset.prefix }}';
-    var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+  document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item');
+    const formPrefix = '{{ item_formset.prefix }}';
+    const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+    const maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
 
     attachDeleteHandlers();
-    initSelect2ForLineItems();  // Initialise for existing rows
+    initSelect2ForLineItems();
 
-    if(addBtn){
-      addBtn.addEventListener('click', function(e){
+    if (addBtn && totalForms) {
+      addBtn.addEventListener('click', function(e) {
         e.preventDefault();
-        var formCount = parseInt(totalForms.value);
-        if (formCount >= {{ item_formset.max_num }}) return;
+        let count = parseInt(totalForms.value, 10);
+        if (count >= maxNum) return;
 
-        var template = document.getElementById('empty-form-template').innerHTML
-          .replace(/__prefix__/g, formCount);
-        var tbody = document.querySelector('table tbody');
-        tbody.insertAdjacentHTML('beforeend', template);
-        totalForms.value = formCount + 1;
+        const tmpl = document.getElementById('empty-form-template').innerHTML
+          .replace(/__prefix__/g, count);
+        document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
+        totalForms.value = count + 1;
 
         attachDeleteHandlers();
-        initSelect2ForLineItems();   // Re-init so new row gets Select2
+        initSelect2ForLineItems();
       });
     }
   });
+})();
 </script>
-
 {% endblock %}

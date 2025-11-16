@@ -79,3 +79,8 @@ footer {
 input[name$='-DELETE'] {
     display: none;
 }
+
+/* Make quantity input narrower than product/supplier */
+.qty-input {
+  max-width: 6rem;   /* ~6 character width */
+}

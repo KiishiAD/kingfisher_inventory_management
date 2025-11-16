@@ -31,10 +31,18 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
-        if self.request.POST:
-            context['item_formset'] = RequisitionItemFormSet(self.request.POST)
+
+        item_formset = kwargs.get('item_formset')
+        if item_formset is not None:
+            # Re-use the bound formset with errors
+            context['item_formset'] = item_formset
         else:
-            context['item_formset'] = RequisitionItemFormSet()
+            # Normal behaviour
+            if self.request.POST:
+                context['item_formset'] = RequisitionItemFormSet(self.request.POST)
+            else:
+                context['item_formset'] = RequisitionItemFormSet()
+
         return context
 
     def form_valid(self, form):
@@ -45,6 +53,26 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
         # If item formset is invalid, re-render the page with errors
         if not item_formset.is_valid():
             return self.render_to_response(context)
+        
+         # 2) EXTRA RULE: if destination == STORE, no supplier allowed on any item
+        destination = form.cleaned_data.get('destination')
+        if destination and destination.name == Destination.STORE:
+            for f in item_formset.forms:
+                # skip empty or deleted rows
+                if not f.cleaned_data or f.cleaned_data.get('DELETE'):
+                    continue
+
+                supplier = f.cleaned_data.get('supplier')
+                if supplier:
+                    f.add_error(
+                        'supplier',
+                        "Supplier must be empty when destination is STORE."
+                    )
+
+        # If any errors were added above, re-render the form with errors
+        if any(f.errors for f in item_formset.forms) or item_formset.non_form_errors():
+            return self.render_to_response(self.get_context_data(form=form, item_formset=item_formset))
+
 
         # Both main form and formset are valid: save everything atomically
         with transaction.atomic():
@@ -96,16 +124,20 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
 
-        # Line-item formset
-        if self.request.POST:
-            context['item_formset'] = RequisitionItemFormSet(
-                self.request.POST,
-                instance=self.object,
-            )
+        item_formset = kwargs.get('item_formset')
+        if item_formset is not None:
+            context['item_formset'] = item_formset
         else:
-            context['item_formset'] = RequisitionItemFormSet(
-                instance=self.object,
-            )
+            # Line-item formset
+            if self.request.POST:
+                context['item_formset'] = RequisitionItemFormSet(
+                    self.request.POST,
+                    instance=self.object,
+                )
+            else:
+                context['item_formset'] = RequisitionItemFormSet(
+                    instance=self.object,
+                )
 
         # --- Audit trail (same idea as detail view) ---
         context["approvals"] = (
@@ -116,7 +148,7 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         context["timeline"] = build_workitem_timeline(self.object)
 
         return context
-
+    
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         logger.debug("RequisitionUpdateView POST keys: %s", list(request.POST.keys()))
@@ -129,7 +161,29 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         item_formset = context['item_formset']
 
         if not item_formset.is_valid():
-            return self.render_to_response(self.get_context_data(form=form))
+            return self.render_to_response(
+                self.get_context_data(form=form, item_formset=item_formset)
+            )
+
+        # EXTRA RULE: if destination == STORE, no supplier allowed on any item
+        destination = form.cleaned_data.get('destination')
+        if destination and destination.name == Destination.STORE:
+            for f in item_formset.forms:
+                if not f.cleaned_data or f.cleaned_data.get('DELETE'):
+                    continue
+                supplier = f.cleaned_data.get('supplier')
+                if supplier:
+                    f.add_error(
+                        'supplier',
+                        "Supplier must be empty when destination is STORE."
+                    )
+
+        # If cross-validation added errors, re-render with those errors
+        if any(f.errors for f in item_formset.forms) or item_formset.non_form_errors():
+            return self.render_to_response(
+                self.get_context_data(form=form, item_formset=item_formset)
+            )
+
 
         # --- Build a simple summary of item-level changes BEFORE saving ---
         item_changes = []

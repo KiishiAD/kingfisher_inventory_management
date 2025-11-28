@@ -178,12 +178,26 @@ class PurchaseOrderItemForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrderItem
         fields = ['product', 'quantity', 'unit_cost']
+        widgets = {
+            'product': forms.Select(
+                attrs={
+                    # same classes as RequisitionItemForm
+                    'class': 'form-select form-select-sm select2-product w-100',
+                }
+            ),
+            'quantity': forms.NumberInput(
+                attrs={
+                    'class': 'form-control form-control-sm w-100',
+                    'min': 1,
+                }
+            ),
+            # unit_cost uses default widget; we’ll just mark it readonly below
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Make unit_cost read-only in the UI; still submitted as a normal field.
         self.fields['unit_cost'].widget.attrs['readonly'] = 'readonly'
-
 
 
 class PurchaseOrderForm(forms.ModelForm):

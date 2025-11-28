@@ -5,6 +5,7 @@
 
 {% block content %}
 
+
 <style>
   .po-header p { margin-bottom: .25rem; }
 
@@ -244,17 +245,38 @@
 {% block extra_js %}
 <script>
 (function() {
-  function attachDeleteHandlers(){
-    document.querySelectorAll('.remove-item').forEach(function(btn){
-      if(btn.dataset.listener) return;
-      btn.addEventListener('click', function(e){
+  // Attach delete-handlers to all "Delete" buttons
+  function attachDeleteHandlers() {
+    document.querySelectorAll('.remove-item').forEach(function(btn) {
+      if (btn.dataset.listenerAttached === '1') return;  // avoid double-binding
+
+      btn.addEventListener('click', function(e) {
         e.preventDefault();
         var row = btn.closest('tr');
-        var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-        if(del){ del.checked = true; }
-        row.classList.add('d-none');
+        if (!row) return;
+
+        // Hidden primary-key field for this form ({{ li_form.id }})
+        var idField = row.querySelector('input[name$="-id"]');
+
+        if (idField && idField.value) {
+          // 1️⃣ EXISTING DB ROW:
+          // Mark for deletion – Django's formset will delete it on save.
+          var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+          if (del) {
+            del.checked = true;
+          }
+          // Just hide visually; keep inputs so validation sees the original values.
+          row.classList.add('d-none');
+        } else {
+          // 2️⃣ BRAND-NEW ROW (never saved):
+          // Just remove it from the DOM completely so it never hits the formset.
+          row.remove();
+          // We do NOT need to change TOTAL_FORMS – Django will treat the
+          // missing index as an "extra empty form" with no effect.
+        }
       });
-      btn.dataset.listener = "1";
+
+      btn.dataset.listenerAttached = '1';
     });
   }
 
@@ -265,7 +287,7 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', function(){
+  document.addEventListener('DOMContentLoaded', function() {
     var addBtn = document.getElementById('add-item');
     var formPrefix = '{{ item_formset.prefix }}';
     var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
@@ -274,17 +296,21 @@
     attachDeleteHandlers();
     initSelect2ForLineItems();
 
-    if(addBtn && totalForms){
-      addBtn.addEventListener('click', function(e){
+    if (addBtn && totalForms) {
+      addBtn.addEventListener('click', function(e) {
         e.preventDefault();
         var count = parseInt(totalForms.value, 10);
-        if(count >= maxNum) return;
+        if (count >= maxNum) return;
 
+        // Create new row from empty_form template
         var tmpl = document.getElementById('empty-form-template').innerHTML
           .replace(/__prefix__/g, count);
         document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
+
+        // Bump TOTAL_FORMS so Django knows there is another form
         totalForms.value = count + 1;
 
+        // Re-wire delete handlers & select2 for the newly added row
         attachDeleteHandlers();
         initSelect2ForLineItems();
       });

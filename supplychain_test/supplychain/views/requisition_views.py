@@ -292,20 +292,64 @@ class RequisitionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
 
 
 class RequisitionPendingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
-    """List all Requisitions with status='PENDING'."""
+    """List requisitions, defaulting to status='PENDING'."""
     model = Requisition
     template_name = 'supplychain/requisitions/pending.html'
     context_object_name = 'pending_requisitions'
     permission_required = 'supplychain.approve_requisition'
     paginate_by = 20
+    form_class = RequisitionFilterForm
+
+    def get_queryset(self):
+        qs = (
+            Requisition.objects
+            .select_related('requester', 'destination')
+            .order_by('created_at')
+        )
+
+        self.filter_form = self.form_class(self.request.GET or None)
+        default_status = Requisition.PENDING
+
+        if self.filter_form.is_valid():
+            data = self.filter_form.cleaned_data
+
+            # status from filter form, default to PENDING for this view
+            status = data.get('status') or default_status
+            qs = qs.filter(status=status)
+
+            if data.get('requester'):
+                qs = qs.filter(requester=data['requester'])
+            if data.get('start_date'):
+                qs = qs.filter(created_at__date__gte=data['start_date'])
+            if data.get('end_date'):
+                qs = qs.filter(created_at__date__lte=data['end_date'])
+            if data.get('destination'):
+                qs = qs.filter(destination=data['destination'])
+            if data.get('urgent') == 'yes':
+                qs = qs.filter(urgent=True)
+            elif data.get('urgent') == 'no':
+                qs = qs.filter(urgent=False)
+        else:
+            # no valid form? default to PENDING only
+            qs = qs.filter(status=default_status)
+
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
-        return context
+        context["filter_form"] = getattr(self, 'filter_form', self.form_class())
 
-    def get_queryset(self):
-        return Requisition.objects.filter(status=Requisition.PENDING).order_by('created_at')
+        # same status data used for buttons
+        context["status_choices"] = Requisition.STATUS_CHOICES
+        if hasattr(self, "filter_form") and self.filter_form.is_valid():
+            context["active_status"] = (
+                self.filter_form.cleaned_data.get("status") or Requisition.PENDING
+            )
+        else:
+            context["active_status"] = Requisition.PENDING
+
+        return context
 
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to approve requisitions.")
@@ -323,10 +367,17 @@ class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     form_class = RequisitionFilterForm
 
     def get_queryset(self):
-        qs = Requisition.objects.all().order_by('-created_at')
+        # Perf: pull related objects in one go
+        qs = (
+            Requisition.objects
+            .select_related('requester', 'destination')
+            .order_by('-created_at')
+        )
+
         self.filter_form = self.form_class(self.request.GET or None)
         if self.filter_form.is_valid():
             data = self.filter_form.cleaned_data
+
             if data.get('requester'):
                 qs = qs.filter(requester=data['requester'])
             if data.get('start_date'):
@@ -341,19 +392,27 @@ class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
                 qs = qs.filter(urgent=False)
             if data.get('status'):
                 qs = qs.filter(status=data['status'])
+
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["section"] = "requisitions"
         context["filter_form"] = getattr(self, 'filter_form', self.form_class())
+
+        # NEW: for the status button bar
+        context["status_choices"] = Requisition.STATUS_CHOICES
+        if hasattr(self, "filter_form") and self.filter_form.is_valid():
+            context["active_status"] = self.filter_form.cleaned_data.get("status") or ""
+        else:
+            context["active_status"] = ""
+
         return context
 
     def handle_no_permission(self):
         messages.error(self.request, "You do not have permission to view all requisitions.")
         return super().handle_no_permission()
-
-
+    
 class RequisitionDetailView(LoginRequiredMixin, View):
     """Show requisition details and optionally approval form."""
 

@@ -19,7 +19,8 @@ from ..forms import (
     RequisitionFilterForm,
     PurchaseOrderApprovalForm, 
     PurchaseOrderForm, 
-    PurchaseOrderItemFormSet)
+    PurchaseOrderItemFormSet,
+    PurchaseOrderFilterForm)
 
 from django.contrib import messages
 from django.db import transaction
@@ -34,11 +35,59 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
     paginate_by = 20
 
     def get_queryset(self):
-        return PurchaseOrder.objects.all().order_by('-created_at')
+        qs = (
+            PurchaseOrder.objects
+            .all()
+            .select_related('supplier', 'requisition', 'created_by')
+            .order_by('-created_at')
+        )
+
+        # 2) Bind the filter form to GET params (?purchaser=..., ?supplier=..., etc.)
+        self.filter_form = PurchaseOrderFilterForm(self.request.GET or None)
+
+        # 3) If the form validates, pull cleaned data and apply .filter() calls
+        if self.filter_form.is_valid():
+            purchaser = self.filter_form.cleaned_data.get("purchaser")
+            supplier = self.filter_form.cleaned_data.get("supplier")
+            start_date = self.filter_form.cleaned_data.get("start_date")
+            end_date = self.filter_form.cleaned_data.get("end_date")
+            status = self.filter_form.cleaned_data.get("status")
+
+            # I'm assuming PurchaseOrder has a ForeignKey to the user called created_by.
+            # If your field is called purchaser instead, change to qs.filter(purchaser=purchaser)
+            if purchaser:
+                qs = qs.filter(created_by=purchaser)
+
+            if supplier:
+                qs = qs.filter(supplier=supplier)
+
+            if start_date:
+                qs = qs.filter(created_at__date__gte=start_date)
+
+            if end_date:
+                qs = qs.filter(created_at__date__lte=end_date)
+
+            if status:
+                qs = qs.filter(status=status)
+
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['section'] = 'purchase_orders'
+
+        context['filter_form'] = getattr(
+            self, 'filter_form', PurchaseOrderFilterForm()
+        )
+
+        if hasattr(self, "filter_form") and self.filter_form.is_valid():
+            active_status = self.filter_form.cleaned_data.get("status") or ""
+        else:
+            active_status = ""
+
+        context["status_choices"] = PurchaseOrder.STATUS_CHOICES
+        context["active_status"] = active_status
+
         return context
 
 
@@ -157,14 +206,40 @@ class PurchaseOrderPendingListView(LoginRequiredMixin, PermissionRequiredMixin, 
     paginate_by = 20
 
     def get_queryset(self):
-        return (
+        # Base: only pending for COO
+        qs = (
             PurchaseOrder.objects
             .filter(status=PurchaseOrder.PENDING_COO)
             .select_related('supplier', 'requisition', 'created_by')
             .order_by('created_at')
         )
 
+        self.filter_form = PurchaseOrderFilterForm(self.request.GET or None)
+
+        if self.filter_form.is_valid():
+            purchaser = self.filter_form.cleaned_data.get("purchaser")
+            supplier = self.filter_form.cleaned_data.get("supplier")
+            start_date = self.filter_form.cleaned_data.get("start_date")
+            end_date = self.filter_form.cleaned_data.get("end_date")
+
+            if purchaser:
+                qs = qs.filter(created_by=purchaser)
+
+            if supplier:
+                qs = qs.filter(supplier=supplier)
+
+            if start_date:
+                qs = qs.filter(created_at__date__gte=start_date)
+
+            if end_date:
+                qs = qs.filter(created_at__date__lte=end_date)
+
+        return qs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['section'] = 'purchase_orders'
+        context['filter_form'] = getattr(
+            self, 'filter_form', PurchaseOrderFilterForm()
+        )
         return context

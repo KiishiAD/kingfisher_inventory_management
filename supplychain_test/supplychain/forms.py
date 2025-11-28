@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem
+from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier
 
 class RequisitionForm(forms.ModelForm):
     class Meta:
@@ -153,8 +153,31 @@ class RequisitionFilterForm(forms.Form):
     )
 
 
+class PurchaseOrderFilterForm(forms.Form):
+    """Filters for the All Purchase Orders page."""
 
-
+    purchaser = forms.ModelChoiceField(
+        queryset=User.objects.all(), required=False, label=_("Purchaser")
+    )
+    start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("Start Date"),
+    )
+    end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("End Date"),
+    )
+    supplier = forms.ModelChoiceField(
+        queryset=Supplier.objects.all(), required=False, label=_("Supplier")
+    )
+    status = forms.ChoiceField(
+        choices=[("", "---------")] + PurchaseOrder.STATUS_CHOICES,
+        required=False,
+        label=_("Status"),
+    )
+    
 class PurchaseOrderApprovalForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrderApproval

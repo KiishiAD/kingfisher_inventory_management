@@ -1,7 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Pending Purchase Orders{% endblock %}
 {% block content %}
-<h1>Purchase Orders Awaiting COO Approval</h1>
+<h1>Pending Purchase Orders</h1>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    {{ filter_form.purchaser.label_tag }}
+    {{ filter_form.purchaser }}
+  </div>
+  <div class="col-auto">
+    {{ filter_form.supplier.label_tag }}
+    {{ filter_form.supplier }}
+  </div>
+  <div class="col-auto">
+    {{ filter_form.start_date.label_tag }}
+    {{ filter_form.start_date }}
+  </div>
+  <div class="col-auto">
+    {{ filter_form.end_date.label_tag }}
+    {{ filter_form.end_date }}
+  </div>
+  <div class="col-auto align-self-end">
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <a href="{% url 'supplychain:po-pending' %}" class="btn btn-secondary btn-sm">Reset</a>
+  </div>
+</form>
 
 <table class="table">
   <thead>

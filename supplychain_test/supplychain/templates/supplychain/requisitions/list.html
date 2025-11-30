@@ -41,9 +41,6 @@
             </td>
             <td>
               <a href="{% url 'supplychain:requisition-detail' req.id %}">View</a>
-              {% if req.status == 'QUERIED' %}
-                | <a href="{% url 'supplychain:requisition-update' req.id %}">Update</a>
-              {% endif %}
             </td>
           </tr>
         {% endfor %}

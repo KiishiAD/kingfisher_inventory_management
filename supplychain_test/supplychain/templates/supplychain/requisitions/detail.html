@@ -82,6 +82,16 @@
 
 <h1>Requisition #{{ requisition.id }}</h1>
 
+{% if request.user == requisition.requester and requisition.status == 'QUERIED' %}
+  <hr>
+  <p class="mt-3">
+    <a href="{% url 'supplychain:requisition-update' requisition.id %}"
+       class="btn btn-outline-primary">
+      Update requisition
+    </a>
+  </p>
+{% endif %}
+
 <div class="rq-header">
   <p><strong>Requester:</strong> {{ requisition.requester.get_full_name }}</p>
   <p><strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}</p>

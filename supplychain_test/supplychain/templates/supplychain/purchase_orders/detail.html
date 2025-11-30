@@ -81,9 +81,10 @@
 <h1>Purchase Order #{{ purchase_order.id }}</h1>
 {# UPDATE BUTTON – goes to the update view #}
 {% if request.user == purchase_order.created_by and purchase_order.status == 'QUERIED' %}
-  <p>
-    <a href="{% url 'supplychain:po-update' purchase_order.id %}"
-       class="btn btn-warning btn-sm">
+  <hr>
+    <p class="mt-3">
+      <a href="{% url 'supplychain:po-update' purchase_order.id %}"
+       class="btn btn-outline-primary">
       Update purchase order
     </a>
   </p>

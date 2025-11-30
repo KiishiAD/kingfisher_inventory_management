@@ -19,16 +19,12 @@ class PurchaseOrder(TimeStampedModel):
     APPROVED    = "APPROVED"           # COO approved
     DENIED      = "DENIED"
     QUERIED     = "QUERIED"
-    SENT        = "SENT"               # PO sent to supplier
-    PROCURED    = "PROCURED"           # goods fully received / lifecycle complete
 
     STATUS_CHOICES = [
         (PENDING_COO, "Pending COO Approval"),
         (APPROVED,    "Approved"),
         (DENIED,      "Denied"),
         (QUERIED,     "Queried"),
-        (SENT,        "Sent to Supplier"),
-        (PROCURED,    "Procured"),
     ]
 
     requisition = models.OneToOneField(

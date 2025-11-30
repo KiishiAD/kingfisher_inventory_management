@@ -14,6 +14,7 @@ from .views.purchaseorder_views import (
     PurchaseOrderCreateView,
     PurchaseOrderPendingListView,
     PurchaseOrderDetailView,
+    PurchaseOrderUpdateView,
 )
 from .views.receiving_views import ReceivingListView, ReceivingRecordView
 from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
@@ -30,7 +31,7 @@ urlpatterns = [
     path('purchase-orders/create/', PurchaseOrderCreateView.as_view(), name='po-create'),
     path('purchase-orders/pending/', PurchaseOrderPendingListView.as_view(), name='po-pending'),
     path('purchase-orders/<int:pk>/', PurchaseOrderDetailView.as_view(), name='po-detail'),
-
+    path("purchase-orders/<int:pk>/update/", PurchaseOrderUpdateView.as_view(), name="po-update"),
 
     # REQUESTER: Create a new requisition
     path('requisitions/create/', RequisitionCreateView.as_view(), name='requisition-create'),

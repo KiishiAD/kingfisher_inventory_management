@@ -7,31 +7,28 @@ from .requisition import Requisition
 from .master_data import TimeStampedModel
 
 
-#### Purchase Order (PO) & Approval
-
 class PurchaseOrder(TimeStampedModel):
     class Meta:
         permissions = [
             ("create_purchaseorder",  "Can view and generate PO drafts"),
-            ("approve_purchaseorder", "Can approve/deny/query POs"),  # Only Master gets this
-        ]  
+            ("approve_purchaseorder", "Can approve/deny/query POs"),
+        ]
 
-    """A purchase order generated from an approved requisition or created directly, tracked through multi-stage approval."""
-    DRAFT = 'DRAFT'
-    PENDING_PROCUREMENT = 'PENDING_PROCUREMENT'
-    PENDING_COO= 'PENDING_COO'  ##pending Chief operations approval
-    APPROVED = 'APPROVED'
-    DENIED = 'DENIED'
-    QUERIED = 'QUERIED'
-    SENT = 'SENT'
+    # --- Simplified, aligned status machine ---
+    PENDING_COO = "PENDING_COO"        # waiting for COO decision
+    APPROVED    = "APPROVED"           # COO approved
+    DENIED      = "DENIED"
+    QUERIED     = "QUERIED"
+    SENT        = "SENT"               # PO sent to supplier
+    PROCURED    = "PROCURED"           # goods fully received / lifecycle complete
+
     STATUS_CHOICES = [
-        (DRAFT, 'Draft'),
-        (PENDING_PROCUREMENT, 'Pending Procurement'),
-        (PENDING_COO, 'Pending COO Approval'),
-        (APPROVED, 'Approved'),
-        (DENIED, 'Denied'),
-        (QUERIED, 'Queried'),
-        (SENT, 'Sent to Supplier'),
+        (PENDING_COO, "Pending COO Approval"),
+        (APPROVED,    "Approved"),
+        (DENIED,      "Denied"),
+        (QUERIED,     "Queried"),
+        (SENT,        "Sent to Supplier"),
+        (PROCURED,    "Procured"),
     ]
 
     requisition = models.OneToOneField(
@@ -39,16 +36,24 @@ class PurchaseOrder(TimeStampedModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='purchase_order'
+        related_name="purchase_order",
     )
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='purchase_orders')
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='created_purchase_orders'
+        related_name="created_purchase_orders",
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=DRAFT)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING_COO,  # new POs go straight into COO queue
+    )
     sent_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):

@@ -243,3 +243,4 @@ class PurchaseOrderPendingListView(LoginRequiredMixin, PermissionRequiredMixin, 
             self, 'filter_form', PurchaseOrderFilterForm()
         )
         return context
+

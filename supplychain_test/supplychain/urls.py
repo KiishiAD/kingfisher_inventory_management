@@ -31,6 +31,7 @@ urlpatterns = [
     path('purchase-orders/pending/', PurchaseOrderPendingListView.as_view(), name='po-pending'),
     path('purchase-orders/<int:pk>/', PurchaseOrderDetailView.as_view(), name='po-detail'),
 
+
     # REQUESTER: Create a new requisition
     path('requisitions/create/', RequisitionCreateView.as_view(), name='requisition-create'),
 

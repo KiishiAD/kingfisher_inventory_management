@@ -11,20 +11,51 @@ from django.utils import timezone
 from ..forms import ReceivingHeaderForm, ReceivingItemFormSet
 
 
-class ReceivingListView(LoginRequiredMixin, TemplateView):
-    """Placeholder view for goods received notes."""
+class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """
+    List receivings.
+
+    Similar to PurchaseOrderListView, but focused on Receiving records.
+    Each line shows:
+      - Receiving id
+      - Linked PO and supplier
+      - Status
+      - Summary of items (for pending, this is effectively 'awaited items')
+      - Invoice present or not
+    """
+    model = Receiving
     template_name = 'supplychain/receiving/list.html'
-    model= Receiving
-    template_name = 'supplychain/receiving/list.html'
+    context_object_name = 'receivings'
     permission_required = 'supplychain.record_receiving'
     paginate_by = 20
+
+    def get_queryset(self):
+        qs = (
+            Receiving.objects
+            .select_related('purchase_order', 'purchase_order__supplier', 'received_by')
+            .prefetch_related('items__po_item__product')
+            .order_by('-created_at')
+        )
+
+        # If you later add a filter form (status, supplier, dates),
+        # you can mirror PurchaseOrderFilterForm logic here.
+        # For now, we list all receivings.
+        status = self.request.GET.get("status")
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['section'] = 'receiving'
-        context['receivings'] = Receiving.objects.all().order_by('-received_at')
+        context['status_choices'] = Receiving.STATUS_CHOICES
+        context['active_status'] = self.request.GET.get("status", "")
         return context
 
+    def handle_no_permission(self):
+        messages.error(self.request, "You do not have permission to view receivings.")
+        return super().handle_no_permission()
 
 
 

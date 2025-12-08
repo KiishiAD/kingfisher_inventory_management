@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier
+from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier,Receiving, ReceivingItem
 
 class RequisitionForm(forms.ModelForm):
     class Meta:
@@ -235,4 +235,41 @@ PurchaseOrderItemFormSet = inlineformset_factory(
     fields=['product', 'quantity', 'unit_cost'],
     extra=1,
     can_delete=True,
+)
+
+
+class ReceivingHeaderForm(forms.ModelForm):
+    """
+    Header-level receiving form: currently only handles invoice upload.
+    received_by and received_at will be set in the view.
+    """
+    class Meta:
+        model = Receiving
+        fields = ["supplier_invoice"]
+        widgets = {
+            "supplier_invoice": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/*,application/pdf",  # image or PDF
+                }
+            ),
+        }
+
+class ReceivingItemForm(forms.ModelForm):
+    """
+    Line-level form for recording actual quantity received.
+    """
+    class Meta:
+        model = ReceivingItem
+        fields = ["actual_quantity"]
+        widgets = {
+            "actual_quantity": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+        }
+
+
+ReceivingItemFormSet = inlineformset_factory(
+    parent_model=Receiving,
+    model=ReceivingItem,
+    form=ReceivingItemForm,
+    extra=0,
+    can_delete=False,
 )

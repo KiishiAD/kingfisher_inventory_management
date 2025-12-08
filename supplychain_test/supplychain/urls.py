@@ -16,7 +16,9 @@ from .views.purchaseorder_views import (
     PurchaseOrderDetailView,
     PurchaseOrderUpdateView,
 )
-from .views.receiving_views import ReceivingListView, ReceivingRecordView
+from .views.receiving_views import (ReceivingListView, ReceivingDetailView
+                                    
+)
 from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
 from .views.payments_views import PaymentsListView
 
@@ -51,7 +53,7 @@ urlpatterns = [
 
     # Receiving
     path('receiving/', ReceivingListView.as_view(), name='receiving-list'),
-    path('receiving/record/', ReceivingRecordView.as_view(), name='receiving-record'),
+    path('receiving/record/', ReceivingDetailView.as_view(), name='receiving-record'),
 
     # Inventory
     path('inventory/levels/', InventoryLevelsView.as_view(), name='inventory-levels'),

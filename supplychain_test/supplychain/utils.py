@@ -97,6 +97,30 @@ def generate_issuance_for_requisition(requisition, created_by):
         )
     return iss
 
+def generate_receiving_for_purchase_order(purchase_order):
+    existing = purchase_order.receivings.all()
+    if existing.exists():
+        return existing[0] if existing.count() == 1 else list(existing)
+
+    with transaction.atomic():
+        receiving = Receiving.objects.create(
+            purchase_order=purchase_order,
+            status=Receiving.PENDING,
+            received_by=None,
+            received_at=None,
+            supplier_invoice=None,
+        )
+
+        for po_item in purchase_order.items.all():
+            ReceivingItem.objects.create(
+                receiving=receiving,
+                po_item=po_item,
+                actual_quantity=po_item.quantity,  # or Decimal('0') if you prefer
+                flagged_for={},
+            )
+
+    return receiving
+
 def build_workitem_timeline(requisition):
     """
     Unified workflow timeline rooted at a Requisition.

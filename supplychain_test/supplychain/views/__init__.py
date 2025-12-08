@@ -10,7 +10,7 @@ from .purchaseorder_views import (
     PurchaseOrderCreateView,
     PurchaseOrderPendingListView,
 )
-from .receiving_views import ReceivingListView, ReceivingRecordView
+from .receiving_views import ReceivingListView, ReceivingDetailView
 from .inventory_views import InventoryLevelsView, InventoryAlertsView
 from .payments_views import PaymentsListView
 

@@ -72,6 +72,29 @@ class Receiving(TimeStampedModel):
 
     def __str__(self):
         return f"Receiving #{self.id} for {self.purchase_order}"
+    
+    @property
+    def items_summary(self):
+        """
+        Human-friendly summary of items for this receiving.
+
+        Example: "Tomatoes × 10, Cooking Oil × 5, + 2 more"
+        Based on the PO items behind this receiving.
+        """
+        lines = []
+        items = list(self.items.select_related("po_item__product"))
+
+        for ri in items[:3]:
+            product = ri.po_item.product
+            product_name = getattr(product, "name", str(product))
+            qty = ri.po_item.quantity  # requested qty from the PO
+            lines.append(f"{product_name} × {qty}")
+
+        extra = len(items) - 3
+        if extra > 0:
+            lines.append(f"+ {extra} more")
+
+        return ", ".join(lines)
 
 
 class ReceivingItem(models.Model):

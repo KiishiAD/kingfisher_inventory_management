@@ -24,7 +24,7 @@ from ..forms import (
 
 from django.contrib import messages
 from django.db import transaction
-from ..utils import build_workitem_timeline_for_po
+from ..utils import build_workitem_timeline_for_po, generate_receiving_for_purchase_order
 import logging
 
 logger = logging.getLogger(__name__)
@@ -200,6 +200,9 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, View)
                 #         logger.exception("Error sending notification for purchase order #%s", po.id)
                 #
                 # transaction.on_commit(_notify)
+
+                if po.status == PurchaseOrder.APPROVED:
+                    generate_receiving_for_purchase_order(po)
 
             messages.success(
                 request,

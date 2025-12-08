@@ -98,6 +98,14 @@ def generate_issuance_for_requisition(requisition, created_by):
     return iss
 
 def generate_receiving_for_purchase_order(purchase_order):
+    """
+    Auto-create a Receiving (and ReceivingItems) for a given approved PO.
+
+    - If a Receiving already exists for this PO, return it (or list if multiple).
+    - New Receiving starts in PENDING status (awaiting physical receipt).
+    - One ReceivingItem is created per PurchaseOrderItem with initial
+      actual_quantity = PO quantity (you can change this to 0 if preferred).
+    """
     existing = purchase_order.receivings.all()
     if existing.exists():
         return existing[0] if existing.count() == 1 else list(existing)
@@ -106,9 +114,7 @@ def generate_receiving_for_purchase_order(purchase_order):
         receiving = Receiving.objects.create(
             purchase_order=purchase_order,
             status=Receiving.PENDING,
-            received_by=None,
-            received_at=None,
-            supplier_invoice=None,
+            # received_by, received_at, supplier_invoice default to None
         )
 
         for po_item in purchase_order.items.all():

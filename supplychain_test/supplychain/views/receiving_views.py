@@ -13,10 +13,15 @@ from ..forms import *
 class ReceivingListView(LoginRequiredMixin, TemplateView):
     """Placeholder view for goods received notes."""
     template_name = 'supplychain/receiving/list.html'
+    model= Receiving
+    template_name = 'supplychain/receiving/list.html'
+    permission_required = 'supplychain.record_receiving'
+    paginate_by = 20
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['section'] = 'receiving'
+        context['receivings'] = Receiving.objects.all().order_by('-received_at')
         return context
 
 

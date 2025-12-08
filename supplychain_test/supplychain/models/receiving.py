@@ -8,30 +8,71 @@ from .master_data import TimeStampedModel
 #### Receiving & Invoice Processing
 
 
+from django.db import models
+from django.conf import settings
+
+from .purchase import PurchaseOrder, PurchaseOrderItem
+from .master_data import TimeStampedModel
+
+
 class Receiving(TimeStampedModel):
     class Meta:
         permissions = [
-            ("record_receiving",      "Can record goods receipt and upload invoice"),
+            ("record_receiving", "Can record goods receipt and upload invoice"),
         ]
+
+    # Status constants
+    PENDING = "PENDING"              # PO approved, waiting for physical receipt
+    UNDER_REVIEW = "UNDER_REVIEW"    # Goods received, accounting doing three-way check
+    APPROVED = "APPROVED"            # Three-way check completed, cleared for payment
+
+    STATUS_CHOICES = [
+        (PENDING, "Pending Receipt"),
+        (UNDER_REVIEW, "Pending Accounting Review"),
+        (APPROVED, "Approved"),
+    ]
 
     """Tracks physical receipt of goods against a Purchase Order, with supplier invoice."""
     purchase_order = models.ForeignKey(
         PurchaseOrder,
         on_delete=models.CASCADE,
-        related_name='receivings'
+        related_name='receivings',
     )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING,
+    )
+
+    # Will be set when a store/warehouse user actually records the receipt
     received_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='receivings'
+        blank=True,
+        related_name='receivings',
+        help_text="User who physically recorded the receipt of goods.",
     )
-    received_at = models.DateTimeField(auto_now_add=True)
-    supplier_invoice = models.FileField(upload_to='supplier_invoices/')
+
+    # Actual physical receipt time (not PO approval time)
+    received_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when goods were actually received.",
+    )
+
+    # Invoice can be uploaded later by receiving/accounting
+    supplier_invoice = models.FileField(
+        upload_to='supplier_invoices/',
+        null=True,
+        blank=True,
+        help_text="Supplier invoice document for this receipt (optional).",
+    )
 
     def __str__(self):
         return f"Receiving #{self.id} for {self.purchase_order}"
-    
+
 
 class ReceivingItem(models.Model):
     """Actual quantities received per PO item, with departmental flags for audit."""
@@ -52,7 +93,6 @@ class ReceivingItem(models.Model):
 
     def __str__(self):
         return f"{self.actual_quantity} of {self.po_item.product}"
-
     
 
 class InvoiceLineApproval(models.Model):

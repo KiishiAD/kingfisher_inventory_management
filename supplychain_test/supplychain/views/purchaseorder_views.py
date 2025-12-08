@@ -89,7 +89,7 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
             active_status = ""
 
         context["status_choices"] = PurchaseOrder.STATUS_CHOICES
-        context["active_status"] = active_status
+        context["created_by"] = PurchaseOrder.created_by
 
         return context
 

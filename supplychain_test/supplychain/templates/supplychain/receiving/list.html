@@ -3,5 +3,12 @@
 
 {% block content %}
 <h1>Receiving - List</h1>
-<p class="text-muted">Receiving records will be shown here.</p>
+ul>
+  {% for r in receivings %}
+    <li>{{ r.id }} — {{ r.supplier.name }} — {{ r.created_at }}</li>
+  {% empty %}
+
+  {% endfor %}
+</ul>
+
 {% endblock %}

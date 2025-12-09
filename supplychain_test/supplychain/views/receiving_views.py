@@ -59,16 +59,7 @@ class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
 
 
-
 class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    """
-    Three-way check page (first step: recording what was received).
-
-    - Shows Purchase Order lines (read-only).
-    - Allows user with 'record_receiving' to:
-      - Update actual quantities for each item,
-      - Upload supplier invoice (image/PDF).
-    """
     permission_required = "supplychain.record_receiving"
 
     def get_object(self, pk):
@@ -82,30 +73,62 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             pk=pk,
         )
 
+    def _annotate_variance(self, receiving):
+        """
+        Attach variance_text and variance_css to each ReceivingItem
+        for use in the read-only template.
+        """
+        items = list(
+            receiving.items.select_related("po_item__product").all()
+        )
+
+        for ri in items:
+            po_qty = ri.po_item.quantity or Decimal("0")
+            actual = ri.actual_quantity
+
+            if actual is None:
+                ri.variance_text = "Not recorded yet"
+                ri.variance_css = "text-muted"
+                continue
+
+            diff = Decimal(actual) - po_qty
+            abs_diff = abs(diff)
+
+            if diff == 0:
+                ri.variance_text = "Supplied amount matches PO"
+                ri.variance_css = "text-success"
+            elif diff < 0:
+                ri.variance_text = f"Undersupplied by {abs_diff:.2f}"
+                ri.variance_css = "text-danger"
+            else:
+                ri.variance_text = f"Oversupplied by {abs_diff:.2f}"
+                ri.variance_css = "text-primary"
+
+        return items
+
+
     def get(self, request, pk):
         receiving = self.get_object(pk)
         po = receiving.purchase_order
+        is_editable = (receiving.status == Receiving.PENDING)
 
-        header_form = ReceivingHeaderForm(instance=receiving)
-        item_formset = ReceivingItemFormSet(instance=receiving)
+        header_form = ReceivingHeaderForm(instance=receiving) if is_editable else None
+        item_formset = ReceivingItemFormSet(instance=receiving) if is_editable else None
+
+        receiving_items = self._annotate_variance(receiving)
 
         context = {
             "receiving": receiving,
             "purchase_order": po,
             "header_form": header_form,
             "item_formset": item_formset,
+            "receiving_items": receiving_items,
             "section": "receiving",
+            "is_editable": is_editable,
         }
         return render(request, "supplychain/receiving/detail.html", context)
 
     def post(self, request, pk):
-        """
-        Handle the receiving submission:
-        - Save actual quantities
-        - Save invoice file
-        - Set received_by / received_at
-        - Move status from PENDING -> UNDER_REVIEW
-        """
         receiving = self.get_object(pk)
 
         if receiving.status != Receiving.PENDING:
@@ -126,31 +149,33 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
         )
 
         if not (header_form.is_valid() and item_formset.is_valid()):
-            # re-render with errors
+            receiving_items = self._annotate_variance(receiving)
             context = {
                 "receiving": receiving,
                 "purchase_order": receiving.purchase_order,
                 "header_form": header_form,
                 "item_formset": item_formset,
+                "receiving_items": receiving_items,
                 "section": "receiving",
+                "is_editable": True,
             }
             return render(request, "supplychain/receiving/detail.html", context)
 
         with transaction.atomic():
-            # Save header (invoice file)
-            receiving = header_form.save(commit=False)
-            if receiving.received_by is None:
-                receiving.received_by = request.user
-            if receiving.received_at is None:
-                receiving.received_at = timezone.now()
+            rec = header_form.save(commit=False)
+            if rec.received_by is None:
+                rec.received_by = request.user
+            if rec.received_at is None:
+                rec.received_at = timezone.now()
 
-            # Move status to UNDER_REVIEW (ready for accounting)
-            receiving.status = Receiving.UNDER_REVIEW
-            receiving.save()
+            rec.status = Receiving.UNDER_REVIEW
+            rec.save()
 
-            # Save items (actual quantities)
-            item_formset.instance = receiving
+            item_formset.instance = rec
             item_formset.save()
 
-        messages.success(request, "Receiving recorded successfully and sent for accounting review.")
+        messages.success(
+            request,
+            "Receiving recorded successfully and sent for accounting review."
+        )
         return redirect("supplychain:receiving-detail", pk=pk)

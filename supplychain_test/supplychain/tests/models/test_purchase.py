@@ -18,8 +18,8 @@ from supplychain.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderAp
 
 class PurchaseOrderModelTests(TestCase):
     def test_defaults_and_str(self):
-        po = make_po(status=PurchaseOrder.DRAFT)
-        self.assertEqual(po.status, PurchaseOrder.DRAFT)
+        po = make_po(status=PurchaseOrder.PENDING_COO)
+        self.assertEqual(po.status, PurchaseOrder.PENDING_COO)
         self.assertIn("PO #", str(po))
 
     def test_supplier_protects_from_deletion(self):

@@ -64,7 +64,7 @@ class Receiving(TimeStampedModel):
     supplier_invoice = models.FileField(
         upload_to='supplier_invoices/',
         null=True,
-        blank=True,
+        blank=False,
         help_text="Supplier invoice document for this receipt (optional).",
     )
 

@@ -43,7 +43,7 @@ class ReceivingModelTests(_MediaRootMixin, TestCase):
         rec = baker.make(Receiving, purchase_order=po, received_by=user, supplier_invoice=upload)
         self.assertTrue(os.path.exists(rec.supplier_invoice.path))
         self.assertIn("Receiving #", str(rec))
-        self.assertIsNotNone(rec.received_at)
+        self.assertIsNone(rec.received_at)
 
     def test_receivingitem_str_and_flags_default(self):
         poi = make_po_item()

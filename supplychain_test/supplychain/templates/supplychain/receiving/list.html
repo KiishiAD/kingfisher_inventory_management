@@ -28,49 +28,33 @@
             <th>Supplier</th>
             <th>Status</th>
             <th>Items</th>
-            <th>Invoice</th>
-            <th>Received By</th>
-            <th>Received At</th>
+            <th>  </th>
         </tr>
     </thead>
     <tbody>
         {% for r in receivings %}
             <tr>
-                <td>
-                    <a href="{% url 'supplychain:receiving-detail' r.id %}">
-                        {{ r.id }}
-                    </a>
-                </td>
+                <td>{{ r.id }}</td>
+
                 <td>{{ r.purchase_order.id }}</td>
                 <td>{{ r.purchase_order.supplier }}</td>
                 <td>{{ r.get_status_display }}</td>
                 <td>
-                    {# Summary of items on this receiving #}
                     {% if r.status == r.PENDING %}
                         <span class="text-muted">Awaiting: </span>{{ r.items_summary }}
                     {% else %}
                         {{ r.items_summary }}
                     {% endif %}
                 </td>
-                <td>
-                    {% if r.supplier_invoice %}
-                        <a href="{{ r.supplier_invoice.url }}" target="_blank">View</a>
-                    {% else %}
-                        <span class="text-muted">None</span>
-                    {% endif %}
-                </td>
-                <td>{{ r.received_by|default:"—" }}</td>
-                <td>
-                    {% if r.received_at %}
-                        {{ r.received_at|date:"Y-m-d H:i" }}
-                    {% else %}
-                        <span class="text-muted">Not yet received</span>
-                    {% endif %}
+                     <td>
+                    <a href="{% url 'supplychain:receiving-detail' r.id %}">
+                        Submit receipt details
+                    </a>
                 </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="8" class="text-center text-muted">
+                <td colspan="9" class="text-center text-muted">
                     No receivings found.
                 </td>
             </tr>

@@ -1,3 +1,4 @@
+{# templates/supplychain/receiving/detail.html #}
 {% extends "base.html" %}
 
 {% block content %}
@@ -87,7 +88,8 @@
             {{ item_formset.management_form }}
             {% for form in item_formset.forms %}
                 {% with po_item=form.instance.po_item %}
-                <tr>
+                <tr class="receiving-row"
+                    data-po-qty="{{ po_item.quantity|floatformat:2 }}">
                     <!-- Product -->
                     <td>
                         <strong>{{ po_item.product }}</strong>
@@ -112,11 +114,23 @@
                         {% endfor %}
                     </td>
 
-                    <!-- Variance vs PO (display only) -->
-                    <td class="text-end">
+                    <!-- Variance vs PO (live-updated via JS) -->
+                    <td class="text-end variance-cell">
+                        {# Server-side fallback text if JS is disabled #}
                         {% if form.instance.actual_quantity %}
-                            Expected {{ po_item.quantity|floatformat:2 }},
-                            received {{ form.instance.actual_quantity|floatformat:2 }}
+                            {% with po_qty=po_item.quantity actual=form.instance.actual_quantity %}
+                                {% if actual|floatformat:2 == po_qty|floatformat:2 %}
+                                    <span class="text-success">Supplied amount matches PO</span>
+                                {% elif actual < po_qty %}
+                                    <span class="text-danger">
+                                        Undersupplied by {{ po_qty|floatformat:2|add:"-"|add:actual|floatformat:2 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-primary">
+                                        Oversupplied by {{ actual|floatformat:2|add:"-"|add:po_qty|floatformat:2 }}
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
                         {% else %}
                             <span class="text-muted">Not recorded yet</span>
                         {% endif %}
@@ -137,4 +151,76 @@
     </div>
 </form>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function toNumber(value) {
+    var n = parseFloat(value);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatNumber(value) {
+    return value.toFixed(2);
+  }
+
+  function updateVarianceForRow(row) {
+    var poQty = toNumber(row.getAttribute('data-po-qty') || "0");
+    var input = row.querySelector('.actual-qty-input');
+    var cell  = row.querySelector('.variance-cell');
+
+    if (!input || !cell) {
+      return;
+    }
+
+    var raw = input.value;
+    var actual = toNumber(raw);
+
+    // Reset classes
+    cell.classList.remove('text-danger', 'text-success', 'text-primary', 'text-muted');
+
+    if (!raw) {
+      cell.textContent = 'Not recorded yet';
+      cell.classList.add('text-muted');
+      return;
+    }
+
+    var diff = actual - poQty;
+    var absDiff = Math.abs(diff);
+
+    if (diff === 0) {
+      cell.textContent = 'Supplied amount matches PO';
+      cell.classList.add('text-success');
+    } else if (diff < 0) {
+      cell.textContent = 'Undersupplied by ' + formatNumber(absDiff);
+      cell.classList.add('text-danger');
+    } else {
+      cell.textContent = 'Oversupplied by ' + formatNumber(absDiff);
+      cell.classList.add('text-primary');
+    }
+  }
+
+  function initReceivingVariance() {
+    var rows = document.querySelectorAll('.receiving-row');
+    rows.forEach(function(row) {
+      var input = row.querySelector('.actual-qty-input');
+      if (!input) return;
+
+      // Initial calculation based on existing value
+      updateVarianceForRow(row);
+
+      // Live updates as user types
+      if (!input.dataset.listenerAttached) {
+        input.addEventListener('input', function() {
+          updateVarianceForRow(row);
+        });
+        input.dataset.listenerAttached = '1';
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initReceivingVariance);
+})();
+</script>
 {% endblock %}

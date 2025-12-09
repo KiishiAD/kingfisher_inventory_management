@@ -238,6 +238,7 @@ PurchaseOrderItemFormSet = inlineformset_factory(
 )
 
 
+
 class ReceivingHeaderForm(forms.ModelForm):
     """
     Header-level receiving form: currently only handles invoice upload.
@@ -254,6 +255,23 @@ class ReceivingHeaderForm(forms.ModelForm):
             ),
         }
 
+    def clean_supplier_invoice(self):
+        """
+        Supplier invoice is mandatory for three-way matching.
+
+        If we are editing an existing Receiving that already has an invoice,
+        the user does NOT have to upload a new file every time.
+        """
+        file = self.cleaned_data.get("supplier_invoice")
+
+        # If no new file and no existing file on the instance => error.
+        if not file and not getattr(self.instance, "supplier_invoice", None):
+            raise forms.ValidationError(
+                "Supplier invoice is required for three-way matching."
+            )
+
+        return file
+    
 class ReceivingItemForm(forms.ModelForm):
     """
     Line-level form for recording actual quantity received.
@@ -262,8 +280,15 @@ class ReceivingItemForm(forms.ModelForm):
         model = ReceivingItem
         fields = ["actual_quantity"]
         widgets = {
-            "actual_quantity": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
+            "actual_quantity": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "min": "0",
+                    "class": "form-control actual-qty-input",
+                }
+            ),
         }
+
 
 
 ReceivingItemFormSet = inlineformset_factory(

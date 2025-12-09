@@ -5,8 +5,11 @@ from .models import (
     PurchaseOrderItem,
     IssuanceRequest,
     IssuanceItem,
+    Receiving,
+    ReceivingItem,
 )
 from django.db import transaction
+from decimal import Decimal
 
 
 # def generate_po_for_requisition(requisition, created_by):
@@ -121,7 +124,7 @@ def generate_receiving_for_purchase_order(purchase_order):
             ReceivingItem.objects.create(
                 receiving=receiving,
                 po_item=po_item,
-                actual_quantity=po_item.quantity,  # or Decimal('0') if you prefer
+                actual_quantity=Decimal("0.00"),  # or Decimal('0') if you prefer
                 flagged_for={},
             )
 

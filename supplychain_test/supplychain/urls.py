@@ -53,7 +53,7 @@ urlpatterns = [
 
     # Receiving
     path('receiving/', ReceivingListView.as_view(), name='receiving-list'),
-    path('receiving/record/', ReceivingDetailView.as_view(), name='receiving-record'),
+    path('receiving/<int:pk>/', ReceivingDetailView.as_view(), name='receiving-detail'),
 
     # Inventory
     path('inventory/levels/', InventoryLevelsView.as_view(), name='inventory-levels'),

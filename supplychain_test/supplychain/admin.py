@@ -78,6 +78,7 @@ class PurchaseOrderApprovalAdmin(admin.ModelAdmin):
 @admin.register(Receiving)
 class ReceivingAdmin(admin.ModelAdmin):
     list_display = ('id', 'purchase_order', 'received_by', 'received_at')
+    list_filter = ('status', 'received_at')
 
 @admin.register(ReceivingItem)
 class ReceivingItemAdmin(admin.ModelAdmin):
@@ -121,3 +122,4 @@ class LowStockAlertAdmin(admin.ModelAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'phone_number')
     search_fields = ('user__username', 'phone_number')
+

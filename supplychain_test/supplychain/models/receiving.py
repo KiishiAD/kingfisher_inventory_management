@@ -33,7 +33,7 @@ class Receiving(TimeStampedModel):
     ]
 
     """Tracks physical receipt of goods against a Purchase Order, with supplier invoice."""
-    purchase_order = models.ForeignKey(
+    purchase_order = models.OneToOneField(
         PurchaseOrder,
         on_delete=models.CASCADE,
         related_name='receivings',

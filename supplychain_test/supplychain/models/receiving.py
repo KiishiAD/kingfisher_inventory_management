@@ -24,10 +24,12 @@ class Receiving(TimeStampedModel):
     # Status constants
     PENDING = "PENDING"              # PO approved, waiting for physical receipt
     UNDER_REVIEW = "UNDER_REVIEW"    # Goods received, accounting doing three-way check         # Three-way check completed, cleared for payment
+    REVIWED = "REVIEWED"              # Three-way check completed, cleared for payment
 
     STATUS_CHOICES = [
         (PENDING, "Pending Receipt"),
         (UNDER_REVIEW, "Pending Accounting Review"),
+        (REVIWED, "Reviewed and Cleared for Payment"),
     ]
 
     """Tracks physical receipt of goods against a Purchase Order, with supplier invoice."""

@@ -6,6 +6,18 @@ from .master_data import Supplier_destination_sub_category, Destination, Product
 
 #### Requisition & Approval
 
+from django.db import models
+from django.conf import settings
+from django.core.exceptions import ValidationError
+
+from .master_data import (
+    Supplier_destination_sub_category,
+    Destination,
+    Product,
+    TimeStampedModel,
+    Supplier,
+)
+
 class Requisition(TimeStampedModel):
     class Meta:
         permissions = [
@@ -13,9 +25,7 @@ class Requisition(TimeStampedModel):
             ("approve_requisition",  "Can approve/deny/query requisitions"),
             ("view_all_requisitions", "Can view all requisitions"),
         ]
-           
 
-    """A request for products, submitted by a user and tracked through approval."""
     PENDING = 'PENDING'
     APPROVED = 'APPROVED'
     DENIED = 'DENIED'
@@ -32,7 +42,15 @@ class Requisition(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name='requisitions'
     )
-    
+
+    # NEW: single supplier for the whole requisition (for PURCHASE destination)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="requisitions",
+        null=True,
+        blank=True,
+    )
 
     Supplier_destination_sub_category = models.ForeignKey(
         Supplier_destination_sub_category,
@@ -40,28 +58,29 @@ class Requisition(TimeStampedModel):
         related_name="requisitions",
         verbose_name="Supplier Sub-Category",
         null=True,
-        blank = True
+        blank=True
     )
+
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+
     destination = models.ForeignKey(
         Destination,
         on_delete=models.PROTECT,
         related_name='requisitions'
     )
+
     notes = models.TextField(blank=True)
     evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
     urgent = models.BooleanField(default=False)
-    
 
     def __str__(self):
         return f"Requisition #{self.id} by {self.requester}"
 
     def get_destination_display(self):
         return self.destination.get_name_display()
-    
+
 
 class RequisitionItem(models.Model):
-    """Line items for each requisition, linking to products and quantities."""
     requisition = models.ForeignKey(
         Requisition,
         on_delete=models.CASCADE,
@@ -69,7 +88,17 @@ class RequisitionItem(models.Model):
     )
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    supplier = models.ForeignKey(Supplier, null=True, blank=True, on_delete=models.PROTECT)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["requisition", "product"],
+                name="uniq_requisition_product"
+            ),
+        ]
 
 
 

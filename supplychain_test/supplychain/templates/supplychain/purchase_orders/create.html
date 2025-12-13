@@ -4,267 +4,279 @@
 {% block title %}Create Purchase Order{% endblock %}
 
 {% block content %}
-  <h1>Create Purchase Order</h1>
+<style>
+  .rq-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .rq-card .rq-card-header { border-bottom: 1px solid #dee2e6; }
+  .rq-help { font-size: .875rem; color: #6c757d; }
+  .rq-table td, .rq-table th { vertical-align: middle; }
+  .rq-row-hidden { display: none; }
+  .req-asterisk { color: #dc3545; margin-left: .25rem; }
+  .kc-mono { font-variant-numeric: tabular-nums; }
+</style>
 
-  <p class="text-muted">
-    Create a purchase order manually, or link it to an existing approved requisition.
-  </p>
+<h1 class="mb-3">Create Purchase Order</h1>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags|default:'info' }}">
-        {{ message }}
-      </div>
-    {% endfor %}
+<form id="po-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
   {% endif %}
 
-  <form method="post">
-    {% csrf_token %}
-
-    {{ form.non_field_errors }}
-
-    <div class="form-group">
-      {{ form.requisition.label_tag }} {{ form.requisition }}
-      {% if form.requisition.errors %}
-        <div class="text-danger">{{ form.requisition.errors }}</div>
-      {% endif %}
-      <small class="form-text text-muted">
-        Optional. If set, this PO will be linked to that requisition.
-      </small>
+  <div class="rq-card mb-4">
+    <div class="rq-card-header px-3 py-3">
+      <div class="fw-semibold">Purchase order details</div>
+      <div class="rq-help">Link a requisition (optional) and choose a supplier.</div>
     </div>
 
-    <div class="form-group">
-      {{ form.supplier.label_tag }} {{ form.supplier }}
-      {% if form.supplier.errors %}
-        <div class="text-danger">{{ form.supplier.errors }}</div>
-      {% endif %}
-    </div>
+    <div class="p-3">
+      <div class="row g-3">
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.requisition.id_for_label }}">Requisition</label>
+          {{ form.requisition }}
+          {% if form.requisition.errors %}
+            <div class="text-danger small">{{ form.requisition.errors }}</div>
+          {% endif %}
+          <div class="rq-help mt-1">Optional. If set, this PO will be linked to that requisition.</div>
+        </div>
 
-    <h3>Line Items</h3>
-    {{ item_formset.management_form }}
-    {% if item_formset.non_form_errors %}
-      <div class="text-danger">
-        {{ item_formset.non_form_errors }}
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.supplier.id_for_label }}">
+            Supplier <span class="req-asterisk">*</span>
+          </label>
+          {{ form.supplier }}
+          {% if form.supplier.errors %}
+            <div class="text-danger small">{{ form.supplier.errors }}</div>
+          {% endif %}
+        </div>
       </div>
-    {% endif %}
-
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Unit cost</th>
-          <th>Line total </th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for form in item_formset %}
-          <tr class="po-item-row">
-            {{ form.id }}
-            <td>
-              {{ form.product }}
-              {% if form.product.errors %}
-                <div class="text-danger">{{ form.product.errors }}</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ form.quantity }}
-              {% if form.quantity.errors %}
-                <div class="text-danger">{{ form.quantity.errors }}</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ form.unit_cost }}
-              {% if form.unit_cost.errors %}
-                <div class="text-danger">{{ form.unit_cost.errors }}</div>
-              {% endif %}
-            </td>
-            <td class="line-total-cell">
-              0.00
-            </td>
-            <td>
-              <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-              {{ form.DELETE }}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <th colspan="3" class="text-end">Total (sum of line totals):</th>
-          <th id="po-grand-total">0.00</th>
-          <th></th>
-        </tr>
-      </tfoot>
-    </table>
-
-    <template id="po-empty-form-template">
-      <tr class="po-item-row">
-        {{ item_formset.empty_form.id }}
-        <td>{{ item_formset.empty_form.product }}</td>
-        <td>{{ item_formset.empty_form.quantity }}</td>
-        <td>{{ item_formset.empty_form.unit_cost }}</td>
-        <td class="line-total-cell">0.00</td>
-        <td>
-          <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-          {{ item_formset.empty_form.DELETE }}
-        </td>
-      </tr>
-    </template>
-
-    <div class="d-flex gap-2 mb-3">
-      <button id="add-item" class="btn btn-primary">Add Product</button>
-      <a href="{% url 'supplychain:po-list' %}" class="btn btn-secondary">Cancel</a>
-      <button type="submit" class="btn btn-primary ms-auto">Save &amp; Send for COO Approval</button>
     </div>
-  </form>
+  </div>
 
-  <script>
-    // Product -> meta mapping (unit_cost + UoM)
-    const PRODUCT_META = {
-      {% for p in products %}
-        "{{ p.id }}": {
-          unit_cost: "{{ p.unit_cost }}",
-          uom: "{{ p.uom.code|escapejs }}"
-        },
-      {% endfor %}
-    };
+  <div class="rq-card">
+    <div class="rq-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+      <div>
+        <div class="fw-semibold">Line items</div>
+        <div class="rq-help">Product is searchable. Unit cost is filled automatically.</div>
+      </div>
+      <div class="text-muted small kc-mono">
+        Total: <span id="po-grand-total">0.00</span>
+      </div>
+    </div>
 
-    function initSelect2Products() {
-    if (window.jQuery && $.fn.select2) {
-      $('.select2-product')
-        .not('.select2-hidden-accessible')
-        .select2({ width: '100%' });
+    <div class="p-3">
+      {{ item_formset.management_form }}
+      {% if item_formset.non_form_errors %}
+        <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+      {% endif %}
+
+      <div class="table-responsive">
+        <table class="table table-sm table-striped rq-table mb-0">
+          <thead>
+            <tr>
+              <th style="min-width: 320px;">Product</th>
+              <th class="text-end" style="width: 180px;">Quantity</th>
+              <th class="text-end" style="width: 180px;">Unit cost</th>
+              <th class="text-end" style="width: 200px;">Line total</th>
+              <th style="width: 60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="po-items-tbody">
+            {% for f in item_formset.forms %}
+              <tr class="po-item-row {% if f.DELETE.value %}rq-row-hidden{% endif %}">
+                {{ f.id }}
+                <td>
+                  {{ f.product }}
+                  {% if f.product.errors %}
+                    <div class="text-danger small">{{ f.product.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {{ f.quantity }}
+                  {% if f.quantity.errors %}
+                    <div class="text-danger small text-start">{{ f.quantity.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {{ f.unit_cost }}
+                  {% if f.unit_cost.errors %}
+                    <div class="text-danger small text-start">{{ f.unit_cost.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end kc-mono line-total-cell">0.00</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+                  {{ f.DELETE }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <template id="po-empty-form-template">
+        <tr class="po-item-row">
+          {{ item_formset.empty_form.id }}
+          <td>{{ item_formset.empty_form.product }}</td>
+          <td class="text-end">{{ item_formset.empty_form.quantity }}</td>
+          <td class="text-end">{{ item_formset.empty_form.unit_cost }}</td>
+          <td class="text-end kc-mono line-total-cell">0.00</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+            {{ item_formset.empty_form.DELETE }}
+          </td>
+        </tr>
+      </template>
+
+      <div class="mt-3 d-flex align-items-center">
+        <button id="add-item" class="btn btn-outline-primary" type="button">
+          Add product
+        </button>
+
+        <a href="{% url 'supplychain:po-list' %}" class="btn btn-outline-secondary ms-2">
+          Back
+        </a>
+
+        <button type="submit" class="btn btn-primary ms-auto">
+          Save &amp; send for COO approval
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+(function() {
+  const PRODUCT_META = {
+    {% for p in products %}
+      "{{ p.id }}": { unit_cost: "{{ p.unit_cost }}", uom: "{{ p.uom.code|escapejs }}" },
+    {% endfor %}
+  };
+
+  function initSelect2() {
+    if (!(window.jQuery && $.fn.select2)) return;
+
+    $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
+
+    const $supplier = $('#id_supplier');
+    if ($supplier.length && !$supplier.hasClass('select2-hidden-accessible')) {
+      $supplier.select2({ width: '100%', placeholder: 'Select supplier', allowClear: true });
+    }
+
+    const $req = $('#id_requisition');
+    if ($req.length && !$req.hasClass('select2-hidden-accessible')) {
+      $req.select2({ width: '100%', placeholder: 'Link requisition (optional)', allowClear: true });
     }
   }
 
-    function toNumber(value) {
-      var n = parseFloat(value);
-      return isNaN(n) ? 0 : n;
-    }
+  function toNumber(v) {
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
 
-    function formatNumber(value) {
-      return value.toFixed(2);
-    }
+  function format2(v) {
+    return v.toFixed(2);
+  }
 
-    function updateGrandTotal() {
-      let grand = 0;
-      document.querySelectorAll('.po-item-row').forEach(function(row) {
-        if (row.classList.contains('d-none')) {
-          return;
-        }
-        const lineCell = row.querySelector('.line-total-cell');
-        if (!lineCell) return;
+  function updateGrandTotal() {
+    let grand = 0;
 
-        // lineCell.textContent is "123.45 (KG)" → strip non-numeric prefix
-        const text = lineCell.textContent.split('(')[0].trim();
-        grand += toNumber(text);
-      });
-      const grandEl = document.getElementById('po-grand-total');
-      if (grandEl) {
-        grandEl.textContent = formatNumber(grand);
-      }
-    }
-
-    function updateRowTotals(row) {
-      const productSelect = row.querySelector('select[name$="-product"]');
-      const quantityInput = row.querySelector('input[name$="-quantity"]');
-      const unitCostInput = row.querySelector('input[name$="-unit_cost"]');
-      const lineTotalCell = row.querySelector('.line-total-cell');
-
-      if (!productSelect || !quantityInput || !unitCostInput || !lineTotalCell) {
-        return;
-      }
-
-      const productId = productSelect.value;
-      const meta = PRODUCT_META[productId] || {};
-      const unitCost = toNumber(meta.unit_cost || unitCostInput.value || "0");
-      const uom = meta.uom || "";
-      const qty = toNumber(quantityInput.value || "0");
-
-      // Keep unit_cost field in sync with master data (read-only for user)
-      if (unitCostInput) {
-        unitCostInput.value = formatNumber(unitCost);
-      }
-
-      const lineTotal = unitCost * qty;
-      const totalText = formatNumber(lineTotal) + (uom ? " (" + uom + ")" : "");
-      lineTotalCell.textContent = totalText;
-
-      updateGrandTotal();
-    }
-
-    function attachRowHandlers(row) {
-      const productSelect = row.querySelector('select[name$="-product"]');
-      const quantityInput = row.querySelector('input[name$="-quantity"]');
-      const removeBtn = row.querySelector('.remove-item');
-
-      if (productSelect && !productSelect.dataset.listener) {
-        productSelect.addEventListener('change', function () {
-          updateRowTotals(row);
-        });
-        productSelect.dataset.listener = "true";
-      }
-
-      if (quantityInput && !quantityInput.dataset.listener) {
-        quantityInput.addEventListener('input', function () {
-          updateRowTotals(row);
-        });
-        quantityInput.dataset.listener = "true";
-      }
-
-      if (removeBtn && !removeBtn.dataset.listener) {
-        removeBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-          if (del) { del.checked = true; }
-          row.classList.add('d-none');
-          updateGrandTotal();
-        });
-        removeBtn.dataset.listener = "true";
-      }
-
-      // Initial calculation
-      updateRowTotals(row);
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      const addBtn = document.getElementById('add-item');
-      const formPrefix = '{{ item_formset.prefix }}';
-      const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-
-      // Attach handlers to existing rows
-      document.querySelectorAll('.po-item-row').forEach(function (row) {
-        attachRowHandlers(row);
-      });
-
-      initSelect2Products();
-
-      if (addBtn) {
-        addBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          let formCount = parseInt(totalForms.value, 10);
-          {% if item_formset.max_num is not None %}
-          if (formCount >= {{ item_formset.max_num }}) return;
-          {% endif %}
-
-          const templateHtml = document
-            .getElementById('po-empty-form-template')
-            .innerHTML.replace(/__prefix__/g, formCount);
-
-          const tbody = document.querySelector('table tbody');
-          tbody.insertAdjacentHTML('beforeend', templateHtml);
-
-          totalForms.value = formCount + 1;
-
-          const newRow = tbody.querySelectorAll('.po-item-row')[tbody.querySelectorAll('.po-item-row').length - 1];
-          attachRowHandlers(newRow);
-          initSelect2Products();
-        });
-      }
-
-      updateGrandTotal();
+    document.querySelectorAll('.po-item-row').forEach(function(row) {
+      if (row.classList.contains('rq-row-hidden')) return;
+      const cell = row.querySelector('.line-total-cell');
+      if (!cell) return;
+      const txt = (cell.textContent || '').split('(')[0].trim();
+      grand += toNumber(txt);
     });
-  </script>
+
+    const el = document.getElementById('po-grand-total');
+    if (el) el.textContent = format2(grand);
+  }
+
+  function updateRowTotals(row) {
+    const productSelect = row.querySelector('select[name$="-product"]');
+    const qtyInput = row.querySelector('input[name$="-quantity"]');
+    const unitCostInput = row.querySelector('input[name$="-unit_cost"]');
+    const lineCell = row.querySelector('.line-total-cell');
+
+    if (!productSelect || !qtyInput || !unitCostInput || !lineCell) return;
+
+    const productId = productSelect.value;
+    const meta = PRODUCT_META[productId] || {};
+    const unitCost = toNumber(meta.unit_cost || unitCostInput.value || "0");
+    const qty = toNumber(qtyInput.value || "0");
+    const uom = meta.uom || "";
+
+    unitCostInput.value = format2(unitCost);
+
+    const lineTotal = unitCost * qty;
+    lineCell.textContent = format2(lineTotal) + (uom ? " (" + uom + ")" : "");
+
+    updateGrandTotal();
+  }
+
+  function attachRowHandlers(row) {
+    const productSelect = row.querySelector('select[name$="-product"]');
+    const qtyInput = row.querySelector('input[name$="-quantity"]');
+    const removeBtn = row.querySelector('.remove-item');
+
+    if (productSelect && !productSelect.dataset.bound) {
+      productSelect.addEventListener('change', function() { updateRowTotals(row); });
+      productSelect.dataset.bound = "1";
+    }
+
+    if (qtyInput && !qtyInput.dataset.bound) {
+      qtyInput.addEventListener('input', function() { updateRowTotals(row); });
+      qtyInput.dataset.bound = "1";
+    }
+
+    if (removeBtn && !removeBtn.dataset.bound) {
+      removeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (del) del.checked = true;
+        row.classList.add('rq-row-hidden');
+        updateGrandTotal();
+      });
+      removeBtn.dataset.bound = "1";
+    }
+
+    updateRowTotals(row);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-item');
+    const formPrefix = '{{ item_formset.prefix }}';
+    const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+    const maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
+
+    initSelect2();
+
+    document.querySelectorAll('.po-item-row').forEach(function(row) {
+      attachRowHandlers(row);
+    });
+
+    if (addBtn && totalForms) {
+      addBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const count = parseInt(totalForms.value, 10);
+        if (count >= maxNum) return;
+
+        const html = document.getElementById('po-empty-form-template').innerHTML
+          .replace(/__prefix__/g, count);
+
+        document.getElementById('po-items-tbody').insertAdjacentHTML('beforeend', html);
+        totalForms.value = count + 1;
+
+        const rows = document.querySelectorAll('#po-items-tbody .po-item-row');
+        const newRow = rows[rows.length - 1];
+        attachRowHandlers(newRow);
+        initSelect2();
+      });
+    }
+
+    updateGrandTotal();
+  });
+})();
+</script>
 {% endblock %}

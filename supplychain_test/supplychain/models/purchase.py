@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 
 from .master_data import Supplier, Product
 from .requisition import Requisition
@@ -51,6 +52,12 @@ class PurchaseOrder(TimeStampedModel):
         default=PENDING_COO,  # new POs go straight into COO queue
     )
     sent_at = models.DateTimeField(null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+        if self.requisition_id and self.supplier_id:
+            if self.requisition.supplier_id and self.supplier_id != self.requisition.supplier_id:
+                raise ValidationError({"supplier": "PO supplier must match requisition supplier."})
 
     def __str__(self):
         return f"PO #{self.id} ({self.status})"

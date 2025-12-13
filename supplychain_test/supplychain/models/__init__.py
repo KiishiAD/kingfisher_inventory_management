@@ -2,7 +2,7 @@ from .master_data import *
 from .requisition import *
 from .purchase import *
 from .receiving import *
-from .payment_issuance import *
+from .payment import *
 from .inventory import *
 
 # Explicit export list to keep namespace clean and so its clear what is available

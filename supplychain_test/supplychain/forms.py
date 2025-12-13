@@ -7,29 +7,40 @@ from .models import Requisition, RequisitionItem, Destination, RequisitionApprov
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['urgent', 'evidence', 'destination', 'notes', 'Supplier_destination_sub_category']
+        fields = [
+            'urgent',
+            'evidence',
+            'destination',
+            'supplier',  # NEW
+            'notes',
+            'Supplier_destination_sub_category',
+        ]
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
-        # Exclude: 'requester', 'status' (default pending)
 
     def __init__(self, *args, **kwargs):
-        # Optionally, we could pass 'request' into kwargs to set requester
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
-
 
     def clean(self):
         cleaned_data = super().clean()
         destination = cleaned_data.get('destination')
+        supplier = cleaned_data.get('supplier')
         sub_category = cleaned_data.get('Supplier_destination_sub_category')
 
-        # If destination is STORE, supplier sub-category must be empty
-        if destination and destination.name == Destination.STORE and sub_category:
-            self.add_error(
-                'Supplier_destination_sub_category',
-                "Supplier sub category must be empty when destination is STORE."
-            )
+        if destination and destination.name == Destination.STORE:
+            # STORE: no supplier context
+            if supplier:
+                self.add_error('supplier', "Supplier must be empty when destination is STORE.")
+            if sub_category:
+                self.add_error('Supplier_destination_sub_category',
+                               "Supplier sub category must be empty when destination is STORE.")
+
+        if destination and destination.name == Destination.PURCHASE:
+            # PURCHASE: supplier is required
+            if not supplier:
+                self.add_error('supplier', "Supplier is required when destination is PURCHASE.")
 
         return cleaned_data
 
@@ -41,41 +52,26 @@ class RequisitionForm(forms.ModelForm):
             instance.save()
         return instance
 
+
 class RequisitionItemForm(forms.ModelForm):
     class Meta:
         model = RequisitionItem
-        fields = ['product', 'quantity', 'supplier']
+        fields = ['product', 'quantity']  # REMOVED supplier
         widgets = {
-            'product': forms.Select(
-                attrs={
-                    'class': 'form-select form-select-sm select2-product w-100'
-                }
-            ),
-            'quantity': forms.NumberInput(
-                attrs={
-                    'class': 'form-control form-control-sm w-100',
-                    'min': 1,
-                }
-            ),
-            'supplier': forms.Select(
-                attrs={
-                    'class': 'form-select form-select-sm select2-supplier w-100'
-                }
-            ),
+            'product': forms.Select(attrs={'class': 'form-select form-select-sm select2-product w-100'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control form-control-sm w-100', 'min': 1}),
         }
 
 
-# We will allow up to 10 line items by default; you can adjust max_num as needed.
 RequisitionItemFormSet = inlineformset_factory(
     parent_model=Requisition,
     model=RequisitionItem,
     form=RequisitionItemForm,
-    fields=['product', 'quantity', 'supplier'],
+    fields=['product', 'quantity'],  # REMOVED supplier
     extra=1,
     can_delete=True,
     max_num=10,
 )
-
 
 from django.utils.translation import gettext_lazy as _
 

@@ -5,113 +5,169 @@
 {% block title %}Create Requisition{% endblock %}
 
 {% block content %}
-<h1>Create New Requisition</h1>
+<style>
+  .rq-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .rq-card .rq-card-header { border-bottom: 1px solid #dee2e6; }
+  .rq-help { font-size: .875rem; color: #6c757d; }
+  .rq-table td, .rq-table th { vertical-align: middle; }
+  .rq-row-hidden { display: none; }
+  .req-asterisk { color: #dc3545; margin-left: .25rem; }
+  .req-asterisk.hidden { display: none; }
+</style>
 
-<form method="post" enctype="multipart/form-data">
+<h1 class="mb-3">Create Requisition</h1>
+
+<form id="requisition-form" method="post" enctype="multipart/form-data">
   {% csrf_token %}
 
-  {{ form.non_field_errors }}
-  <div class="form-group mb-2">
-    {{ form.urgent.label_tag }} {{ form.urgent }}
-    {% if form.urgent.errors %}
-      <div class="text-danger">{{ form.urgent.errors }}</div>
-    {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="rq-card mb-4">
+    <div class="rq-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+      <div>
+        <div class="fw-semibold">Requisition details</div>
+        <div class="rq-help">Choose destination and supplier, then add products below.</div>
+      </div>
+
+      {# Urgent checkbox (as before) #}
+      <div class="form-check m-0">
+        {{ form.urgent }}
+        {{ form.urgent.label_tag }}
+        {% if form.urgent.errors %}
+          <div class="text-danger small">{{ form.urgent.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="p-3">
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="{{ form.destination.id_for_label }}">
+            Destination <span class="req-asterisk">*</span>
+          </label>
+          {{ form.destination }}
+          {% if form.destination.errors %}
+            <div class="text-danger small">{{ form.destination.errors }}</div>
+          {% endif %}
+          <div class="rq-help mt-1">Choose <strong>PURCHASE</strong> to buy from a supplier, or <strong>STORE</strong> for internal stock.</div>
+        </div>
+
+        <div class="col-12 col-lg-4" id="supplier-wrap">
+          <label class="form-label" for="{{ form.supplier.id_for_label }}">
+            Supplier
+            <span id="supplier-required"
+                  class="req-asterisk {% if not form.supplier.errors %}hidden{% endif %}">*</span>
+          </label>
+          {{ form.supplier }}
+          {% if form.supplier.errors %}
+            <div class="text-danger small">{{ form.supplier.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-4" id="subcategory-wrap">
+          <label class="form-label" for="{{ form.Supplier_destination_sub_category.id_for_label }}">
+            Supplier sub-category
+            <span id="subcat-required"
+                  class="req-asterisk {% if not form.Supplier_destination_sub_category.errors %}hidden{% endif %}">*</span>
+          </label>
+          {{ form.Supplier_destination_sub_category }}
+          {% if form.Supplier_destination_sub_category.errors %}
+            <div class="text-danger small">{{ form.Supplier_destination_sub_category.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.evidence.id_for_label }}">
+            Evidence <span class="req-asterisk">*</span>
+          </label>
+          {{ form.evidence }}
+          {% if form.evidence.errors %}
+            <div class="text-danger small">{{ form.evidence.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}
+            <div class="text-danger small">{{ form.notes.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="form-group mb-2">
-    {{ form.destination.label_tag }} {{ form.destination }}
-    {% if form.destination.errors %}
-      <div class="text-danger">{{ form.destination.errors }}</div>
-    {% endif %}
-  </div>
+  <div class="rq-card">
+    <div class="rq-card-header px-3 py-3">
+      <div class="fw-semibold">Line items</div>
+      <div class="rq-help">Add products and quantities.</div>
+    </div>
 
-  <div class="form-group mb-2">
-    {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
-    {% if form.Supplier_destination_sub_category.errors %}
-      <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
-    {% endif %}
-  </div>
+    <div class="p-3">
+      {{ item_formset.management_form }}
+      {% if item_formset.non_form_errors %}
+        <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+      {% endif %}
 
-  <div class="form-group mb-2">
-    {{ form.evidence.label_tag }} {{ form.evidence }}
-    {% if form.evidence.errors %}
-      <div class="text-danger">{{ form.evidence.errors }}</div>
-    {% endif %}
-  </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped rq-table mb-0">
+          <thead>
+            <tr>
+              <th style="min-width: 320px;">Product</th>
+              <th class="text-end" style="width: 180px;">Quantity</th>
+              <th style="width: 60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody">
+            {% for li_form in item_formset.forms %}
+              <tr class="rq-item-row {% if li_form.DELETE.value %}rq-row-hidden{% endif %}">
+                {{ li_form.id }}
+                <td>
+                  {{ li_form.product }}
+                  {% if li_form.product.errors %}
+                    <div class="text-danger small">{{ li_form.product.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {{ li_form.quantity }}
+                  {% if li_form.quantity.errors %}
+                    <div class="text-danger small text-start">{{ li_form.quantity.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+                  {{ li_form.DELETE }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-  <div class="form-group mb-3">
-    {{ form.notes.label_tag }}
-    {{ form.notes }}
-    {% if form.notes.errors %}
-      <div class="text-danger">{{ form.notes.errors }}</div>
-    {% endif %}
-  </div>
-
-  <h3>Line Items</h3>
-  {{ item_formset.management_form }}
-
-  <table class="table table-sm align-middle">
-  <colgroup>
-    <col style="width: 50%;">   {# Product #}
-    <col style="width: 15%;">   {# Quantity #}
-    <col style="width: 25%;">   {# Supplier #}
-    <col style="width: 10%;">   {# Delete button #}
-  </colgroup>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Supplier</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for li_form in item_formset %}
-        <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
-          {{ li_form.id }}
-          <td>
-            {{ li_form.product }}
-            {% if li_form.product.errors %}
-              <div class="text-danger">{{ li_form.product.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {{ li_form.quantity }}
-            {% if li_form.quantity.errors %}
-              <div class="text-danger">{{ li_form.quantity.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {{ li_form.supplier }}
-            {% if li_form.supplier.errors %}
-              <div class="text-danger">{{ li_form.supplier.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-            {{ li_form.DELETE }}
+      <template id="empty-form-template">
+        <tr class="rq-item-row">
+          {{ item_formset.empty_form.id }}
+          <td>{{ item_formset.empty_form.product }}</td>
+          <td class="text-end">{{ item_formset.empty_form.quantity }}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+            {{ item_formset.empty_form.DELETE }}
           </td>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </template>
 
-  <template id="empty-form-template">
-    <tr>
-      {{ item_formset.empty_form.id }}
-      <td>{{ item_formset.empty_form.product }}</td>
-      <td>{{ item_formset.empty_form.quantity }}</td>
-      <td>{{ item_formset.empty_form.supplier }}</td>
-      <td>
-        <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-        {{ item_formset.empty_form.DELETE }}
-      </td>
-    </tr>
-  </template>
+     <div class="mt-3 d-flex align-items-center">
+  <button id="add-item" class="btn btn-outline-primary" type="button">
+    Add product
+  </button>
 
-  <div class="d-flex gap-2 mb-3">
-    <button id="add-item" class="btn btn-primary" type="button">Add Product</button>
-    <button type="submit" class="btn btn-primary ms-auto">Submit Requisition</button>
+  <button type="submit" class="btn btn-primary ms-auto">
+    Submit requisition
+  </button>
+</div>
+    </div>
   </div>
 </form>
 {% endblock %}
@@ -121,47 +177,126 @@
 (function() {
   function attachDeleteHandlers() {
     document.querySelectorAll('.remove-item').forEach(function(btn) {
-      if (btn.dataset.listener) return;
+      if (btn.dataset.bound === "1") return;
       btn.addEventListener('click', function(e) {
         e.preventDefault();
-        const row = btn.closest('tr');
-        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        var row = btn.closest('tr');
+        if (!row) return;
+
+        var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
         if (del) del.checked = true;
-        row.classList.add('d-none');
+        row.classList.add('rq-row-hidden');
       });
-      btn.dataset.listener = "1";
+      btn.dataset.bound = "1";
     });
   }
 
-  function initSelect2ForLineItems() {
-    if (window.jQuery && $.fn.select2) {
-      $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
-      $('.select2-supplier').not('.select2-hidden-accessible').select2({ width: '100%' });
+  function initSelect2() {
+    if (!(window.jQuery && $.fn.select2)) return;
+
+    $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
+
+    var $supplier = $('#id_supplier');
+    if ($supplier.length && !$supplier.hasClass('select2-hidden-accessible')) {
+      $supplier.select2({ width: '100%', placeholder: 'Select supplier', allowClear: true });
+    }
+
+    var $dest = $('#id_destination');
+    if ($dest.length && !$dest.hasClass('select2-hidden-accessible')) {
+      $dest.select2({ width: '100%' });
+    }
+
+    var $subcat = $('#id_Supplier_destination_sub_category');
+    if ($subcat.length && !$subcat.hasClass('select2-hidden-accessible')) {
+      $subcat.select2({ width: '100%', placeholder: 'Select sub-category', allowClear: true });
     }
   }
 
+  function syncHeaderFields() {
+    var destEl = document.getElementById('id_destination');
+    if (!destEl) return;
+
+    var isStore = (destEl.value === 'STORE');
+
+    var supplierWrap = document.getElementById('supplier-wrap');
+    var subcatWrap = document.getElementById('subcategory-wrap');
+
+    if (supplierWrap) supplierWrap.style.opacity = isStore ? '0.55' : '1';
+    if (subcatWrap) subcatWrap.style.opacity = isStore ? '0.55' : '1';
+
+    var supplierEl = document.getElementById('id_supplier');
+    var subcatEl = document.getElementById('id_Supplier_destination_sub_category');
+
+    if (supplierEl) supplierEl.disabled = isStore;
+    if (subcatEl) subcatEl.disabled = isStore;
+
+    if (isStore) {
+      if (window.jQuery && $.fn.select2) {
+        $('#id_supplier').val(null).trigger('change');
+        $('#id_Supplier_destination_sub_category').val(null).trigger('change');
+      } else {
+        if (supplierEl) supplierEl.value = '';
+        if (subcatEl) subcatEl.value = '';
+      }
+      var s = document.getElementById('supplier-required');
+      var c = document.getElementById('subcat-required');
+      if (s) s.classList.add('hidden');
+      if (c) c.classList.add('hidden');
+    }
+  }
+
+  function showConditionalAsterisksIfNeeded() {
+    var destEl = document.getElementById('id_destination');
+    if (!destEl) return;
+    if (destEl.value !== 'PURCHASE') return;
+
+    var supplierEl = document.getElementById('id_supplier');
+    var subcatEl = document.getElementById('id_Supplier_destination_sub_category');
+    var supplierAst = document.getElementById('supplier-required');
+    var subcatAst = document.getElementById('subcat-required');
+
+    var supplierEmpty = !supplierEl || !supplierEl.value;
+    var subcatEmpty = !subcatEl || !subcatEl.value;
+
+    if (supplierAst && supplierEmpty) supplierAst.classList.remove('hidden');
+    if (subcatAst && subcatEmpty) subcatAst.classList.remove('hidden');
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
-    const addBtn = document.getElementById('add-item');
-    const formPrefix = '{{ item_formset.prefix }}';
-    const totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
-    const maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
+    var addBtn = document.getElementById('add-item');
+    var formPrefix = '{{ item_formset.prefix }}';
+    var totalForms = document.getElementById('id_' + formPrefix + '-TOTAL_FORMS');
+    var maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
 
     attachDeleteHandlers();
-    initSelect2ForLineItems();
+    initSelect2();
+    syncHeaderFields();
+
+    var destEl = document.getElementById('id_destination');
+    if (destEl) destEl.addEventListener('change', syncHeaderFields);
 
     if (addBtn && totalForms) {
       addBtn.addEventListener('click', function(e) {
         e.preventDefault();
-        let count = parseInt(totalForms.value, 10);
+        var count = parseInt(totalForms.value, 10);
         if (count >= maxNum) return;
 
-        const tmpl = document.getElementById('empty-form-template').innerHTML
+        var tmpl = document.getElementById('empty-form-template').innerHTML
           .replace(/__prefix__/g, count);
-        document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
+
+        document.getElementById('items-tbody').insertAdjacentHTML('beforeend', tmpl);
         totalForms.value = count + 1;
 
         attachDeleteHandlers();
-        initSelect2ForLineItems();
+        initSelect2();
+      });
+    }
+
+    var form = document.getElementById('requisition-form');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        showConditionalAsterisksIfNeeded();
+        if (!window.confirm("Submit this requisition?")) e.preventDefault();
       });
     }
   });

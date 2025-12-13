@@ -5,75 +5,318 @@
 {% block title %}My Requisitions{% endblock %}
 
 {% block content %}
-  <h1>My Requisitions</h1>
+<style>
+  .rq-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .rq-card-header { border-bottom: 1px solid #dee2e6; }
+  .rq-help { font-size: .875rem; color: #6c757d; }
+  .rq-table td, .rq-table th { vertical-align: middle; }
+  .rq-pill { border-radius: 999px; }
+  .rq-mono { font-variant-numeric: tabular-nums; }
+  .rq-search { position: relative; }
+  .rq-search .form-control { padding-left: 2.25rem; }
+  .rq-search .rq-search-icon {
+    position: absolute; left: .75rem; top: 50%;
+    transform: translateY(-50%); color: #6c757d; pointer-events: none;
+  }
+</style>
 
-  <a href="{% url 'supplychain:requisition-create' %}" class="btn btn-success mb-3">
-    + New Requisition
-  </a>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">My Requisitions</h1>
+  </div>
 
-  {% if requisitions %}
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Created At</th>
-          <th>Status</th>
-          <th>Destination</th>
-          <th>Urgent</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for req in requisitions %}
-          <tr>
-            <td>{{ req.id }}</td>
-            <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
-            <td>
-          {{ req.status|status_badge }}
-            </td>
-            <td>{{ req.get_destination_display }}</td>
-            <td>
-              {% if req.urgent %}
-                <span class="text-danger"><strong>Yes</strong></span>
-              {% else %}
-                No
-              {% endif %}
-            </td>
-            <td>
-              <a href="{% url 'supplychain:requisition-detail' req.id %}">View</a>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <a href="{% url 'supplychain:requisition-create' %}" class="btn btn-success btn-sm">
+      + New requisition
+    </a>
+    <span class="text-muted small rq-mono">
+      <span id="visible-count">0</span> / <span id="total-count">0</span>
+    </span>
+    <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">
+      Download CSV
+    </button>
+  </div>
+</div>
 
-    {# Pagination controls (if you enabled paginate_by in the view) #}
-    {% if is_paginated %}
-      <nav aria-label="Page navigation">
-        <ul class="pagination">
-          {% if page_obj.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-                Previous
-              </a>
+<div class="rq-card mb-3">
+  <div class="rq-card-header px-3 py-3">
+    <div class="fw-semibold">Filters</div>
+    <div class="rq-help">Updates instantly as you type/select.</div>
+  </div>
+
+  <div class="p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-5">
+        <label class="form-label">Search</label>
+        <div class="rq-search">
+          <span class="rq-search-icon">⌕</span>
+          <input id="q" type="text" class="form-control" placeholder="ID, status, destination…">
+        </div>
+      </div>
+
+      <div class="col-6 col-lg-3">
+        <label class="form-label">Destination</label>
+        <select id="destination" class="form-select">
+          <option value="">All</option>
+          <option value="PURCHASE">Purchase</option>
+          <option value="STORE">Store</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-lg-2">
+        <label class="form-label">Urgent</label>
+        <select id="urgent" class="form-select">
+          <option value="">All</option>
+          <option value="yes">Urgent only</option>
+          <option value="no">Not urgent</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-lg-2 d-flex justify-content-lg-end">
+        <button type="button" id="clear-filters" class="btn btn-outline-secondary">
+          Clear filters
+        </button>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label mb-1">Status</label>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm rq-pill status-filter active" data-status="">
+            All
+          </button>
+          {% for value, label in status_choices %}
+            <button type="button" class="btn btn-outline-secondary btn-sm rq-pill status-filter" data-status="{{ value }}">
+              {{ label }}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rq-card">
+  <div class="rq-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Requisitions</div>
+      <div class="rq-help">Export downloads the currently visible rows.</div>
+    </div>
+    <div class="text-muted small" id="active-filter-label">No filters</div>
+  </div>
+
+  <div class="p-3">
+    {% if requisitions %}
+      <div class="table-responsive">
+        <table id="rq-table" class="table table-sm table-hover rq-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 80px;">#</th>
+              <th style="min-width: 160px;">Created</th>
+              <th style="width: 160px;">Status</th>
+              <th style="width: 140px;">Destination</th>
+              <th style="width: 100px;">Urgent</th>
+              <th style="width: 90px;" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in requisitions %}
+              <tr class="rq-row"
+                  data-id="{{ req.id }}"
+                  data-created="{{ req.created_at|date:'Y-m-d' }}"
+                  data-status="{{ req.status }}"
+                  data-destination="{{ req.destination.name }}"
+                  data-urgent="{% if req.urgent %}yes{% else %}no{% endif %}">
+                <td class="fw-semibold rq-mono">{{ req.id }}</td>
+                <td class="rq-mono">{{ req.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ req.status|status_badge }}</td>
+                <td>{{ req.get_destination_display }}</td>
+                <td>
+                  {% if req.urgent %}
+                    <span class="badge text-bg-danger">Yes</span>
+                  {% else %}
+                    <span class="badge text-bg-light">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:requisition-detail' req.id %}">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div id="no-results" class="text-center text-muted py-4 d-none">
+        No requisitions match your filters.
+      </div>
+
+      {% if is_paginated %}
+        <nav class="mt-3" aria-label="Page navigation">
+          <ul class="pagination mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <a class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</a>
             </li>
-          {% endif %}
-          <li class="page-item disabled">
-            <a class="page-link">
-              Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-            </a>
-          </li>
-          {% if page_obj.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-                Next
-              </a>
-            </li>
-          {% endif %}
-        </ul>
-      </nav>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="mb-0">You have no requisitions yet.</p>
     {% endif %}
-  {% else %}
-    <p>You have no requisitions yet.</p>
-  {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function byId(id) { return document.getElementById(id); }
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+
+  var currentStatus = "";
+
+  function getState() {
+    return {
+      q: norm(byId('q').value),
+      destination: (byId('destination').value || '').trim(),
+      urgent: (byId('urgent').value || '').trim(),
+      status: currentStatus || "",
+    };
+  }
+
+  function rowMatches(row, state) {
+    var id = row.dataset.id || '';
+    var created = row.dataset.created || '';
+    var status = row.dataset.status || '';
+    var destination = row.dataset.destination || '';
+    var urgent = row.dataset.urgent || '';
+
+    if (state.status && status !== state.status) return false;
+    if (state.destination && destination !== state.destination) return false;
+    if (state.urgent && urgent !== state.urgent) return false;
+
+    if (state.q) {
+      var hay = norm(id + ' ' + created + ' ' + status + ' ' + destination + ' ' + urgent);
+      if (hay.indexOf(state.q) === -1) return false;
+    }
+    return true;
+  }
+
+  function updateActiveLabel(state) {
+    var parts = [];
+    if (state.status) parts.push('Status');
+    if (state.q) parts.push('Search');
+    if (state.destination) parts.push('Destination');
+    if (state.urgent) parts.push('Urgent');
+    byId('active-filter-label').textContent = parts.length ? parts.join(' · ') : 'No filters';
+  }
+
+  function applyFilters() {
+    var state = getState();
+    var rows = Array.from(document.querySelectorAll('.rq-row'));
+    var visible = 0;
+
+    rows.forEach(function(row) {
+      var ok = rowMatches(row, state);
+      row.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+
+    byId('visible-count').textContent = String(visible);
+    byId('total-count').textContent = String(rows.length);
+
+    var noResults = byId('no-results');
+    if (noResults) noResults.classList.toggle('d-none', visible !== 0);
+
+    updateActiveLabel(state);
+  }
+
+  function csvEscape(v) {
+    var s = (v === null || v === undefined) ? '' : String(v);
+    s = s.replace(/"/g, '""');
+    if (/[",\n]/.test(s)) s = '"' + s + '"';
+    return s;
+  }
+
+  function exportVisibleCSV() {
+    var rows = Array.from(document.querySelectorAll('#rq-table tbody tr'))
+      .filter(function(r) { return r.style.display !== 'none'; });
+
+    var headers = ['id', 'created_at', 'status', 'destination', 'urgent'];
+    var lines = [headers.join(',')];
+
+    rows.forEach(function(r) {
+      var id = r.dataset.id || '';
+      var created = (r.querySelector('td:nth-child(2)') || {}).textContent || '';
+      created = created.trim();
+      var status = r.dataset.status || '';
+      var destination = r.dataset.destination || '';
+      var urgent = r.dataset.urgent || '';
+
+      lines.push([id, created, status, destination, urgent].map(csvEscape).join(','));
+    });
+
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'my_requisitions.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.status-filter').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status || '';
+        applyFilters();
+      });
+    });
+
+    ['q', 'destination', 'urgent'].forEach(function(id) {
+      var el = byId(id);
+      if (!el) return;
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+
+    var clearBtn = byId('clear-filters');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        byId('q').value = '';
+        byId('destination').value = '';
+        byId('urgent').value = '';
+
+        currentStatus = '';
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        var allBtn = document.querySelector('.status-filter[data-status=""]');
+        if (allBtn) allBtn.classList.add('active');
+
+        applyFilters();
+      });
+    }
+
+    var exportBtn = byId('export-csv');
+    if (exportBtn) exportBtn.addEventListener('click', exportVisibleCSV);
+
+    applyFilters();
+  });
+})();
+</script>
 {% endblock %}

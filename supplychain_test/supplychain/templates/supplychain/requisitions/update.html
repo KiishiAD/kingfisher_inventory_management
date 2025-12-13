@@ -1,31 +1,36 @@
+{# supplychain/templates/supplychain/requisitions/update.html #}
 {% extends "base.html" %}
 {% load static %}
 
 {% block title %}Update Requisition{% endblock %}
 
 {% block content %}
-
-
-
 <style>
-  .po-header p { margin-bottom: .25rem; }
+  /* Match create.html look */
+  .rq-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .rq-card .rq-card-header { border-bottom: 1px solid #dee2e6; }
+  .rq-help { font-size: .875rem; color: #6c757d; }
+  .rq-table td, .rq-table th { vertical-align: middle; }
+  .rq-row-hidden { display: none; }
 
-  .po-timeline-card {
+  .req-asterisk { color: #dc3545; margin-left: .25rem; }
+  .req-asterisk.hidden { display: none; }
+
+  /* Timeline (keep your styles but rename to rq- for consistency) */
+  .rq-timeline-card {
     max-height: 360px;
     overflow-y: auto;
     border: 1px solid #dee2e6;
-    border-radius: .5rem;
+    border-radius: .75rem;
     background-color: #ffffff;
   }
-
-  .po-timeline {
+  .rq-timeline {
     position: relative;
     list-style: none;
     margin: 0;
     padding-left: 1.5rem;
   }
-
-  .po-timeline::before {
+  .rq-timeline::before {
     content: "";
     position: absolute;
     left: 7px;
@@ -34,13 +39,8 @@
     width: 2px;
     background-color: #e9ecef;
   }
-
-  .po-timeline-item {
-    position: relative;
-    margin-bottom: 10px;
-  }
-
-  .po-timeline-dot {
+  .rq-timeline-item { position: relative; margin-bottom: 10px; }
+  .rq-timeline-dot {
     position: absolute;
     left: -1px;
     top: 6px;
@@ -49,177 +49,217 @@
     border-radius: 50%;
     background-color: #0d6efd;
   }
-
-  .po-timeline-body {
+  .rq-timeline-body {
     padding: .35rem .5rem;
     border-radius: .25rem;
     background-color: #f8f9fa;
     font-size: .875rem;
   }
-
-  .po-timeline-body:hover { background-color: #e9ecef; }
-
-  .po-timeline-meta {
+  .rq-timeline-body:hover { background-color: #e9ecef; }
+  .rq-timeline-meta {
     display: flex;
     justify-content: space-between;
     font-size: .75rem;
     color: #6c757d;
     margin-bottom: .15rem;
   }
-
-  .po-badge {
+  .rq-badge {
     display: inline-block;
     padding: .1rem .4rem;
     border-radius: .5rem;
     font-size: .7rem;
     color: #fff;
   }
-  .po-badge-requisition { background-color: #0d6efd; }
-  .po-badge-po          { background-color: #198754; }
-  .po-badge-payment     { background-color: #0dcaf0; color: #000; }
-  .po-badge-issuance    { background-color: #ffc107; color: #000; }
-  .po-badge-other       { background-color: #6c757d; }
+  .rq-badge-requisition { background-color: #0d6efd; }
+  .rq-badge-po          { background-color: #198754; }
+  .rq-badge-payment     { background-color: #0dcaf0; color: #000; }
+  .rq-badge-issuance    { background-color: #ffc107; color: #000; }
+  .rq-badge-other       { background-color: #6c757d; }
 </style>
 
-<h1>Update Requisition</h1>
+<h1 class="mb-3">Update requisition</h1>
 
-<form method="post" enctype="multipart/form-data">
+<form id="requisition-update-form" method="post" enctype="multipart/form-data">
   {% csrf_token %}
 
-  {{ form.non_field_errors }}
-  <div class="form-group mb-2">
-    {{ form.urgent.label_tag }} {{ form.urgent }}
-    {% if form.urgent.errors %}
-      <div class="text-danger">{{ form.urgent.errors }}</div>
-    {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="rq-card mb-4">
+    <div class="rq-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+      <div>
+        <div class="fw-semibold">Requisition details</div>
+        <div class="rq-help">Edit fields, update line items, then save.</div>
+      </div>
+
+      {# Urgent checkbox (same as create) #}
+      <div class="form-check m-0">
+        {{ form.urgent }}
+        {{ form.urgent.label_tag }}
+        {% if form.urgent.errors %}
+          <div class="text-danger small">{{ form.urgent.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="p-3">
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="{{ form.destination.id_for_label }}">
+            Destination <span class="req-asterisk">*</span>
+          </label>
+          {{ form.destination }}
+          {% if form.destination.errors %}
+            <div class="text-danger small">{{ form.destination.errors }}</div>
+          {% endif %}
+          <div class="rq-help mt-1">Choose <strong>PURCHASE</strong> to buy from a supplier, or <strong>STORE</strong> for internal stock.</div>
+        </div>
+
+        <div class="col-12 col-lg-4" id="supplier-wrap">
+          <label class="form-label" for="{{ form.supplier.id_for_label }}">
+            Supplier
+            <span id="supplier-required"
+                  class="req-asterisk {% if not form.supplier.errors %}hidden{% endif %}">*</span>
+          </label>
+          {{ form.supplier }}
+          {% if form.supplier.errors %}
+            <div class="text-danger small">{{ form.supplier.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-4" id="subcategory-wrap">
+          <label class="form-label" for="{{ form.Supplier_destination_sub_category.id_for_label }}">
+            Supplier sub-category
+            <span id="subcat-required"
+                  class="req-asterisk {% if not form.Supplier_destination_sub_category.errors %}hidden{% endif %}">*</span>
+          </label>
+          {{ form.Supplier_destination_sub_category }}
+          {% if form.Supplier_destination_sub_category.errors %}
+            <div class="text-danger small">{{ form.Supplier_destination_sub_category.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.evidence.id_for_label }}">
+            Evidence <span class="req-asterisk">*</span>
+          </label>
+          {{ form.evidence }}
+          {% if form.evidence.errors %}
+            <div class="text-danger small">{{ form.evidence.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}
+            <div class="text-danger small">{{ form.notes.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="form-group mb-2">
-    {{ form.destination.label_tag }} {{ form.destination }}
-    {% if form.destination.errors %}
-      <div class="text-danger">{{ form.destination.errors }}</div>
-    {% endif %}
-  </div>
+  <div class="rq-card mb-4">
+    <div class="rq-card-header px-3 py-3">
+      <div class="fw-semibold">Line items</div>
+      <div class="rq-help">Add products and quantities. Remove items with the × button.</div>
+    </div>
 
-  <div class="form-group mb-2">
-    {{ form.Supplier_destination_sub_category.label_tag }} {{ form.Supplier_destination_sub_category }}
-    {% if form.Supplier_destination_sub_category.errors %}
-      <div class="text-danger">{{ form.Supplier_destination_sub_category.errors }}</div>
-    {% endif %}
-  </div>
+    <div class="p-3">
+      {{ item_formset.management_form }}
+      {% if item_formset.non_form_errors %}
+        <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+      {% endif %}
 
-  <div class="form-group mb-2">
-    {{ form.evidence.label_tag }} {{ form.evidence }}
-    {% if form.evidence.errors %}
-      <div class="text-danger">{{ form.evidence.errors }}</div>
-    {% endif %}
-  </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped rq-table mb-0">
+          <thead>
+            <tr>
+              <th style="min-width: 320px;">Product</th>
+              <th class="text-end" style="width: 180px;">Quantity</th>
+              <th style="width: 60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody">
+            {% for li_form in item_formset.forms %}
+              <tr class="rq-item-row {% if li_form.DELETE.value %}rq-row-hidden{% endif %}">
+                {{ li_form.id }}
+                <td>
+                  {{ li_form.product }}
+                  {% if li_form.product.errors %}
+                    <div class="text-danger small">{{ li_form.product.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {{ li_form.quantity }}
+                  {% if li_form.quantity.errors %}
+                    <div class="text-danger small text-start">{{ li_form.quantity.errors }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+                  {{ li_form.DELETE }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-  <div class="form-group mb-3">
-    {{ form.notes.label_tag }}
-    {{ form.notes }}
-    {% if form.notes.errors %}
-      <div class="text-danger">{{ form.notes.errors }}</div>
-    {% endif %}
-  </div>
-
-  <h3>Line Items</h3>
-  {{ item_formset.management_form }}
-  {{ item_formset.non_form_errors }}
-
- <table class="table table-sm align-middle">
-  <colgroup>
-    <col style="width: 50%;">   {# Product #}
-    <col style="width: 15%;">   {# Quantity #}
-    <col style="width: 25%;">   {# Supplier #}
-    <col style="width: 10%;">   {# Delete button #}
-  </colgroup>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Supplier</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for li_form in item_formset %}
-        <tr class="{% if li_form.DELETE.value %}d-none{% endif %}">
-          {{ li_form.id }}
-          <td>
-            {{ li_form.product }}
-            {% if li_form.product.errors %}
-              <div class="text-danger">{{ li_form.product.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {{ li_form.quantity }}
-            {% if li_form.quantity.errors %}
-              <div class="text-danger">{{ li_form.quantity.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {{ li_form.supplier }}
-            {% if li_form.supplier.errors %}
-              <div class="text-danger">{{ li_form.supplier.errors }}</div>
-            {% endif %}
-          </td>
-          <td>
-            <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-            {{ li_form.DELETE }}
+      <template id="empty-form-template">
+        <tr class="rq-item-row">
+          {{ item_formset.empty_form.id }}
+          <td>{{ item_formset.empty_form.product }}</td>
+          <td class="text-end">{{ item_formset.empty_form.quantity }}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
+            {{ item_formset.empty_form.DELETE }}
           </td>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </template>
 
-  <template id="empty-form-template">
-    <tr>
-      {{ item_formset.empty_form.id }}
-      <td>{{ item_formset.empty_form.product }}</td>
-      <td>{{ item_formset.empty_form.quantity }}</td>
-      <td>{{ item_formset.empty_form.supplier }}</td>
-      <td>
-        <button type="button" class="btn btn-danger btn-sm remove-item">Delete</button>
-        {{ item_formset.empty_form.DELETE }}
-      </td>
-    </tr>
-  </template>
+      {# Buttons: Add product (left) + Update (right) - matches your final create layout #}
+      <div class="mt-3 d-flex align-items-center">
+        <button id="add-item" class="btn btn-outline-primary" type="button">
+          Add product
+        </button>
 
-  <div class="d-flex gap-2 mb-3">
-    <button id="add-item" class="btn btn-primary" type="button">Add Product</button>
-    <button type="submit" class="btn btn-primary ms-auto">Update Requisition</button>
+        <button type="submit" class="btn btn-primary ms-auto">
+          Update requisition
+        </button>
+      </div>
+    </div>
   </div>
 </form>
 
-<hr>
-
 <div class="col-12 col-lg-8 mb-3">
-  <h2>Workflow timeline</h2>
-  <div class="po-timeline-card">
+  <h2 class="mb-2">Workflow timeline</h2>
+  <div class="rq-timeline-card">
     <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
       <span class="fw-semibold">Audit trail</span>
       <span class="badge bg-secondary">{{ timeline|length }} events</span>
     </div>
     <div class="p-2">
       {% if timeline %}
-        <ul class="po-timeline mb-0">
+        <ul class="rq-timeline mb-0">
           {% for e in timeline %}
-            <li class="po-timeline-item">
-              <span class="po-timeline-dot"></span>
-              <div class="po-timeline-body">
-                <div class="po-timeline-meta">
+            <li class="rq-timeline-item">
+              <span class="rq-timeline-dot"></span>
+              <div class="rq-timeline-body">
+                <div class="rq-timeline-meta">
                   <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
                   {% if "Requisition" in e.label %}
-                    <span class="po-badge po-badge-requisition">REQ</span>
+                    <span class="rq-badge rq-badge-requisition">REQ</span>
                   {% elif "PO " in e.label %}
-                    <span class="po-badge po-badge-po">PO</span>
+                    <span class="rq-badge rq-badge-po">PO</span>
                   {% elif "Payment" in e.label %}
-                    <span class="po-badge po-badge-payment">PAY</span>
+                    <span class="rq-badge rq-badge-payment">PAY</span>
                   {% elif "Issuance" in e.label %}
-                    <span class="po-badge po-badge-issuance">ISS</span>
+                    <span class="rq-badge rq-badge-issuance">ISS</span>
                   {% else %}
-                    <span class="po-badge po-badge-other">EVT</span>
+                    <span class="rq-badge rq-badge-other">EVT</span>
                   {% endif %}
                 </div>
                 <div>
@@ -246,46 +286,100 @@
 {% block extra_js %}
 <script>
 (function() {
-  // Attach delete-handlers to all "Delete" buttons
   function attachDeleteHandlers() {
     document.querySelectorAll('.remove-item').forEach(function(btn) {
-      if (btn.dataset.listenerAttached === '1') return;  // avoid double-binding
+      if (btn.dataset.bound === "1") return;
 
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         var row = btn.closest('tr');
         if (!row) return;
 
-        // Hidden primary-key field for this form ({{ li_form.id }})
         var idField = row.querySelector('input[name$="-id"]');
 
         if (idField && idField.value) {
-          // 1️⃣ EXISTING DB ROW:
-          // Mark for deletion – Django's formset will delete it on save.
           var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-          if (del) {
-            del.checked = true;
-          }
-          // Just hide visually; keep inputs so validation sees the original values.
-          row.classList.add('d-none');
+          if (del) del.checked = true;
+          row.classList.add('rq-row-hidden');
         } else {
-          // 2️⃣ BRAND-NEW ROW (never saved):
-          // Just remove it from the DOM completely so it never hits the formset.
           row.remove();
-          // We do NOT need to change TOTAL_FORMS – Django will treat the
-          // missing index as an "extra empty form" with no effect.
         }
       });
 
-      btn.dataset.listenerAttached = '1';
+      btn.dataset.bound = "1";
     });
   }
 
-  function initSelect2ForLineItems() {
-    if (window.jQuery && $.fn.select2) {
-      $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
-      $('.select2-supplier').not('.select2-hidden-accessible').select2({ width: '100%' });
+  function initSelect2() {
+    if (!(window.jQuery && $.fn.select2)) return;
+
+    $('.select2-product').not('.select2-hidden-accessible').select2({ width: '100%' });
+
+    var $supplier = $('#id_supplier');
+    if ($supplier.length && !$supplier.hasClass('select2-hidden-accessible')) {
+      $supplier.select2({ width: '100%', placeholder: 'Select supplier', allowClear: true });
     }
+
+    var $dest = $('#id_destination');
+    if ($dest.length && !$dest.hasClass('select2-hidden-accessible')) {
+      $dest.select2({ width: '100%' });
+    }
+
+    var $subcat = $('#id_Supplier_destination_sub_category');
+    if ($subcat.length && !$subcat.hasClass('select2-hidden-accessible')) {
+      $subcat.select2({ width: '100%', placeholder: 'Select sub-category', allowClear: true });
+    }
+  }
+
+  function syncHeaderFields() {
+    var destEl = document.getElementById('id_destination');
+    if (!destEl) return;
+
+    var isStore = (destEl.value === 'STORE');
+
+    var supplierWrap = document.getElementById('supplier-wrap');
+    var subcatWrap = document.getElementById('subcategory-wrap');
+
+    if (supplierWrap) supplierWrap.style.opacity = isStore ? '0.55' : '1';
+    if (subcatWrap) subcatWrap.style.opacity = isStore ? '0.55' : '1';
+
+    var supplierEl = document.getElementById('id_supplier');
+    var subcatEl = document.getElementById('id_Supplier_destination_sub_category');
+
+    if (supplierEl) supplierEl.disabled = isStore;
+    if (subcatEl) subcatEl.disabled = isStore;
+
+    if (isStore) {
+      if (window.jQuery && $.fn.select2) {
+        $('#id_supplier').val(null).trigger('change');
+        $('#id_Supplier_destination_sub_category').val(null).trigger('change');
+      } else {
+        if (supplierEl) supplierEl.value = '';
+        if (subcatEl) subcatEl.value = '';
+      }
+
+      var s = document.getElementById('supplier-required');
+      var c = document.getElementById('subcat-required');
+      if (s) s.classList.add('hidden');
+      if (c) c.classList.add('hidden');
+    }
+  }
+
+  function showConditionalAsterisksIfNeeded() {
+    var destEl = document.getElementById('id_destination');
+    if (!destEl) return;
+    if (destEl.value !== 'PURCHASE') return;
+
+    var supplierEl = document.getElementById('id_supplier');
+    var subcatEl = document.getElementById('id_Supplier_destination_sub_category');
+    var supplierAst = document.getElementById('supplier-required');
+    var subcatAst = document.getElementById('subcat-required');
+
+    var supplierEmpty = !supplierEl || !supplierEl.value;
+    var subcatEmpty = !subcatEl || !subcatEl.value;
+
+    if (supplierAst && supplierEmpty) supplierAst.classList.remove('hidden');
+    if (subcatAst && subcatEmpty) subcatAst.classList.remove('hidden');
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -295,7 +389,11 @@
     var maxNum = {{ item_formset.max_num|default_if_none:"1000" }};
 
     attachDeleteHandlers();
-    initSelect2ForLineItems();
+    initSelect2();
+    syncHeaderFields();
+
+    var destEl = document.getElementById('id_destination');
+    if (destEl) destEl.addEventListener('change', syncHeaderFields);
 
     if (addBtn && totalForms) {
       addBtn.addEventListener('click', function(e) {
@@ -303,17 +401,22 @@
         var count = parseInt(totalForms.value, 10);
         if (count >= maxNum) return;
 
-        // Create new row from empty_form template
         var tmpl = document.getElementById('empty-form-template').innerHTML
           .replace(/__prefix__/g, count);
-        document.querySelector('table tbody').insertAdjacentHTML('beforeend', tmpl);
 
-        // Bump TOTAL_FORMS so Django knows there is another form
+        document.getElementById('items-tbody').insertAdjacentHTML('beforeend', tmpl);
         totalForms.value = count + 1;
 
-        // Re-wire delete handlers & select2 for the newly added row
         attachDeleteHandlers();
-        initSelect2ForLineItems();
+        initSelect2();
+      });
+    }
+
+    var form = document.getElementById('requisition-update-form');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        showConditionalAsterisksIfNeeded();
+        if (!window.confirm("Update this requisition?")) e.preventDefault();
       });
     }
   });

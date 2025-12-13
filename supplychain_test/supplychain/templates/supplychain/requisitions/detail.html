@@ -246,19 +246,43 @@
         </div>
 
         <div class="p-3">
-          <form method="post" id="rq-approve-form">
+          <form method="post" id="rq-approve-form" novalidate>
             {% csrf_token %}
             {{ approval_form.non_field_errors }}
 
-            {# Hide underlying action field so only buttons are visible #}
-            <div style="display:none;">
-              {{ approval_form.action }}
-            </div>
+            {# IMPORTANT: render exactly one hidden input with the correct Django field name #}
+            <input
+              type="hidden"
+              name="{{ approval_form.action.html_name }}"
+              id="rq-action-hidden"
+              value="{% if approval_form.action.value %}{{ approval_form.action.value }}{% endif %}"
+            >
 
+            {# Inline error that appears in the Process section #}
+            {% if approval_form.action.errors %}
+              <div class="text-danger small mb-2" id="rq-action-error">
+                Select Approve, Deny, or Query.
+              </div>
+            {% else %}
+              <div class="text-danger small mb-2 d-none" id="rq-action-error">
+                Select Approve, Deny, or Query.
+              </div>
+            {% endif %}
+
+            {# Buttons driven from the form's actual choices (prevents mismatch) #}
             <div class="kf-action-bar mb-3" role="group" aria-label="Requisition actions">
-              <button type="button" class="btn kf-action-btn kf-approve" data-action="APPROVED">Approve</button>
-              <button type="button" class="btn kf-action-btn kf-deny" data-action="DENIED">Deny</button>
-              <button type="button" class="btn kf-action-btn kf-query" data-action="QUERIED">Query</button>
+              {% for val, label in approval_form.action.field.choices %}
+                <button
+                  type="button"
+                  class="btn kf-action-btn
+                    {% if "Approve" in label %}kf-approve
+                    {% elif "Deny" in label or "Reject" in label %}kf-deny
+                    {% elif "Query" in label %}kf-query
+                    {% else %}btn-outline-secondary{% endif %}"
+                  data-action="{{ val }}">
+                  {{ label }}
+                </button>
+              {% endfor %}
             </div>
 
             <div class="mb-3">
@@ -347,42 +371,47 @@
 {% block extra_js %}
 <script>
 (function(){
-  // Notes styling (in case widget isn't already styled)
+  const form = document.getElementById("rq-approve-form");
+  if (!form) return;
+
+  // Notes styling
   const notes = document.getElementById("{{ approval_form.notes.id_for_label }}");
   if (notes) {
     notes.classList.add("kf-notes");
     if (notes.tagName === "TEXTAREA" && !notes.rows) notes.rows = 4;
   }
 
-  // Do NOT auto-submit on action click.
-  // Just set the hidden action value + highlight selected button.
-  const form = document.getElementById("rq-approve-form");
-  if (form) {
-    const actionInput =
-      form.querySelector('input[name="action"]') ||
-      form.querySelector('select[name="action"]');
+  const actionHidden = document.getElementById("rq-action-hidden");
+  const errorEl = document.getElementById("rq-action-error");
+  const buttons = Array.from(form.querySelectorAll("[data-action]"));
 
-    const buttons = Array.from(form.querySelectorAll("[data-action]"));
-
-    buttons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        if (!actionInput) return;
-
-        actionInput.value = btn.getAttribute("data-action");
-
-        buttons.forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-      });
-    });
-
-    // Require an action before submit
-    form.addEventListener("submit", (e) => {
-      if (!actionInput || !actionInput.value) {
-        e.preventDefault();
-        alert("Select Approve, Deny, or Query before submitting.");
-      }
-    });
+  function setActive(actionValue) {
+    buttons.forEach(b => b.classList.toggle("active", b.getAttribute("data-action") === actionValue));
   }
+
+  // Click sets hidden action only (no autosubmit)
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-action");
+      if (actionHidden) actionHidden.value = val;
+      setActive(val);
+      if (errorEl) errorEl.classList.add("d-none");
+    });
+  });
+
+  // Restore selected state after server re-render
+  if (actionHidden && actionHidden.value) {
+    setActive(actionHidden.value);
+  }
+
+  // Guard: require action chosen before submit
+  form.addEventListener("submit", (e) => {
+    if (!actionHidden || !actionHidden.value) {
+      e.preventDefault();
+      if (errorEl) errorEl.classList.remove("d-none");
+      alert("Select Approve, Deny, or Query before submitting.");
+    }
+  });
 })();
 </script>
 {% endblock %}

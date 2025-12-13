@@ -418,79 +418,97 @@ class RequisitionAllListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
 class RequisitionDetailView(LoginRequiredMixin, View):
     """Show requisition details and optionally approval form."""
 
+    def _get_requisition(self, pk):
+        """
+        Pull requisition + related header objects in one go.
+        IMPORTANT: do NOT select_related('supplier') on requisition.items anymore.
+        """
+        qs = Requisition.objects.select_related(
+            "requester",
+            "destination",
+            # If supplier/subcategory now live on Requisition, keep these.
+            # If you don't have these fields on Requisition, delete them.
+            "supplier",
+            "Supplier_destination_sub_category",
+        )
+        return get_object_or_404(qs, pk=pk)
+
+    def _base_context(self, request, requisition, approval_form=None, can_approve=False):
+        return {
+            "requisition": requisition,
+            # items only have product as FK now (based on your error message)
+            "items": requisition.items.select_related("product").all(),
+            "approvals": requisition.approvals.select_related("approver").order_by("timestamp"),
+            "approval_form": approval_form,
+            "can_approve": can_approve,
+            "section": "requisitions",
+            "timeline": build_workitem_timeline(requisition),
+        }
+
     def get(self, request, pk):
-        requisition = get_object_or_404(Requisition, pk=pk)
-        if (request.user == requisition.requester) or request.user.has_perm('supplychain.approve_requisition'):
-            approval_form = None
-            can_approve = (
-                requisition.status == Requisition.PENDING
-                and request.user.has_perm('supplychain.approve_requisition')
-            )
-            if can_approve:
-                approval_form = RequisitionApprovalForm()
-            context = {
-                'requisition': requisition,
-                'items': requisition.items.select_related('product').all(),
-                'approvals': requisition.approvals.select_related('approver').order_by('timestamp'),
-                'approval_form': approval_form,
-                'can_approve': can_approve,
-                'section': 'requisitions',
-                'timeline': build_workitem_timeline(requisition)
-            }
-            return render(request, 'supplychain/requisitions/detail.html', context)
-        else:
+        requisition = self._get_requisition(pk)
+
+        if not (
+            request.user == requisition.requester
+            or request.user.has_perm("supplychain.approve_requisition")
+        ):
             messages.error(request, "You do not have permission to view this requisition.")
-            return redirect('supplychain:requisition-list')
+            return redirect("supplychain:requisition-list")
+
+        can_approve = (
+            requisition.status == Requisition.PENDING
+            and request.user.has_perm("supplychain.approve_requisition")
+        )
+
+        approval_form = RequisitionApprovalForm() if can_approve else None
+        context = self._base_context(request, requisition, approval_form=approval_form, can_approve=can_approve)
+        return render(request, "supplychain/requisitions/detail.html", context)
 
     def post(self, request, pk):
-        requisition = get_object_or_404(Requisition, pk=pk)
-        if not request.user.has_perm('supplychain.approve_requisition'):
+        requisition = self._get_requisition(pk)
+
+        if not request.user.has_perm("supplychain.approve_requisition"):
             messages.error(request, "You do not have permission to approve requisitions.")
-            return redirect('supplychain:requisition-detail', pk=pk)
+            return redirect("supplychain:requisition-detail", pk=pk)
+
         if requisition.status != Requisition.PENDING:
             messages.warning(request, "This requisition has already been processed.")
-            return redirect('supplychain:requisition-detail', pk=pk)
+            return redirect("supplychain:requisition-detail", pk=pk)
+
         form = RequisitionApprovalForm(request.POST)
-        if form.is_valid():
-            try:
-                with transaction.atomic():
-                    form.save(requisition=requisition, approver=request.user)
+        if not form.is_valid():
+            # Re-render with errors
+            context = self._base_context(request, requisition, approval_form=form, can_approve=True)
+            return render(request, "supplychain/requisitions/detail.html", context)
+
+        try:
+            with transaction.atomic():
+                form.save(requisition=requisition, approver=request.user)
+
+                # If approved, generate PO for PURCHASE
+                if requisition.status == Requisition.APPROVED:
+                    if requisition.destination.name == Destination.PURCHASE:
+                        generate_po_for_requisition(requisition, created_by=request.user)
+
+            messages.success(
+                request,
+                f"Requisition #{requisition.id} marked {requisition.status.lower()}.",
+            )
+
+            def _notify():
+                try:
                     if requisition.status == Requisition.APPROVED:
-                        if requisition.destination.name == Destination.PURCHASE:
-                            generate_po_for_requisition(
-                                requisition, created_by=request.user
-                            )
-                        # elif requisition.destination.name == Destination.STORE:
-                        #     generate_issuance_for_requisition(
-                        #         requisition, created_by=request.user
-                        #     )
-                messages.success(
-                    request,
-                    f"Requisition #{requisition.id} marked {requisition.status.lower()}.",
-                )
-                def _notify():
-                    try:
-                        if requisition.status == Requisition.APPROVED:
-                            from ..services.notifications.email_notifications import notify_requisition_approved_to_all
-                            notify_requisition_approved_to_all(requisition)
-                        elif requisition.status == Requisition.DENIED:
-                            from ..services.notifications.email_notifications import notify_requisition_denied_to_all
-                            notify_requisition_denied_to_all(requisition)
-                    except Exception as exc:
-                        logger.exception("Error sending notification for requisition #%s", requisition.id)
-                transaction.on_commit(_notify)
-            except ValueError as exc:
-                messages.error(request, str(exc))
-            return redirect('supplychain:requisition-detail', pk=pk)
-        else:
-            context = {
-                'requisition': requisition,
-                'items': requisition.items.select_related('product').all(),
-                'approvals': requisition.approvals.select_related('approver').order_by('timestamp'),
-                'approval_form': form,
-                'can_approve': True,
-                'section': 'requisitions',
-                'timeline': build_workitem_timeline(requisition)
-            }
-            return render(request, 'supplychain/requisitions/detail.html', context)
-        
+                        from ..services.notifications.email_notifications import notify_requisition_approved_to_all
+                        notify_requisition_approved_to_all(requisition)
+                    elif requisition.status == Requisition.DENIED:
+                        from ..services.notifications.email_notifications import notify_requisition_denied_to_all
+                        notify_requisition_denied_to_all(requisition)
+                except Exception:
+                    logger.exception("Error sending notification for requisition #%s", requisition.id)
+
+            transaction.on_commit(_notify)
+
+        except ValueError as exc:
+            messages.error(request, str(exc))
+
+        return redirect("supplychain:requisition-detail", pk=pk)

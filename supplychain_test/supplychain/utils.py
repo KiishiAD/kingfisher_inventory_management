@@ -41,58 +41,76 @@ from decimal import Decimal
 
 def generate_po_for_requisition(requisition, created_by):
     """
-    Create one PurchaseOrder per supplier found on the requisition items.
-    Prefers item.supplier; falls back to product.vendors.first().
-    Returns a single PO if only one created, otherwise a list of POs.
+    Create PurchaseOrder(s) for a requisition.
+
+    NEW RULE (based on your model change):
+      - Supplier is on the Requisition header (requisition.supplier)
+      - RequisitionItem no longer has supplier
+
+    Behaviour:
+      - If a PO already exists for this requisition, return it (or list if multiple).
+      - Create one PO (single supplier). If no supplier on requisition, fall back to product vendor.
     """
-    # avoid creating duplicate POs
     existing = PurchaseOrder.objects.filter(requisition=requisition)
     if existing.exists():
         return existing[0] if existing.count() == 1 else list(existing)
 
-    # Group items by supplier
-    items_by_supplier = {}
-    for item in requisition.items.select_related('product', 'supplier').all():
-        supplier = getattr(item, 'supplier', None)
-        if not supplier:
-            vendors_qs = getattr(item.product, 'vendors', None)
-            supplier = vendors_qs.first() if vendors_qs is not None else None
+    # Pull items efficiently (NO supplier select_related anymore)
+    items = list(requisition.items.select_related("product").all())
+    if not items:
+        raise ValueError("Cannot create PO: requisition has no items.")
 
-        if supplier is None:
-            raise ValueError(f"Cannot create PO: product {item.product!r} has no supplier/vendor")
+    # Primary supplier now comes from requisition header
+    header_supplier = getattr(requisition, "supplier", None)
 
-        items_by_supplier.setdefault(supplier, []).append(item)
+    # If requisition has no supplier, try to infer one (only if products have vendors)
+    supplier = header_supplier
+    if supplier is None:
+        # Try to find first available vendor among products
+        for item in items:
+            vendors_qs = getattr(item.product, "vendors", None)
+            if vendors_qs is not None:
+                supplier = vendors_qs.first()
+                if supplier:
+                    break
+
+    if supplier is None:
+        raise ValueError(
+            "Cannot create PO: requisition has no supplier and no product vendors found."
+        )
 
     created_pos = []
     with transaction.atomic():
-        for supplier, items in items_by_supplier.items():
-            po = PurchaseOrder.objects.create(
-                requisition=requisition,
-                supplier=supplier,
-                created_by=created_by,
-                status=PurchaseOrder.PENDING_COO,
-            )
-            for item in items:
-                PurchaseOrderItem.objects.create(
-                    purchase_order=po,
-                    product=item.product,
-                    quantity=item.quantity,
-                    unit_cost=getattr(item.product, 'unit_cost', 0),
-                )
-            created_pos.append(po)
+        po = PurchaseOrder.objects.create(
+            requisition=requisition,
+            supplier=supplier,
+            created_by=created_by,
+            status=PurchaseOrder.PENDING_COO,
+        )
 
-    return created_pos[0] if len(created_pos) == 1 else created_pos
+        for item in items:
+            PurchaseOrderItem.objects.create(
+                purchase_order=po,
+                product=item.product,
+                quantity=item.quantity,
+                unit_cost=getattr(item.product, "unit_cost", 0),
+            )
+
+        created_pos.append(po)
+
+    return created_pos[0]
+
 
 def generate_issuance_for_requisition(requisition, created_by):
     """Create an IssuanceRequest from an approved store requisition."""
-    if hasattr(requisition, 'issuance_request'):
+    if hasattr(requisition, "issuance_request"):
         return requisition.issuance_request
 
     iss = IssuanceRequest.objects.create(
         requester=created_by,
         status=IssuanceRequest.PENDING,
     )
-    for item in requisition.items.all():
+    for item in requisition.items.select_related("product").all():
         IssuanceItem.objects.create(
             issuance_request=iss,
             product=item.product,
@@ -100,14 +118,14 @@ def generate_issuance_for_requisition(requisition, created_by):
         )
     return iss
 
+
 def generate_receiving_for_purchase_order(purchase_order):
     """
     Auto-create a Receiving (and ReceivingItems) for a given approved PO.
 
     - If a Receiving already exists for this PO, return it (or list if multiple).
-    - New Receiving starts in PENDING status (awaiting physical receipt).
-    - One ReceivingItem is created per PurchaseOrderItem with initial
-      actual_quantity = PO quantity (you can change this to 0 if preferred).
+    - New Receiving starts in PENDING status.
+    - One ReceivingItem per PurchaseOrderItem with actual_quantity default 0.
     """
     existing = purchase_order.receivings.all()
     if existing.exists():
@@ -117,31 +135,22 @@ def generate_receiving_for_purchase_order(purchase_order):
         receiving = Receiving.objects.create(
             purchase_order=purchase_order,
             status=Receiving.PENDING,
-            # received_by, received_at, supplier_invoice default to None
         )
 
-        for po_item in purchase_order.items.all():
+        for po_item in purchase_order.items.select_related("product").all():
             ReceivingItem.objects.create(
                 receiving=receiving,
                 po_item=po_item,
-                actual_quantity=Decimal("0.00"),  # or Decimal('0') if you prefer
+                actual_quantity=Decimal("0.00"),
                 flagged_for={},
             )
 
     return receiving
 
+
 def build_workitem_timeline(requisition):
     """
     Unified workflow timeline rooted at a Requisition.
-
-    Shows:
-    - Requisition creation
-    - Requisition approvals / conversations
-    - All purchase orders linked to this requisition
-      (created automatically or manually)
-    - PO approvals
-    - Payment (if any)
-    - IssuanceRequest (if any)
     """
     events = []
 
@@ -153,8 +162,8 @@ def build_workitem_timeline(requisition):
         "details": "",
     })
 
-    # 2. All requisition approvals & conversations
-    for a in requisition.approvals.select_related("approver"):
+    # 2. Requisition approvals & conversations
+    for a in requisition.approvals.select_related("approver").all():
         events.append({
             "timestamp": a.timestamp,
             "who": a.approver,
@@ -162,8 +171,7 @@ def build_workitem_timeline(requisition):
             "details": a.notes,
         })
 
-    # 3. All purchase orders associated to this requisition
-    #    (covers auto-generated POs and manual POs that link a requisition)
+    # 3. Purchase orders linked to this requisition
     pos = (
         PurchaseOrder.objects
         .filter(requisition=requisition)
@@ -179,7 +187,6 @@ def build_workitem_timeline(requisition):
             "details": f"Supplier: {po.supplier}",
         })
 
-        # PO approvals / queries / denies
         for a in po.approvals.all():
             events.append({
                 "timestamp": a.timestamp,
@@ -188,7 +195,6 @@ def build_workitem_timeline(requisition):
                 "details": a.notes,
             })
 
-        # Payment, if you have a one-to-one payment model
         payment = getattr(po, "payment", None)
         if payment:
             events.append({
@@ -198,9 +204,19 @@ def build_workitem_timeline(requisition):
                 "details": payment.payment_notes,
             })
 
-        # Later if you add receiving records tied to PO, add them here too.
+        # Optional: include receiving event if you want (safe, minimal)
+        receiving = getattr(po, "receivings", None)
+        if receiving is not None:
+            rec = po.receivings.order_by("-created_at").first()
+            if rec:
+                events.append({
+                    "timestamp": rec.created_at,
+                    "who": rec.received_by,
+                    "label": f"Receiving #{rec.id} created",
+                    "details": f"Status: {rec.get_status_display()}",
+                })
 
-    # 4. Issuance (currently linked from requisition)
+    # 4. Issuance (linked from requisition)
     issuance = getattr(requisition, "issuance_request", None)
     if issuance:
         events.append({
@@ -209,27 +225,18 @@ def build_workitem_timeline(requisition):
             "label": f"IssuanceRequest #{issuance.id} created",
             "details": "",
         })
-        # If you later add issuance approvals / completions, append them here.
 
-    # 5. Sort chronologically
     events.sort(key=lambda e: e["timestamp"])
     return events
 
 
-    
 def build_workitem_timeline_for_po(po):
     """
     Unified workflow timeline starting from a PurchaseOrder.
-
-    - If the PO is linked to a requisition, reuse the requisition-rooted
-      timeline so you see the full life cycle from requisition through PO.
-    - If there is no requisition (manual PO), build a PO-only timeline.
     """
     if po.requisition_id:
-        # Re-use the one canonical workflow builder.
         return build_workitem_timeline(po.requisition)
 
-    # Manual PO with no requisition – PO is the root.
     events = [{
         "timestamp": po.created_at,
         "who": po.created_by,
@@ -237,7 +244,7 @@ def build_workitem_timeline_for_po(po):
         "details": f"Supplier: {po.supplier}",
     }]
 
-    for a in po.approvals.select_related("approver"):
+    for a in po.approvals.select_related("approver").all():
         events.append({
             "timestamp": a.timestamp,
             "who": a.approver,
@@ -254,11 +261,17 @@ def build_workitem_timeline_for_po(po):
             "details": payment.payment_notes,
         })
 
-    # If you later model receiving/issuance directly from PO, add them here.
+    rec = po.receivings.order_by("-created_at").first()
+    if rec:
+        events.append({
+            "timestamp": rec.created_at,
+            "who": rec.received_by,
+            "label": f"Receiving #{rec.id} created",
+            "details": f"Status: {rec.get_status_display()}",
+        })
 
     events.sort(key=lambda e: e["timestamp"])
     return events
-
 
 
     

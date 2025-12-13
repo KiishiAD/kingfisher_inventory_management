@@ -1,64 +1,409 @@
+{# supplychain/templates/supplychain/purchase_orders/pending.html #}
 {% extends "base.html" %}
+{% load static status_tags %}
+
 {% block title %}Pending Purchase Orders{% endblock %}
+
 {% block content %}
-<h1>Pending Purchase Orders</h1>
+<style>
+  .po-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .po-card-header { border-bottom: 1px solid #dee2e6; }
+  .po-help { font-size: .875rem; color: #6c757d; }
+  .po-table td, .po-table th { vertical-align: middle; }
+  .po-pill { border-radius: 999px; }
+  .po-mono { font-variant-numeric: tabular-nums; }
+  .po-search { position: relative; }
+  .po-search .form-control { padding-left: 2.25rem; }
+  .po-search .po-search-icon {
+    position: absolute; left: .75rem; top: 50%;
+    transform: translateY(-50%); color: #6c757d; pointer-events: none;
+  }
+</style>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-auto">
-    {{ filter_form.purchaser.label_tag }}
-    {{ filter_form.purchaser }}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Pending Purchase Orders</h1>
   </div>
-  <div class="col-auto">
-    {{ filter_form.supplier.label_tag }}
-    {{ filter_form.supplier }}
-  </div>
-  <div class="col-auto">
-    {{ filter_form.start_date.label_tag }}
-    {{ filter_form.start_date }}
-  </div>
-  <div class="col-auto">
-    {{ filter_form.end_date.label_tag }}
-    {{ filter_form.end_date }}
-  </div>
-  <div class="col-auto align-self-end">
-    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-    <a href="{% url 'supplychain:po-pending' %}" class="btn btn-secondary btn-sm">Reset</a>
-  </div>
-</form>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>PO #</th>
-      <th>Supplier</th>
-      <th>From Requisition</th>
-      <th>Status</th>
-      <th>Created</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for po in pending_purchase_orders %}
-      <tr>
-        <td>{{ po.id }}</td>
-        <td>{{ po.supplier }}</td>
-        <td>
-          {% if po.requisition %}
-            #{{ po.requisition.id }}
+  <div class="d-flex align-items-center gap-2">
+    <span class="text-muted small po-mono">
+      <span id="visible-count">0</span> / <span id="total-count">0</span>
+    </span>
+    <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">
+      Download CSV
+    </button>
+  </div>
+</div>
+
+<div class="po-card mb-3">
+  <div class="po-card-header px-3 py-3">
+    <div class="fw-semibold">Filters</div>
+    <div class="po-help">Updates instantly as you type/select.</div>
+  </div>
+
+  <div class="p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-5">
+        <label class="form-label">Search</label>
+        <div class="po-search">
+          <span class="po-search-icon">⌕</span>
+          <input id="q" type="text" class="form-control" placeholder="PO ID, supplier, purchaser, requisition…">
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label class="form-label">Purchaser</label>
+        <select id="purchaser" class="form-select">
+          <option value="">All</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-lg-4">
+        <label class="form-label">Supplier</label>
+        <select id="supplier" class="form-select">
+          <option value="">All</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-lg-2">
+        <label class="form-label">Created after</label>
+        <input id="start_date" type="date" class="form-control">
+      </div>
+      <div class="col-6 col-lg-2">
+        <label class="form-label">Created before</label>
+        <input id="end_date" type="date" class="form-control">
+      </div>
+
+      <div class="col-12 col-lg-8">
+        <label class="form-label">Status</label>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter active" data-status="">
+            All
+          </button>
+          {% if status_choices %}
+            {% for value, label in status_choices %}
+              <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter" data-status="{{ value }}">
+                {{ label }}
+              </button>
+            {% endfor %}
           {% else %}
-            –
+            {# Fallback if you don't pass status_choices in this view #}
+            <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter" data-status="PENDING">
+              Pending
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter" data-status="APPROVED">
+              Approved
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter" data-status="DENIED">
+              Denied
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm po-pill status-filter" data-status="QUERIED">
+              Queried
+            </button>
           {% endif %}
-        </td>
-        <td>{{ po.get_status_display }}</td>
-        <td>{{ po.created_at|date:"Y-m-d H:i" }}</td>
-        <td>
-          <a href="{% url 'supplychain:po-detail' po.id %}">View</a>
-        </td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="6">No purchase orders awaiting approval.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+        </div>
+      </div>
 
+      <div class="col-12 col-lg-4 d-flex justify-content-lg-end">
+        <button type="button" id="clear-filters" class="btn btn-outline-secondary">
+          Clear filters
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="po-card">
+  <div class="po-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Purchase orders</div>
+      <div class="po-help">Export downloads the currently visible rows.</div>
+    </div>
+    <div class="text-muted small" id="active-filter-label">No filters</div>
+  </div>
+
+  <div class="p-3">
+    {% if pending_purchase_orders %}
+      <div class="table-responsive">
+        <table id="po-table" class="table table-sm table-hover po-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 90px;">PO #</th>
+              <th style="width: 110px;">Req</th>
+              <th>Supplier</th>
+              <th>Purchaser</th>
+              <th style="min-width: 160px;">Created</th>
+              <th style="width: 160px;">Status</th>
+              <th style="width: 90px;" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for po in pending_purchase_orders %}
+              <tr class="po-row"
+                  data-id="{{ po.id }}"
+                  data-requisition="{% if po.requisition %}{{ po.requisition.id }}{% endif %}"
+                  data-supplier-key="{{ po.supplier.name|lower }}"
+                  data-supplier-display="{{ po.supplier.name }}"
+                  data-purchaser-key="{{ po.created_by.get_full_name|default:po.created_by.username|lower }}"
+                  data-purchaser-display="{{ po.created_by.get_full_name|default:po.created_by.username }}"
+                  data-created="{{ po.created_at|date:'Y-m-d' }}"
+                  data-status="{{ po.status }}">
+                <td class="fw-semibold po-mono">{{ po.id }}</td>
+                <td class="po-mono">
+                  {% if po.requisition %}{{ po.requisition.id }}{% else %}—{% endif %}
+                </td>
+                <td>{{ po.supplier.name }}</td>
+                <td>{{ po.created_by.get_full_name|default:po.created_by.username }}</td>
+                <td class="po-mono">{{ po.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ po.status|status_badge }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:po-detail' po.id %}">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div id="no-results" class="text-center text-muted py-4 d-none">
+        No purchase orders match your filters.
+      </div>
+
+      {% if is_paginated %}
+        <nav class="mt-3" aria-label="Page navigation">
+          <ul class="pagination mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <a class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</a>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="mb-0">No purchase orders awaiting approval.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function byId(id) { return document.getElementById(id); }
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+
+  function parseDateISO(d) {
+    if (!d) return null;
+    var parts = d.split('-');
+    if (parts.length !== 3) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+  }
+
+  var currentStatus = "";
+
+  function getState() {
+    return {
+      q: norm(byId('q').value),
+      purchaser: norm(byId('purchaser').value),
+      supplier: norm(byId('supplier').value),
+      status: currentStatus || "",
+      startDate: parseDateISO(byId('start_date').value),
+      endDate: parseDateISO(byId('end_date').value),
+    };
+  }
+
+  function rowMatches(row, state) {
+    var id = row.dataset.id || '';
+    var requisition = row.dataset.requisition || '';
+    var supplierKey = row.dataset.supplierKey || '';
+    var supplierDisplay = row.dataset.supplierDisplay || '';
+    var purchaserKey = row.dataset.purchaserKey || '';
+    var purchaserDisplay = row.dataset.purchaserDisplay || '';
+    var created = row.dataset.created || '';
+    var status = row.dataset.status || '';
+
+    if (state.status && status !== state.status) return false;
+    if (state.purchaser && purchaserKey !== state.purchaser) return false;
+    if (state.supplier && supplierKey !== state.supplier) return false;
+
+    if (state.startDate || state.endDate) {
+      var rowDate = parseDateISO(created);
+      if (!rowDate) return false;
+      if (state.startDate && rowDate < state.startDate) return false;
+      if (state.endDate && rowDate > state.endDate) return false;
+    }
+
+    if (state.q) {
+      var hay = norm(
+        id + ' ' +
+        requisition + ' ' +
+        supplierDisplay + ' ' +
+        purchaserDisplay + ' ' +
+        status + ' ' +
+        created
+      );
+      if (hay.indexOf(state.q) === -1) return false;
+    }
+
+    return true;
+  }
+
+  function updateActiveLabel(state) {
+    var parts = [];
+    if (state.status) parts.push('Status');
+    if (state.q) parts.push('Search');
+    if (state.purchaser) parts.push('Purchaser');
+    if (state.supplier) parts.push('Supplier');
+    if (state.startDate) parts.push('After');
+    if (state.endDate) parts.push('Before');
+    byId('active-filter-label').textContent = parts.length ? parts.join(' · ') : 'No filters';
+  }
+
+  function applyFilters() {
+    var state = getState();
+    var rows = Array.from(document.querySelectorAll('.po-row'));
+    var visible = 0;
+
+    rows.forEach(function(row) {
+      var ok = rowMatches(row, state);
+      row.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+
+    byId('visible-count').textContent = String(visible);
+    byId('total-count').textContent = String(rows.length);
+
+    var noResults = byId('no-results');
+    if (noResults) noResults.classList.toggle('d-none', visible !== 0);
+
+    updateActiveLabel(state);
+  }
+
+  function buildSelectOptions(selectId, keyAttr, displayAttr) {
+    var select = byId(selectId);
+    if (!select) return;
+
+    var map = new Map(); // key -> display
+    document.querySelectorAll('.po-row').forEach(function(row) {
+      var key = norm(row.dataset[keyAttr]);
+      var display = (row.dataset[displayAttr] || '').trim();
+      if (key && display && !map.has(key)) map.set(key, display);
+    });
+
+    Array.from(map.entries())
+      .sort(function(a, b) { return a[1].localeCompare(b[1]); })
+      .forEach(function(pair) {
+        var opt = document.createElement('option');
+        opt.value = pair[0];
+        opt.textContent = pair[1];
+        select.appendChild(opt);
+      });
+  }
+
+  function csvEscape(v) {
+    var s = (v === null || v === undefined) ? '' : String(v);
+    s = s.replace(/"/g, '""');
+    if (/[",\n]/.test(s)) s = '"' + s + '"';
+    return s;
+  }
+
+  function exportVisibleCSV() {
+    var rows = Array.from(document.querySelectorAll('#po-table tbody tr'))
+      .filter(function(r) { return r.style.display !== 'none'; });
+
+    var headers = ['id', 'requisition_id', 'supplier', 'purchaser', 'created_at', 'status'];
+    var lines = [headers.join(',')];
+
+    rows.forEach(function(r) {
+      var id = r.dataset.id || '';
+      var reqId = r.dataset.requisition || '';
+      var supplier = r.dataset.supplierDisplay || '';
+      var purchaser = r.dataset.purchaserDisplay || '';
+      var created = (r.querySelector('td:nth-child(5)') || {}).textContent || '';
+      created = created.trim();
+      var status = r.dataset.status || '';
+
+      lines.push([id, reqId, supplier, purchaser, created, status].map(csvEscape).join(','));
+    });
+
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'pending_purchase_orders.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function wireStatusButtons() {
+    document.querySelectorAll('.status-filter').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status || '';
+        applyFilters();
+      });
+    });
+  }
+
+  function wireInputs() {
+    ['q', 'purchaser', 'supplier', 'start_date', 'end_date'].forEach(function(id) {
+      var el = byId(id);
+      if (!el) return;
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+
+    var clearBtn = byId('clear-filters');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        byId('q').value = '';
+        byId('purchaser').value = '';
+        byId('supplier').value = '';
+        byId('start_date').value = '';
+        byId('end_date').value = '';
+
+        currentStatus = '';
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        var allBtn = document.querySelector('.status-filter[data-status=""]');
+        if (allBtn) allBtn.classList.add('active');
+
+        applyFilters();
+      });
+    }
+
+    var exportBtn = byId('export-csv');
+    if (exportBtn) exportBtn.addEventListener('click', exportVisibleCSV);
+  }
+
+  function initSelect2IfAvailable() {
+    if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+    window.jQuery('#purchaser').select2({ width: '100%', placeholder: 'All', allowClear: true });
+    window.jQuery('#supplier').select2({ width: '100%', placeholder: 'All', allowClear: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    buildSelectOptions('purchaser', 'purchaserKey', 'purchaserDisplay');
+    buildSelectOptions('supplier', 'supplierKey', 'supplierDisplay');
+    initSelect2IfAvailable();
+    wireStatusButtons();
+    wireInputs();
+    applyFilters();
+  });
+})();
+</script>
 {% endblock %}

@@ -1,134 +1,292 @@
+{# supplychain/templates/supplychain/receiving/detail.html #}
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Receiving for PO #{{ purchase_order.id }}</h1>
+<style>
+  .kf-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .kf-card-header { border-bottom: 1px solid #dee2e6; }
+  .kf-help { font-size: .875rem; color: #6c757d; }
+  .kf-table td, .kf-table th { vertical-align: middle; }
+  .kf-mono { font-variant-numeric: tabular-nums; }
+
+  .kf-pill {
+    border-radius: 999px;
+    padding: .25rem .6rem;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    font-weight: 600;
+    font-size: .8rem;
+  }
+
+  .kf-filebox {
+    border: 1px dashed #cfd4da;
+    border-radius: .75rem;
+    padding: .75rem;
+    background: #fbfbfc;
+  }
+
+  .kf-input {
+    border-radius: .6rem;
+  }
+  .kf-input:focus {
+    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+  }
+
+  .kf-variance-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border-radius: 999px;
+    padding: .35rem .6rem;
+    border: 1px solid transparent;
+    font-weight: 600;
+    font-size: .85rem;
+    white-space: nowrap;
+  }
+  .kf-var-ok {
+    color: #146c43;
+    border-color: rgba(20,108,67,.25);
+    background: rgba(20,108,67,.06);
+  }
+  .kf-var-under {
+    color: #b02a37;
+    border-color: rgba(176,42,55,.25);
+    background: rgba(176,42,55,.06);
+  }
+  .kf-var-over {
+    color: #1f2937;
+    border-color: rgba(31,41,55,.20);
+    background: rgba(31,41,55,.05);
+  }
+  .kf-var-empty {
+    color: #6c757d;
+    border-color: rgba(108,117,125,.25);
+    background: rgba(108,117,125,.06);
+    font-weight: 500;
+  }
+
+  .kf-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid #dee2e6;
+    padding: .75rem;
+    border-radius: .75rem;
+  }
+</style>
 
 <form id="receiving-form" method="post" enctype="multipart/form-data">
-    {% csrf_token %}
+  {% csrf_token %}
 
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <p class="mb-1"><strong>Supplier:</strong> {{ purchase_order.supplier }}</p>
-            <p class="mb-1"><strong>Receiving status:</strong> {{ receiving.get_status_display }}</p>
-            {% if receiving.received_by %}
-                <p class="mb-1"><strong>Received by:</strong> {{ receiving.received_by }}</p>
-            {% endif %}
-            {% if receiving.received_at %}
-                <p class="mb-1"><strong>Received at:</strong> {{ receiving.received_at|date:"Y-m-d H:i" }}</p>
-            {% endif %}
-        </div>
-
-        <div class="col-md-4">
-            <h4>Supplier invoice</h4>
-
-            {% if header_form %}
-                {{ header_form.non_field_errors }}
-                <div class="mb-2">
-                    {{ header_form.supplier_invoice.label_tag }}
-                    {{ header_form.supplier_invoice }}
-                    {% for error in header_form.supplier_invoice.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                {% if receiving.supplier_invoice %}
-                    <p class="mb-0 text-muted">Invoice already uploaded.</p>
-                {% else %}
-                    <p class="mb-0 text-muted">No invoice uploaded.</p>
-                {% endif %}
-            {% endif %}
-
-            {% if receiving.supplier_invoice %}
-                <div class="mt-2 d-flex gap-2">
-                    <a href="{{ receiving.supplier_invoice.url }}"
-                       target="_blank"
-                       class="btn btn-sm btn-outline-primary">
-                        View invoice
-                    </a>
-                    <a href="{{ receiving.supplier_invoice.url }}"
-                       download
-                       class="btn btn-sm btn-outline-secondary">
-                        Download invoice
-                    </a>
-                </div>
-            {% endif %}
-        </div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="mb-0">Receiving for PO #{{ purchase_order.id }}</h1>
+      <div class="kf-help mt-1">Record quantities received and upload supplier invoice (if available).</div>
     </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
+      <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
+    </div>
+  </div>
 
-    <h3>Three-way check (Order vs Received vs Invoice)</h3>
-    <p class="text-muted">
-        Compare what was ordered on the PO with what actually arrived.
-    </p>
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="kf-card mb-3">
+        <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-semibold">Receiving details</div>
+            <div class="kf-help">Supplier + current receiving stage.</div>
+          </div>
+          <div class="kf-pill">{{ receiving.get_status_display }}</div>
+        </div>
 
-    <table class="table table-striped table-bordered align-middle">
-        <thead>
-            <tr>
-                <th rowspan="2">Product</th>
-                <th colspan="3" class="text-center">Purchase Order</th>
-                <th colspan="2" class="text-center">Receiving</th>
-            </tr>
-            <tr>
-                <th class="text-end">Qty ordered</th>
-                <th class="text-end">Unit price</th>
-                <th class="text-end">PO line total</th>
-                <th class="text-end">Actual qty received</th>
-                <th class="text-end">Variance vs PO</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if is_editable %}
-                {{ item_formset.management_form }}
-                {% for form in item_formset.forms %}
+        <div class="p-3">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="kf-help">Supplier</div>
+              <div class="fw-semibold">{{ purchase_order.supplier }}</div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="kf-help">Received by</div>
+              <div class="fw-semibold">
+                {% if receiving.received_by %}{{ receiving.received_by }}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="kf-help">Received at</div>
+              <div class="fw-semibold kf-mono">
+                {% if receiving.received_at %}{{ receiving.received_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="kf-help">PO reference</div>
+              <div class="fw-semibold">#{{ purchase_order.id }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kf-card">
+        <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">Three-way check</div>
+            <div class="kf-help">PO quantities vs actual received.</div>
+          </div>
+          <div class="text-muted small">Updates as you type</div>
+        </div>
+
+        <div class="p-3">
+          {% if item_formset and item_formset.non_form_errors %}
+            <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+          {% endif %}
+
+          <div class="table-responsive">
+            <table class="table table-sm table-striped kf-table mb-0">
+              <thead>
+                <tr>
+                  <th style="min-width: 260px;">Product</th>
+                  <th class="text-end" style="width: 150px;">Qty ordered</th>
+                  <th class="text-end" style="width: 140px;">Unit price</th>
+                  <th class="text-end" style="width: 160px;">PO line total</th>
+                  <th class="text-end" style="width: 190px;">Actual received</th>
+                  <th class="text-end" style="min-width: 220px;">Variance</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% if is_editable %}
+                  {{ item_formset.management_form }}
+                  {% for form in item_formset.forms %}
                     {% with po_item=form.instance.po_item %}
                     <tr class="receiving-row"
                         data-po-qty="{{ po_item.quantity|default_if_none:0 }}">
-                        <td><strong>{{ po_item.product }}</strong></td>
-                        <td class="text-end">{{ po_item.quantity|floatformat:2 }}</td>
-                        <td class="text-end">{{ po_item.unit_cost|floatformat:2 }}</td>
-                        <td class="text-end">{{ po_item.line_total|floatformat:2 }}</td>
-                        <td class="text-end">
-                            {{ form.id }}  {# keep link to existing ReceivingItem #}
-                            {{ form.actual_quantity }}
-                            {% for error in form.actual_quantity.errors %}
-                                <div class="text-danger small">{{ error }}</div>
-                            {% endfor %}
-                        </td>
-                        <td class="text-end variance-cell">
-                            <span class="text-muted">Not recorded yet</span>
-                        </td>
+                      <td class="fw-semibold">{{ po_item.product }}</td>
+                      <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.line_total|floatformat:2 }}</td>
+
+                      <td class="text-end">
+                        {{ form.id }}
+                        {{ form.actual_quantity }}
+                        {% for error in form.actual_quantity.errors %}
+                          <div class="text-danger small text-start mt-1">{{ error }}</div>
+                        {% endfor %}
+                      </td>
+
+                      <td class="text-end">
+                        <span class="kf-variance-pill kf-var-empty variance-pill">
+                          <span class="kf-mono variance-text">Not recorded yet</span>
+                        </span>
+                      </td>
                     </tr>
                     {% endwith %}
-                {% endfor %}
-            {% else %}
-                {# READ-ONLY AFTER SUBMIT – use annotated variance from the view #}
-                {% for ri in receiving_items %}
+                  {% endfor %}
+                {% else %}
+                  {% for ri in receiving_items %}
                     {% with po_item=ri.po_item %}
                     <tr>
-                        <td><strong>{{ po_item.product }}</strong></td>
-                        <td class="text-end">{{ po_item.quantity|floatformat:2 }}</td>
-                        <td class="text-end">{{ po_item.unit_cost|floatformat:2 }}</td>
-                        <td class="text-end">{{ po_item.line_total|floatformat:2 }}</td>
-                        <td class="text-end">{{ ri.actual_quantity|floatformat:2 }}</td>
-                        <td class="text-end {{ ri.variance_css }}">
-                            {{ ri.variance_text }}
-                        </td>
+                      <td class="fw-semibold">{{ po_item.product }}</td>
+                      <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.line_total|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ ri.actual_quantity|floatformat:2 }}</td>
+                      <td class="text-end">
+                        {% if ri.variance_css == "text-success" %}
+                          <span class="kf-variance-pill kf-var-ok">{{ ri.variance_text }}</span>
+                        {% elif ri.variance_css == "text-danger" %}
+                          <span class="kf-variance-pill kf-var-under">{{ ri.variance_text }}</span>
+                        {% elif ri.variance_css == "text-primary" %}
+                          <span class="kf-variance-pill kf-var-over">{{ ri.variance_text }}</span>
+                        {% else %}
+                          <span class="kf-variance-pill kf-var-empty">{{ ri.variance_text }}</span>
+                        {% endif %}
+                      </td>
                     </tr>
                     {% endwith %}
-                {% endfor %}
-            {% endif %}
-        </tbody>
-    </table>
+                  {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-    <div class="mt-3 d-flex gap-2">
-        {% if is_editable %}
-            <button type="submit" class="btn btn-primary">
-                Submit receiving
-            </button>
-        {% endif %}
-        <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-secondary">
-            Back to list
-        </a>
+      {% if is_editable %}
+        <div class="kf-actions mt-3">
+          <div class="d-flex gap-2">
+            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary ms-auto">Submit receiving</button>
+          </div>
+        </div>
+      {% else %}
+        <div class="mt-3">
+          <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back to list</a>
+        </div>
+      {% endif %}
     </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="kf-card mb-3">
+        <div class="kf-card-header px-3 py-3">
+          <div class="fw-semibold">Supplier invoice</div>
+          <div class="kf-help">Upload while pending, then view/download after.</div>
+        </div>
+
+        <div class="p-3">
+          {% if header_form and is_editable %}
+            {{ header_form.non_field_errors }}
+
+            <div class="kf-filebox">
+              <label class="form-label fw-semibold" for="{{ header_form.supplier_invoice.id_for_label }}">
+                Invoice file
+              </label>
+              {{ header_form.supplier_invoice }}
+              {% for error in header_form.supplier_invoice.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+              <div class="kf-help mt-2">This is saved when you submit receiving.</div>
+            </div>
+          {% else %}
+            <div class="kf-filebox">
+              {% if receiving.supplier_invoice %}
+                <div class="fw-semibold">Uploaded</div>
+                <div class="kf-help">Invoice is attached to this receiving.</div>
+              {% else %}
+                <div class="fw-semibold">Not uploaded</div>
+                <div class="kf-help">No supplier invoice on this receiving.</div>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if receiving.supplier_invoice %}
+            <div class="mt-3 d-flex gap-2">
+              <a href="{{ receiving.supplier_invoice.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+              <a href="{{ receiving.supplier_invoice.url }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="kf-card">
+        <div class="kf-card-header px-3 py-3">
+          <div class="fw-semibold">Summary</div>
+          <div class="kf-help">What happens on submit.</div>
+        </div>
+        <div class="p-3">
+          <ul class="mb-0 kf-help">
+            <li>Sets <strong>received_by</strong> and <strong>received_at</strong> if empty.</li>
+            <li>Moves status to <strong>{{ receiving.UNDER_REVIEW|default:"UNDER_REVIEW" }}</strong>.</li>
+            <li>Saves all receiving line items.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 </form>
 {% endblock %}
 
@@ -140,63 +298,64 @@
     var n = parseFloat(v);
     return isNaN(n) ? 0 : n;
   }
-  function formatNumber(v) {
-    return v.toFixed(2);
+  function fmt(v) { return v.toFixed(2); }
+
+  function setPill(pill, mode, text) {
+    pill.classList.remove('kf-var-ok','kf-var-under','kf-var-over','kf-var-empty');
+    pill.classList.add(mode);
+    var t = pill.querySelector('.variance-text');
+    if (t) t.textContent = text;
   }
 
-  function updateVariance(row) {
+  function ensureInputClasses() {
+    // If your widget already sets classes, this is harmless.
+    document.querySelectorAll('input[name$="-actual_quantity"]').forEach(function(inp) {
+      inp.classList.add('form-control','form-control-sm','kf-input','actual-qty-input');
+      inp.setAttribute('inputmode','decimal');
+    });
+  }
+
+  function updateRow(row) {
     var poQty = toNumber(row.getAttribute('data-po-qty') || "0");
     var input = row.querySelector('.actual-qty-input');
-    var cell  = row.querySelector('.variance-cell');
-    if (!input || !cell) return;
+    var pill  = row.querySelector('.variance-pill');
+    if (!input || !pill) return;
 
-    var raw = input.value;
-    var actual = toNumber(raw);
-
-    cell.classList.remove('text-danger', 'text-success', 'text-primary', 'text-muted');
-
+    var raw = (input.value || '').trim();
     if (!raw) {
-      cell.textContent = 'Not recorded yet';
-      cell.classList.add('text-muted');
+      setPill(pill, 'kf-var-empty', 'Not recorded yet');
       return;
     }
 
+    var actual = toNumber(raw);
     var diff = actual - poQty;
-    var absDiff = Math.abs(diff);
 
     if (diff === 0) {
-      cell.textContent = 'Supplied amount matches PO';
-      cell.classList.add('text-success');
+      setPill(pill, 'kf-var-ok', 'Supplied amount matches PO');
     } else if (diff < 0) {
-      cell.textContent = 'Undersupplied by ' + formatNumber(absDiff);
-      cell.classList.add('text-danger');
+      setPill(pill, 'kf-var-under', 'Undersupplied by ' + fmt(Math.abs(diff)));
     } else {
-      cell.textContent = 'Oversupplied by ' + formatNumber(absDiff);
-      cell.classList.add('text-primary');
+      setPill(pill, 'kf-var-over', 'Oversupplied by ' + fmt(diff));
     }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
+    ensureInputClasses();
+
     document.querySelectorAll('.receiving-row').forEach(function(row) {
       var input = row.querySelector('.actual-qty-input');
       if (!input) return;
-
-      updateVariance(row);
-      input.addEventListener('input', function() {
-        updateVariance(row);
-      });
+      updateRow(row);
+      input.addEventListener('input', function() { updateRow(row); });
     });
 
     var form = document.getElementById('receiving-form');
     if (form) {
       form.addEventListener('submit', function(e) {
         var ok = window.confirm(
-          "Are you sure you want to submit this receiving?\n\n" +
-          "This action cannot be undone."
+          "Submit receiving?\n\nThis action cannot be undone."
         );
-        if (!ok) {
-          e.preventDefault();
-        }
+        if (!ok) e.preventDefault();
       });
     }
   });

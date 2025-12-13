@@ -2,13 +2,38 @@
 {% extends "base.html" %}
 {% load static status_tags %}
 
-{% block title %}Requisition #{{ requisition.id }} Detail{% endblock %}
+{% block title %}Requisition #{{ requisition.id }}{% endblock %}
 
 {% block content %}
 <style>
-  .rq-header p { margin-bottom: .25rem; }
+  .kf-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .kf-card-header { border-bottom: 1px solid #dee2e6; }
+  .kf-help { font-size: .875rem; color: #6c757d; }
+  .kf-table td, .kf-table th { vertical-align: middle; }
 
-  /* Scrollable audit trail card (same feel as PO page) */
+  /* Audit dropdown chevron */
+  details.kf-details > summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  details.kf-details > summary::-webkit-details-marker { display: none; }
+  .kf-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    font-size: .8rem;
+    line-height: 1;
+    transition: transform .15s ease;
+  }
+  details[open] .kf-chevron { transform: rotate(180deg); }
+
+  /* Original audit trail look (unchanged) */
   .rq-timeline-card {
     max-height: 360px;
     overflow-y: auto;
@@ -16,14 +41,12 @@
     border-radius: .5rem;
     background-color: #ffffff;
   }
-
   .rq-timeline {
     position: relative;
     list-style: none;
     margin: 0;
     padding-left: 1.5rem;
   }
-
   .rq-timeline::before {
     content: "";
     position: absolute;
@@ -33,12 +56,7 @@
     width: 2px;
     background-color: #e9ecef;
   }
-
-  .rq-timeline-item {
-    position: relative;
-    margin-bottom: 10px;
-  }
-
+  .rq-timeline-item { position: relative; margin-bottom: 10px; }
   .rq-timeline-dot {
     position: absolute;
     left: -1px;
@@ -48,16 +66,13 @@
     border-radius: 50%;
     background-color: #0d6efd;
   }
-
   .rq-timeline-body {
     padding: .35rem .5rem;
     border-radius: .25rem;
     background-color: #f8f9fa;
     font-size: .875rem;
   }
-
   .rq-timeline-body:hover { background-color: #e9ecef; }
-
   .rq-timeline-meta {
     display: flex;
     justify-content: space-between;
@@ -65,7 +80,6 @@
     color: #6c757d;
     margin-bottom: .15rem;
   }
-
   .rq-badge {
     display: inline-block;
     padding: .1rem .4rem;
@@ -78,136 +92,297 @@
   .rq-badge-payment     { background-color: #0dcaf0; color: #000; }
   .rq-badge-issuance    { background-color: #ffc107; color: #000; }
   .rq-badge-other       { background-color: #6c757d; }
+
+  /* Process UI */
+  .kf-action-bar { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .kf-action-btn {
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 600;
+    letter-spacing: .2px;
+    border-width: 1px;
+  }
+  .kf-approve { color: #146c43; border-color: rgba(20,108,67,.35); background: rgba(20,108,67,.06); }
+  .kf-approve:hover { background: rgba(20,108,67,.12); border-color: rgba(20,108,67,.55); }
+  .kf-deny { color: #b02a37; border-color: rgba(176,42,55,.35); background: rgba(176,42,55,.06); }
+  .kf-deny:hover { background: rgba(176,42,55,.12); border-color: rgba(176,42,55,.55); }
+  .kf-query { color: #374151; border-color: rgba(55,65,81,.35); background: rgba(55,65,81,.06); }
+  .kf-query:hover { background: rgba(55,65,81,.12); border-color: rgba(55,65,81,.55); }
+
+  .kf-action-btn.active {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #fff !important;
+  }
+
+  .kf-notes {
+    border-radius: .75rem;
+    border: 1px solid #dee2e6;
+    background: #fbfbfc;
+    padding: .75rem .9rem;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    width: 100%;
+  }
+  .kf-notes:focus {
+    background: #fff;
+    border-color: rgba(13,110,253,.35);
+    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+    outline: none;
+  }
 </style>
 
-<h1>Requisition #{{ requisition.id }}</h1>
-
-{% if request.user == requisition.requester and requisition.status == 'QUERIED' %}
-  <hr>
-  <p class="mt-3">
-    <a href="{% url 'supplychain:requisition-update' requisition.id %}"
-       class="btn btn-outline-primary">
-      Update requisition
-    </a>
-  </p>
-{% endif %}
-
-<div class="rq-header">
-  <p><strong>Requester:</strong> {{ requisition.requester.get_full_name }}</p>
-  <p><strong>Created At:</strong> {{ requisition.created_at|date:"Y-m-d H:i" }}</p>
-  <p><strong>Status:</strong> {{ requisition.status|status_badge }}</p>
-  <p><strong>Urgent?</strong> {{ requisition.urgent|yesno:"Yes,No" }}</p>
-  <p><strong>Destination:</strong> {{ requisition.get_destination_display }}</p>
-  {% if requisition.evidence %}
-    <p>
-      <strong>Evidence:</strong>
-      <a href="{{ requisition.evidence.url }}" target="_blank">Download</a>
-    </p>
-  {% endif %}
-  {% if requisition.notes %}
-    <p>
-      <strong>Notes:</strong> {{ requisition.notes|linebreaksbr }}
-    </p>
-  {% endif %}
-</div>
-
-<h3>Items Requested</h3>
-<table class="table">
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>Product</th>
-      <th>Quantity</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for item in items %}
-      <tr>
-        <td>{{ forloop.counter }}</td>
-        <td>{{ item.product.name }}</td>
-        <td>
-          {{ item.quantity }}
-          {% if item.product.uom %} {{ item.product.uom.code }}{% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<hr>
-
-<div class="col-12 col-lg-8 mb-3">
-  <h3>Audit Trail</h3>
-  <div class="rq-timeline-card">
-    <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">Workflow timeline</span>
-      <span class="badge bg-secondary">{{ timeline|length }} events</span>
-    </div>
-    <div class="p-2">
-      {% if timeline %}
-        <ul class="rq-timeline mb-0">
-          {% for e in timeline %}
-            <li class="rq-timeline-item">
-              <span class="rq-timeline-dot"></span>
-              <div class="rq-timeline-body">
-                <div class="rq-timeline-meta">
-                  <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
-                  {% if "Requisition" in e.label %}
-                    <span class="rq-badge rq-badge-requisition">REQ</span>
-                  {% elif "PO " in e.label %}
-                    <span class="rq-badge rq-badge-po">PO</span>
-                  {% elif "Payment" in e.label %}
-                    <span class="rq-badge rq-badge-payment">PAY</span>
-                  {% elif "Issuance" in e.label %}
-                    <span class="rq-badge rq-badge-issuance">ISS</span>
-                  {% else %}
-                    <span class="rq-badge rq-badge-other">EVT</span>
-                  {% endif %}
-                </div>
-                <div>
-                  {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
-                  {{ e.label }}
-                </div>
-                {% if e.details %}
-                  <div class="mt-1 text-muted">
-                    {{ e.details|linebreaksbr }}
-                  </div>
-                {% endif %}
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-muted mb-0 px-1">No actions have been taken yet.</p>
-      {% endif %}
-    </div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="mb-0">Requisition #{{ requisition.id }}</h1>
+    <div class="kf-help mt-1">Review requested items and process approval decision.</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{% url 'supplychain:requisition-list' %}" class="btn btn-outline-secondary">Back</a>
+    {% if request.user == requisition.requester and requisition.status == 'QUERIED' %}
+      <a href="{% url 'supplychain:requisition-update' requisition.id %}" class="btn btn-outline-primary">
+        Update requisition
+      </a>
+    {% endif %}
   </div>
 </div>
 
-{% if can_approve %}
-  <hr>
-  <h3>Take Action</h3>
-  <form method="post">
-    {% csrf_token %}
-    {{ approval_form.non_field_errors }}
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="kf-card mb-3">
+      <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-start">
+        <div>
+          <div class="fw-semibold">Requisition details</div>
+          <div class="kf-help">Core header fields for this request.</div>
+        </div>
+        <div>{{ requisition.status|status_badge }}</div>
+      </div>
 
-    <div class="form-group">
-      {{ approval_form.action.label_tag }}<br>
-      {{ approval_form.action }}
-      {% if approval_form.action.errors %}
-        <div class="text-danger">{{ approval_form.action.errors }}</div>
-      {% endif %}
+      <div class="p-3">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <div class="kf-help">Requester</div>
+            <div class="fw-semibold">
+              {{ requisition.requester.get_full_name|default:requisition.requester.username }}
+            </div>
+          </div>
+          <div class="col-12 col-md-3">
+            <div class="kf-help">Created</div>
+            <div class="fw-semibold">{{ requisition.created_at|date:"Y-m-d H:i" }}</div>
+          </div>
+          <div class="col-12 col-md-3">
+            <div class="kf-help">Urgent</div>
+            <div class="fw-semibold">{{ requisition.urgent|yesno:"Yes,No" }}</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="kf-help">Destination</div>
+            <div class="fw-semibold">{{ requisition.get_destination_display }}</div>
+          </div>
+
+          {% if requisition.evidence %}
+            <div class="col-12 col-md-6">
+              <div class="kf-help">Evidence</div>
+              <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ requisition.evidence.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                  View
+                </a>
+                <a href="{{ requisition.evidence.url }}" download class="btn btn-sm btn-outline-secondary">
+                  Download
+                </a>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if requisition.notes %}
+            <div class="col-12">
+              <div class="kf-help">Notes</div>
+              <div class="fw-semibold" style="white-space: pre-wrap;">{{ requisition.notes }}</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      {{ approval_form.notes.label_tag }}
-      {{ approval_form.notes }}
-      {% if approval_form.notes.errors %}
-        <div class="text-danger">{{ approval_form.notes.errors }}</div>
-      {% endif %}
-    </div>
+    <div class="kf-card">
+      <div class="kf-card-header px-3 py-3">
+        <div class="fw-semibold">Line items</div>
+        <div class="kf-help">What was requested and in what quantity.</div>
+      </div>
 
-    <button type="submit" class="btn btn-primary">Submit</button>
-  </form>
-{% endif %}
+      <div class="p-3">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped kf-table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 56px;">#</th>
+                <th style="min-width: 260px;">Product</th>
+                <th class="text-end" style="width: 180px;">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+                <tr>
+                  <td class="text-muted">{{ forloop.counter }}</td>
+                  <td class="fw-semibold">{{ item.product.name }}</td>
+                  <td class="text-end">
+                    {{ item.quantity|floatformat:2 }}
+                    {% if item.product.uom %} {{ item.product.uom.code }}{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    {% if can_approve %}
+      <div class="kf-card mb-3">
+        <div class="kf-card-header px-3 py-3">
+          <div class="fw-semibold">Process</div>
+          <div class="kf-help">Select an action, add notes, then submit.</div>
+        </div>
+
+        <div class="p-3">
+          <form method="post" id="rq-approve-form">
+            {% csrf_token %}
+            {{ approval_form.non_field_errors }}
+
+            {# Hide underlying action field so only buttons are visible #}
+            <div style="display:none;">
+              {{ approval_form.action }}
+            </div>
+
+            <div class="kf-action-bar mb-3" role="group" aria-label="Requisition actions">
+              <button type="button" class="btn kf-action-btn kf-approve" data-action="APPROVED">Approve</button>
+              <button type="button" class="btn kf-action-btn kf-deny" data-action="DENIED">Deny</button>
+              <button type="button" class="btn kf-action-btn kf-query" data-action="QUERIED">Query</button>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ approval_form.notes.id_for_label }}">Notes</label>
+              {{ approval_form.notes }}
+              {% if approval_form.notes.errors %}
+                <div class="text-danger small mt-1">{{ approval_form.notes.errors }}</div>
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Submit</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="kf-card">
+      <div class="kf-card-header px-3 py-3">
+        <div class="fw-semibold">Audit trail</div>
+        <div class="kf-help">Workflow timeline for this requisition.</div>
+      </div>
+
+      <div class="p-3">
+        <details class="kf-details" id="audit-details">
+          <summary class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-semibold">Show audit trail</span>
+              <span class="badge bg-secondary">{{ timeline|length }} events</span>
+            </div>
+            <span class="kf-chevron" aria-hidden="true">▾</span>
+          </summary>
+
+          <div class="mt-3">
+            <div class="rq-timeline-card">
+              <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Workflow timeline</span>
+                <span class="badge bg-secondary">{{ timeline|length }} events</span>
+              </div>
+              <div class="p-2">
+                {% if timeline %}
+                  <ul class="rq-timeline mb-0">
+                    {% for e in timeline %}
+                      <li class="rq-timeline-item">
+                        <span class="rq-timeline-dot"></span>
+                        <div class="rq-timeline-body">
+                          <div class="rq-timeline-meta">
+                            <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
+                            {% if "Requisition" in e.label %}
+                              <span class="rq-badge rq-badge-requisition">REQ</span>
+                            {% elif "PO " in e.label %}
+                              <span class="rq-badge rq-badge-po">PO</span>
+                            {% elif "Payment" in e.label %}
+                              <span class="rq-badge rq-badge-payment">PAY</span>
+                            {% elif "Issuance" in e.label %}
+                              <span class="rq-badge rq-badge-issuance">ISS</span>
+                            {% else %}
+                              <span class="rq-badge rq-badge-other">EVT</span>
+                            {% endif %}
+                          </div>
+                          <div>
+                            {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
+                            {{ e.label }}
+                          </div>
+                          {% if e.details %}
+                            <div class="mt-1 text-muted">
+                              {{ e.details|linebreaksbr }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-muted mb-0 px-1">No actions have been taken yet.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  // Notes styling (in case widget isn't already styled)
+  const notes = document.getElementById("{{ approval_form.notes.id_for_label }}");
+  if (notes) {
+    notes.classList.add("kf-notes");
+    if (notes.tagName === "TEXTAREA" && !notes.rows) notes.rows = 4;
+  }
+
+  // Do NOT auto-submit on action click.
+  // Just set the hidden action value + highlight selected button.
+  const form = document.getElementById("rq-approve-form");
+  if (form) {
+    const actionInput =
+      form.querySelector('input[name="action"]') ||
+      form.querySelector('select[name="action"]');
+
+    const buttons = Array.from(form.querySelectorAll("[data-action]"));
+
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!actionInput) return;
+
+        actionInput.value = btn.getAttribute("data-action");
+
+        buttons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+
+    // Require an action before submit
+    form.addEventListener("submit", (e) => {
+      if (!actionInput || !actionInput.value) {
+        e.preventDefault();
+        alert("Select Approve, Deny, or Query before submitting.");
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

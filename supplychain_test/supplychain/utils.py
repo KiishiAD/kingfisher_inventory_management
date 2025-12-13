@@ -41,64 +41,68 @@ from decimal import Decimal
 
 def generate_po_for_requisition(requisition, created_by):
     """
-    Create PurchaseOrder(s) for a requisition.
+    Create PurchaseOrder(s) from an approved requisition.
 
-    NEW RULE (based on your model change):
-      - Supplier is on the Requisition header (requisition.supplier)
-      - RequisitionItem no longer has supplier
+    Supports both shapes:
+    - supplier on Requisition (single supplier)
+    - supplier on RequisitionItem (multi supplier)
 
-    Behaviour:
-      - If a PO already exists for this requisition, return it (or list if multiple).
-      - Create one PO (single supplier). If no supplier on requisition, fall back to product vendor.
+    Falls back to product.vendors.first() if needed.
     """
     existing = PurchaseOrder.objects.filter(requisition=requisition)
     if existing.exists():
         return existing[0] if existing.count() == 1 else list(existing)
 
-    # Pull items efficiently (NO supplier select_related anymore)
-    items = list(requisition.items.select_related("product").all())
-    if not items:
-        raise ValueError("Cannot create PO: requisition has no items.")
+    # Pull items (NO select_related('supplier') because supplier might not exist on the item anymore)
+    items_qs = requisition.items.select_related("product").all()
 
-    # Primary supplier now comes from requisition header
-    header_supplier = getattr(requisition, "supplier", None)
+    items_by_supplier = {}
 
-    # If requisition has no supplier, try to infer one (only if products have vendors)
-    supplier = header_supplier
-    if supplier is None:
-        # Try to find first available vendor among products
-        for item in items:
+    # Prefer a requisition-level supplier if present
+    req_supplier = getattr(requisition, "supplier", None)
+
+    for item in items_qs:
+        supplier = None
+
+        # 1) requisition-level supplier
+        if req_supplier:
+            supplier = req_supplier
+
+        # 2) item-level supplier (only if field exists)
+        if supplier is None and hasattr(item, "supplier_id"):
+            supplier = getattr(item, "supplier", None)
+
+        # 3) fallback to product vendors
+        if supplier is None:
             vendors_qs = getattr(item.product, "vendors", None)
-            if vendors_qs is not None:
-                supplier = vendors_qs.first()
-                if supplier:
-                    break
+            supplier = vendors_qs.first() if vendors_qs is not None else None
 
-    if supplier is None:
-        raise ValueError(
-            "Cannot create PO: requisition has no supplier and no product vendors found."
-        )
+        if supplier is None:
+            raise ValueError(
+                f"Cannot create PO: product {item.product!r} has no supplier/vendor"
+            )
+
+        items_by_supplier.setdefault(supplier, []).append(item)
 
     created_pos = []
     with transaction.atomic():
-        po = PurchaseOrder.objects.create(
-            requisition=requisition,
-            supplier=supplier,
-            created_by=created_by,
-            status=PurchaseOrder.PENDING_COO,
-        )
-
-        for item in items:
-            PurchaseOrderItem.objects.create(
-                purchase_order=po,
-                product=item.product,
-                quantity=item.quantity,
-                unit_cost=getattr(item.product, "unit_cost", 0),
+        for supplier, items in items_by_supplier.items():
+            po = PurchaseOrder.objects.create(
+                requisition=requisition,
+                supplier=supplier,
+                created_by=created_by,
+                status=PurchaseOrder.PENDING_COO,
             )
+            for item in items:
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    product=item.product,
+                    quantity=item.quantity,
+                    unit_cost=getattr(item.product, "unit_cost", Decimal("0")),
+                )
+            created_pos.append(po)
 
-        created_pos.append(po)
-
-    return created_pos[0]
+    return created_pos[0] if len(created_pos) == 1 else created_pos
 
 
 def generate_issuance_for_requisition(requisition, created_by):
@@ -118,34 +122,25 @@ def generate_issuance_for_requisition(requisition, created_by):
         )
     return iss
 
-
 def generate_receiving_for_purchase_order(purchase_order):
-    """
-    Auto-create a Receiving (and ReceivingItems) for a given approved PO.
-
-    - If a Receiving already exists for this PO, return it (or list if multiple).
-    - New Receiving starts in PENDING status.
-    - One ReceivingItem per PurchaseOrderItem with actual_quantity default 0.
-    """
     existing = purchase_order.receivings.all()
     if existing.exists():
-        return existing[0] if existing.count() == 1 else list(existing)
+        return existing.first()
 
     with transaction.atomic():
         receiving = Receiving.objects.create(
             purchase_order=purchase_order,
             status=Receiving.PENDING,
         )
-
-        for po_item in purchase_order.items.select_related("product").all():
+        for po_item in purchase_order.items.all():
             ReceivingItem.objects.create(
                 receiving=receiving,
                 po_item=po_item,
                 actual_quantity=Decimal("0.00"),
                 flagged_for={},
             )
-
     return receiving
+
 
 
 def build_workitem_timeline(requisition):

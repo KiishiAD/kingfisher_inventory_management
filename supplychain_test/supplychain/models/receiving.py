@@ -21,6 +21,12 @@ class Receiving(TimeStampedModel):
             ("record_receiving", "Can record goods receipt and upload invoice"),
         ]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=['purchase_order'],
+                name='unique_receiving_per_purchase_order'    
+            )
+        ]
     # Status constants
     PENDING = "PENDING"              # PO approved, waiting for physical receipt
     UNDER_REVIEW = "UNDER_REVIEW"    # Goods received, accounting doing three-way check         # Three-way check completed, cleared for payment
@@ -33,7 +39,7 @@ class Receiving(TimeStampedModel):
     ]
 
     """Tracks physical receipt of goods against a Purchase Order, with supplier invoice."""
-    purchase_order = models.OneToOneField(
+    purchase_order = models.ForeignKey(
         PurchaseOrder,
         on_delete=models.CASCADE,
         related_name='receivings',

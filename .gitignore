@@ -14,3 +14,7 @@ ENV/
 *.egg-info/
 
 app_env/
+
+backup.json
+*.sqlite3
+db.sqlite3

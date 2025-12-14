@@ -1,23 +1,16 @@
-# supplychain/models.py  (or wherever these classes currently live)
-
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
 
-from .purchase import PurchaseOrder, PurchaseOrderItem
-from .master_data import TimeStampedModel
-
-
-# supplychain/models/receiving.py (or wherever yours currently is)
-
-from decimal import Decimal
-from django.db import models
-from django.conf import settings
 from .purchase import PurchaseOrder, PurchaseOrderItem
 from .master_data import TimeStampedModel
 
 
 class Receiving(TimeStampedModel):
+    """
+    Tracks physical receipt of goods against a Purchase Order, with supplier invoice and review workflow.
+    """
+
     class Meta:
         permissions = [
             ("record_receiving", "Can record goods receipt and upload invoice"),
@@ -27,16 +20,18 @@ class Receiving(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["purchase_order"],
-                name="unique_receiving_per_purchase_order"
+                name="unique_receiving_per_purchase_order",
             )
         ]
 
-    PENDING = "PENDING"
-    UNDER_REVIEW = "UNDER_REVIEW"
-    QUERIED = "QUERIED"
+    # Status constants
+    PENDING = "PENDING"              # PO approved, waiting for physical receipt entry
+    UNDER_REVIEW = "UNDER_REVIEW"    # Goods received, accounting doing three-way check
+    QUERIED = "QUERIED"              # Accounting found issues; COO-level amendment required
 
-    # keep your typo constant name to avoid breaking other places
-    REVIWED = "REVIEWED"
+    # Keep your typo constant name to avoid breaking other places:
+    # The VALUE is correct ("REVIEWED"), the constant name is misspelled.
+    REVIWED = "REVIEWED"             # Three-way check completed, cleared for payment
 
     STATUS_CHOICES = [
         (PENDING, "Pending Receipt"),
@@ -51,19 +46,30 @@ class Receiving(TimeStampedModel):
         related_name="receivings",
     )
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING,
+    )
 
+    # Will be set when a store/warehouse user actually records the receipt
     received_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="receivings",
+        help_text="User who physically recorded the receipt of goods.",
     )
-    received_at = models.DateTimeField(null=True, blank=True)
 
-    # keep as-is if you want it mandatory at entry time, but your UI text says “if available”
-    # recommended: blank=True (optional)
+    # Actual physical receipt time (not PO approval time)
+    received_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when goods were actually received.",
+    )
+
+    # Invoice upload (your template copy says 'if available', so this should be optional)
     supplier_invoice = models.FileField(
         upload_to="supplier_invoices/",
         null=True,
@@ -71,30 +77,69 @@ class Receiving(TimeStampedModel):
         help_text="Supplier invoice document for this receipt (optional).",
     )
 
-    # overall accounting review note + audit
-    review_notes = models.TextField(blank=True)
+    # Accounting review audit (whole receiving)
+    review_notes = models.TextField(
+        blank=True,
+        help_text="Optional accounting notes for the overall receiving (summary/exceptions).",
+    )
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="receivings_reviewed",
+        help_text="Accountant who cleared/queried this receiving.",
     )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when accounting completed review (cleared or queried).",
+    )
 
     # COO amendment audit (optional but useful)
-    amendment_notes = models.TextField(blank=True)
+    amendment_notes = models.TextField(
+        blank=True,
+        help_text="Optional COO notes describing what was amended after query.",
+    )
     amended_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="receivings_amended",
+        help_text="COO who amended the receiving after accounting query.",
     )
-    amended_at = models.DateTimeField(null=True, blank=True)
+    amended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when COO amended this receiving after query.",
+    )
 
     def __str__(self):
         return f"Receiving #{self.id} for {self.purchase_order}"
+
+    @property
+    def items_summary(self):
+        """
+        Human-friendly summary of items for this receiving.
+
+        Example: "Tomatoes × 10, Cooking Oil × 5, + 2 more"
+        Based on the PO items behind this receiving.
+        """
+        lines = []
+        items = list(self.items.select_related("po_item__product"))
+
+        for ri in items[:3]:
+            product = ri.po_item.product
+            product_name = getattr(product, "name", str(product))
+            qty = ri.po_item.quantity  # requested qty from the PO
+            lines.append(f"{product_name} × {qty}")
+
+        extra = len(items) - 3
+        if extra > 0:
+            lines.append(f"+ {extra} more")
+
+        return ", ".join(lines)
 
     @property
     def has_accounting_queries(self):
@@ -102,21 +147,47 @@ class Receiving(TimeStampedModel):
 
 
 class ReceivingItem(models.Model):
-    receiving = models.ForeignKey(Receiving, on_delete=models.CASCADE, related_name="items")
-    po_item = models.ForeignKey(PurchaseOrderItem, on_delete=models.PROTECT)
+    """
+    Actual quantities received per PO item, with departmental flags and accounting query markers.
+    """
+    receiving = models.ForeignKey(
+        Receiving,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+    )
 
-    # if you truly want “Not recorded yet”, it must be nullable
-    actual_quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # If you want "Not recorded yet" to exist, this must be nullable.
+    actual_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
 
-    # accounting “query this line” + note
-    accounting_queried = models.BooleanField(default=False)
-    accounting_notes = models.TextField(blank=True)
+    # Accounting exception flow: checkbox + note
+    accounting_queried = models.BooleanField(
+        default=False,
+        help_text="Accounting marked this line as queried/incorrect.",
+    )
+    accounting_notes = models.TextField(
+        blank=True,
+        help_text="Accounting notes explaining why this line was queried.",
+    )
 
-    flagged_for = models.JSONField(default=dict)
+    # Keep your existing flags for audit/other departments
+    flagged_for = models.JSONField(
+        default=dict,
+        help_text="Keys: kitchen, store, audit, admin; values: booleans",
+    )
 
     def __str__(self):
-        return f"{self.actual_quantity} of {self.po_item.product}"
-
+        qty = self.actual_quantity
+        qty_str = f"{qty:.2f}" if qty is not None else "—"
+        return f"{qty_str} of {self.po_item.product}"
 
 
 class InvoiceLineApproval(models.Model):
@@ -125,6 +196,10 @@ class InvoiceLineApproval(models.Model):
             ("approve_invoiceline", "Can approve/deny/query invoice lines"),
         ]
 
+    """
+    Optional audit trail for line-level approval decisions.
+    You can keep this even if you primarily use ReceivingItem.accounting_queried/accounting_notes for workflow.
+    """
     receiving_item = models.ForeignKey(
         ReceivingItem,
         on_delete=models.CASCADE,
@@ -137,8 +212,6 @@ class InvoiceLineApproval(models.Model):
         related_name="invoice_line_approvals",
     )
 
-    # Keep for audit trail if you want to log every decision;
-    # not required for the minimal queried/cleared workflow.
     approved = models.BooleanField(null=True)  # None = queried
     notes = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)

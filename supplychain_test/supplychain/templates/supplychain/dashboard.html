@@ -1,33 +1,94 @@
 {# supplychain/templates/supplychain/dashboard.html #}
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard - Kingfisher Supplychain{% endblock %}
 
 {% block content %}
-  <h1>Dashboard</h1>
+<style>
+  .kf-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
+  .kf-card-header { border-bottom: 1px solid #dee2e6; }
+  .kf-help { font-size: .875rem; color: #6c757d; }
+  .kf-mono { font-variant-numeric: tabular-nums; }
 
-  <div class="dashboard-widgets">
-    <!-- My Requisitions -->
-    <div class="widget">
-      <h3>My Requisitions</h3>
-      <p>{{ user_reqs_count }} total</p>
-      <p><a href="{% url 'supplychain:requisition-list' %}">View My Requisitions</a></p>
-    </div>
+  .kf-stat {
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
 
-    <!-- Pending Requisition Approvals (for users with perm) -->
-    {% if perms.supplychain.approve_requisition %}
-      <div class="widget">
-        <h3>Pending Requisitions</h3>
-        <p>{{ pending_reqs_count }} waiting</p>
-        <p><a href="{% url 'supplychain:requisition-pending' %}">Review Pending</a></p>
+  .kf-action {
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 600;
+    letter-spacing: .2px;
+    border-width: 1px;
+  }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Dashboard</h1>
+    <div class="kf-help">Quick access to your workflow queues and alerts.</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-4">
+    <div class="kf-card h-100">
+      <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">My requisitions</div>
+        <span class="text-muted small kf-mono">{{ user_reqs_count }}</span>
       </div>
-    {% endif %}
-
-    <!-- Low Stock Alerts -->
-    <div class="widget">
-      <h3>Low Stock Alerts</h3>
-      <p>{{ low_stock_count }} active</p>
-      <p><a href="{% url 'supplychain:inventory-alerts' %}">View Alerts</a></p>
+      <div class="p-3">
+        <div class="kf-stat kf-mono">{{ user_reqs_count }}</div>
+        <div class="kf-help mt-1">Total requisitions submitted by you.</div>
+        <div class="mt-3">
+          <a class="btn btn-outline-primary kf-action" href="{% url 'supplychain:requisition-list' %}">
+            View
+          </a>
+        </div>
+      </div>
     </div>
   </div>
+
+  {% if perms.supplychain.approve_requisition %}
+    <div class="col-12 col-lg-4">
+      <div class="kf-card h-100">
+        <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+          <div class="fw-semibold">Pending requisitions</div>
+          <span class="text-muted small kf-mono">{{ pending_reqs_count }}</span>
+        </div>
+        <div class="p-3">
+          <div class="kf-stat kf-mono">{{ pending_reqs_count }}</div>
+          <div class="kf-help mt-1">Waiting for approval action.</div>
+          <div class="mt-3">
+            <a class="btn btn-outline-primary kf-action" href="{% url 'supplychain:requisition-pending' %}">
+              Review
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="col-12 col-lg-4">
+    <div class="kf-card h-100">
+      <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Low stock alerts</div>
+        <span class="text-muted small kf-mono">{{ low_stock_count }}</span>
+      </div>
+      <div class="p-3">
+        <div class="kf-stat kf-mono">{{ low_stock_count }}</div>
+        <div class="kf-help mt-1">Products below threshold.</div>
+        <div class="mt-3">
+          <a class="btn btn-outline-primary kf-action" href="{% url 'supplychain:inventory-alerts' %}">
+            View alerts
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

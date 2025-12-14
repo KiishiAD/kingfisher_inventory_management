@@ -1,5 +1,6 @@
 {# supplychain/templates/supplychain/receiving/detail.html #}
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <style>
@@ -40,21 +41,18 @@
     white-space: nowrap;
   }
 
-  /* GREEN = exact match OR within tolerance (+/- 0.50) */
   .kf-var-ok {
     color: #146c43;
     border-color: rgba(20,108,67,.25);
     background: rgba(20,108,67,.06);
   }
 
-  /* BLUE = undersupplied past 0.50 */
   .kf-var-under {
     color: #0d6efd;
     border-color: rgba(13,110,253,.25);
     background: rgba(13,110,253,.06);
   }
 
-  /* RED = oversupplied past 0.50 */
   .kf-var-over {
     color: #b02a37;
     border-color: rgba(176,42,55,.25);
@@ -78,6 +76,90 @@
     padding: .75rem;
     border-radius: .75rem;
   }
+
+  .kf-divider { height: 1px; background: #dee2e6; margin: .75rem 0; }
+
+  /* Audit trail look (matches your PO audit style) */
+  .po-timeline-card {
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    background-color: #ffffff;
+  }
+  .po-timeline {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+  .po-timeline::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #e9ecef;
+  }
+  .po-timeline-item { position: relative; margin-bottom: 10px; }
+  .po-timeline-dot {
+    position: absolute;
+    left: -1px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+  }
+  .po-timeline-body {
+    padding: .35rem .5rem;
+    border-radius: .25rem;
+    background-color: #f8f9fa;
+    font-size: .875rem;
+  }
+  .po-timeline-body:hover { background-color: #e9ecef; }
+  .po-timeline-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+    color: #6c757d;
+    margin-bottom: .15rem;
+  }
+  .po-badge {
+    display: inline-block;
+    padding: .1rem .4rem;
+    border-radius: .5rem;
+    font-size: .7rem;
+    color: #fff;
+  }
+  .po-badge-requisition { background-color: #0d6efd; }
+  .po-badge-po          { background-color: #198754; }
+  .po-badge-receiving   { background-color: #6f42c1; }
+  .po-badge-payment     { background-color: #0dcaf0; color: #000; }
+  .po-badge-issuance    { background-color: #ffc107; color: #000; }
+  .po-badge-other       { background-color: #6c757d; }
+
+  details.kf-details > summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  details.kf-details > summary::-webkit-details-marker { display: none; }
+  .kf-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    font-size: .85rem;
+    line-height: 1;
+    transition: transform .15s ease;
+  }
+  details[open] .kf-chevron { transform: rotate(180deg); }
 </style>
 
 <form id="receiving-form" method="post" enctype="multipart/form-data">
@@ -86,8 +168,18 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h1 class="mb-0">Receiving for PO #{{ purchase_order.id }}</h1>
-      <div class="kf-help mt-1">Record quantities received and upload supplier invoice (if available).</div>
+
+      {% if mode == "entry" %}
+        <div class="kf-help mt-1">Record quantities received and upload supplier invoice.</div>
+      {% elif mode == "accounting_review" %}
+        <div class="kf-help mt-1">Accounting review: tick “Query?” per line and add notes, then submit.</div>
+      {% elif mode == "coo_amend" %}
+        <div class="kf-help mt-1">COO amendment: update quantities/invoice, add amendment note, then resubmit to accounting.</div>
+      {% else %}
+        <div class="kf-help mt-1">View receiving details.</div>
+      {% endif %}
     </div>
+
     <div class="d-flex gap-2">
       <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
       <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
@@ -140,12 +232,26 @@
             <div class="fw-semibold">Three-way check</div>
             <div class="kf-help">PO quantities vs actual received.</div>
           </div>
-          <div class="text-muted small">Updates as you type</div>
+
+          {% if mode == "entry" or mode == "coo_amend" %}
+            <div class="text-muted small">Updates as you type</div>
+          {% else %}
+            <div class="text-muted small">Review</div>
+          {% endif %}
         </div>
 
         <div class="p-3">
-          {% if item_formset and item_formset.non_form_errors %}
-            <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+          {% if mode == "entry" or mode == "coo_amend" %}
+            {% if item_formset and item_formset.non_form_errors %}
+              <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+            {% endif %}
+          {% elif mode == "accounting_review" %}
+            {% if accounting_formset and accounting_formset.non_form_errors %}
+              <div class="alert alert-danger mb-2">{{ accounting_formset.non_form_errors }}</div>
+            {% endif %}
+            {% if review_form and review_form.non_field_errors %}
+              <div class="alert alert-danger mb-2">{{ review_form.non_field_errors }}</div>
+            {% endif %}
           {% endif %}
 
           <div class="table-responsive">
@@ -156,18 +262,25 @@
                   <th class="text-end" style="width: 150px;">Qty ordered</th>
                   <th class="text-end" style="width: 140px;">Unit price</th>
                   <th class="text-end" style="width: 160px;">PO line total</th>
-                  <th class="text-end" style="width: 190px;">Actual received</th>
-                  <th class="text-end" style="min-width: 220px;">Variance</th>
+
+                  {% if mode == "accounting_review" %}
+                    <th class="text-end" style="width: 150px;">Actual received</th>
+                    <th class="text-end" style="min-width: 220px;">Variance</th>
+                    <th class="text-center" style="width: 90px;">Query?</th>
+                    <th style="min-width: 260px;">Accounting note</th>
+                  {% else %}
+                    <th class="text-end" style="width: 190px;">Actual received</th>
+                    <th class="text-end" style="min-width: 220px;">Variance</th>
+                  {% endif %}
                 </tr>
               </thead>
 
               <tbody>
-                {% if is_editable %}
+                {% if mode == "entry" or mode == "coo_amend" %}
                   {{ item_formset.management_form }}
                   {% for form in item_formset.forms %}
                     {% with po_item=form.instance.po_item %}
-                    <tr class="receiving-row"
-                        data-po-qty="{{ po_item.quantity|default_if_none:0 }}">
+                    <tr class="receiving-row" data-po-qty="{{ po_item.quantity|default_if_none:0 }}">
                       <td class="fw-semibold">{{ po_item.product }}</td>
                       <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
                       <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
@@ -189,6 +302,57 @@
                     </tr>
                     {% endwith %}
                   {% endfor %}
+
+                {% elif mode == "accounting_review" %}
+                  {{ accounting_formset.management_form }}
+                  {% for form in accounting_formset.forms %}
+                    {% with ri=form.instance po_item=form.instance.po_item %}
+                    <tr>
+                      <td class="fw-semibold">{{ po_item.product }}</td>
+                      <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">{{ po_item.line_total|floatformat:2 }}</td>
+
+                      <td class="text-end kf-mono">
+                        {% if ri.actual_quantity is not None %}
+                          {{ ri.actual_quantity|floatformat:2 }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+
+                      <td class="text-end">
+                        {% if ri.variance_css == "text-success" %}
+                          <span class="kf-variance-pill kf-var-ok">{{ ri.variance_text }}</span>
+                        {% elif ri.variance_css == "text-danger" %}
+                          <span class="kf-variance-pill kf-var-over">{{ ri.variance_text }}</span>
+                        {% elif ri.variance_css == "text-primary" %}
+                          <span class="kf-variance-pill kf-var-under">{{ ri.variance_text }}</span>
+                        {% else %}
+                          <span class="kf-variance-pill kf-var-empty">{{ ri.variance_text }}</span>
+                        {% endif %}
+                      </td>
+
+                      <td class="text-center">
+                        {{ form.id }}
+                        <div class="form-check d-flex justify-content-center">
+                          {{ form.accounting_queried }}
+                        </div>
+                        {% for error in form.accounting_queried.errors %}
+                          <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                      </td>
+
+                      <td>
+                        {{ form.accounting_notes }}
+                        {% for error in form.accounting_notes.errors %}
+                          <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                      </td>
+                    </tr>
+                    {% endwith %}
+                  {% endfor %}
+
                 {% else %}
                   {% for ri in receiving_items %}
                     {% with po_item=ri.po_item %}
@@ -197,7 +361,9 @@
                       <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
                       <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
                       <td class="text-end kf-mono">{{ po_item.line_total|floatformat:2 }}</td>
-                      <td class="text-end kf-mono">{{ ri.actual_quantity|floatformat:2 }}</td>
+                      <td class="text-end kf-mono">
+                        {% if ri.actual_quantity is not None %}{{ ri.actual_quantity|floatformat:2 }}{% else %}—{% endif %}
+                      </td>
                       <td class="text-end">
                         {% if ri.variance_css == "text-success" %}
                           <span class="kf-variance-pill kf-var-ok">{{ ri.variance_text }}</span>
@@ -216,16 +382,63 @@
               </tbody>
             </table>
           </div>
+
+          {% if mode == "accounting_review" and review_form %}
+            <div class="kf-divider"></div>
+            <div>
+              <label class="form-label fw-semibold" for="{{ review_form.review_notes.id_for_label }}">
+                Accounting review notes (overall)
+              </label>
+              {{ review_form.review_notes }}
+              {% for error in review_form.review_notes.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+              <div class="kf-help mt-2">
+                Short summary (e.g., "2 lines queried; supplier invoice mismatch on milk qty").
+              </div>
+            </div>
+          {% endif %}
+
+          {% if mode == "coo_amend" and amend_form %}
+            <div class="kf-divider"></div>
+            <div>
+              <label class="form-label fw-semibold" for="{{ amend_form.amendment_notes.id_for_label }}">
+                COO amendment note
+              </label>
+              {{ amend_form.amendment_notes }}
+              {% for error in amend_form.amendment_notes.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+              <div class="kf-help mt-2">What changed and why.</div>
+            </div>
+          {% endif %}
         </div>
       </div>
 
-      {% if is_editable %}
+      {% if mode == "entry" %}
         <div class="kf-actions mt-3">
           <div class="d-flex gap-2">
             <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary ms-auto">Submit receiving</button>
           </div>
         </div>
+
+      {% elif mode == "accounting_review" %}
+        <div class="kf-actions mt-3">
+          <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
+            <button type="submit" class="btn btn-success ms-auto">Submit accounting review</button>
+          </div>
+        </div>
+
+      {% elif mode == "coo_amend" %}
+        <div class="kf-actions mt-3">
+          <div class="d-flex gap-2">
+            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary ms-auto">Submit amendments</button>
+          </div>
+        </div>
+
       {% else %}
         <div class="mt-3">
           <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back to list</a>
@@ -237,23 +450,41 @@
       <div class="kf-card mb-3">
         <div class="kf-card-header px-3 py-3">
           <div class="fw-semibold">Supplier invoice</div>
-          <div class="kf-help">Upload while pending, then view/download after.</div>
+          <div class="kf-help">
+            {% if mode == "entry" or mode == "coo_amend" %}
+              Upload while editing.
+            {% else %}
+              View/download (read-only).
+            {% endif %}
+          </div>
         </div>
 
         <div class="p-3">
-          {% if header_form and is_editable %}
-            {{ header_form.non_field_errors }}
+          {% if header_form %}
+            {% if mode == "entry" or mode == "coo_amend" %}
+              {{ header_form.non_field_errors }}
 
-            <div class="kf-filebox">
-              <label class="form-label fw-semibold" for="{{ header_form.supplier_invoice.id_for_label }}">
-                Invoice file
-              </label>
-              {{ header_form.supplier_invoice }}
-              {% for error in header_form.supplier_invoice.errors %}
-                <div class="text-danger small mt-1">{{ error }}</div>
-              {% endfor %}
-              <div class="kf-help mt-2">This is saved when you submit receiving.</div>
-            </div>
+              <div class="kf-filebox">
+                <label class="form-label fw-semibold" for="{{ header_form.supplier_invoice.id_for_label }}">
+                  Invoice file
+                </label>
+                {{ header_form.supplier_invoice }}
+                {% for error in header_form.supplier_invoice.errors %}
+                  <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+                <div class="kf-help mt-2">Saved when you submit.</div>
+              </div>
+            {% else %}
+              <div class="kf-filebox">
+                {% if receiving.supplier_invoice %}
+                  <div class="fw-semibold">Uploaded</div>
+                  <div class="kf-help">Invoice is attached to this receiving.</div>
+                {% else %}
+                  <div class="fw-semibold">Not uploaded</div>
+                  <div class="kf-help">No supplier invoice on this receiving.</div>
+                {% endif %}
+              </div>
+            {% endif %}
           {% else %}
             <div class="kf-filebox">
               {% if receiving.supplier_invoice %}
@@ -275,14 +506,80 @@
         </div>
       </div>
 
-      {# Summary card removed as requested #}
+      <div class="kf-card mb-3">
+        <div class="kf-card-header px-3 py-3">
+          <div class="fw-semibold">Audit trail</div>
+          <div class="kf-help">Receiving + full workflow timeline.</div>
+        </div>
+        <div class="p-3">
+          <div class="kf-divider"></div>
+          <details class="kf-details">
+            <summary class="d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-semibold">Show workflow timeline</span>
+                <span class="badge bg-secondary">{{ timeline|length }} events</span>
+              </div>
+              <span class="kf-chevron" aria-hidden="true">▾</span>
+            </summary>
+
+            <div class="mt-3">
+              <div class="po-timeline-card">
+                <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold">Workflow timeline</span>
+                  <span class="badge bg-secondary">{{ timeline|length }} events</span>
+                </div>
+                <div class="p-2">
+                  {% if timeline %}
+                    <ul class="po-timeline mb-0">
+                      {% for e in timeline %}
+                        <li class="po-timeline-item">
+                          <span class="po-timeline-dot"></span>
+                          <div class="po-timeline-body">
+                            <div class="po-timeline-meta">
+                              <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
+                              {% if "Requisition" in e.label %}
+                                <span class="po-badge po-badge-requisition">REQ</span>
+                              {% elif "PO " in e.label %}
+                                <span class="po-badge po-badge-po">PO</span>
+                              {% elif "Receiving" in e.label %}
+                                <span class="po-badge po-badge-receiving">REC</span>
+                              {% elif "Payment" in e.label %}
+                                <span class="po-badge po-badge-payment">PAY</span>
+                              {% elif "Issuance" in e.label %}
+                                <span class="po-badge po-badge-issuance">ISS</span>
+                              {% else %}
+                                <span class="po-badge po-badge-other">EVT</span>
+                              {% endif %}
+                            </div>
+                            <div>
+                              {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
+                              {{ e.label }}
+                            </div>
+                            {% if e.details %}
+                              <div class="mt-1 text-muted">
+                                {{ e.details|linebreaksbr }}
+                              </div>
+                            {% endif %}
+                          </div>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p class="text-muted mb-0 px-1">No workflow events yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
     </div>
   </div>
 </form>
 {% endblock %}
 
 {% block extra_js %}
-{% if is_editable %}
+{% if mode == "entry" or mode == "coo_amend" %}
 <script>
 (function() {
   var TOL = 0.5;
@@ -324,13 +621,11 @@
     var actual = toNumber(raw);
     var diff = round2(actual - poQty);
 
-    // Exact match
     if (Math.abs(diff) < 1e-9) {
       setPill(pill, 'kf-var-ok', 'Supplied amount matches PO');
       return;
     }
 
-    // Past tolerance
     if (diff > TOL) {
       setPill(pill, 'kf-var-over', 'Oversupplied by ' + fmt(diff));
       return;
@@ -340,7 +635,6 @@
       return;
     }
 
-    // Within tolerance => green
     if (diff > 0) {
       setPill(pill, 'kf-var-ok', 'Slightly oversupplied by ' + fmt(diff) + ' (within 0.50)');
     } else {
@@ -361,7 +655,7 @@
     var form = document.getElementById('receiving-form');
     if (form) {
       form.addEventListener('submit', function(e) {
-        var ok = window.confirm("Submit receiving?\n\nThis action cannot be undone.");
+        var ok = window.confirm("Submit?\n\nThis action cannot be undone.");
         if (!ok) e.preventDefault();
       });
     }

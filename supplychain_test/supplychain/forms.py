@@ -3,6 +3,7 @@ from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier,Receiving, ReceivingItem
+from decimal import Decimal
 
 class RequisitionForm(forms.ModelForm):
     class Meta:
@@ -271,6 +272,7 @@ class ReceivingHeaderForm(forms.ModelForm):
 class ReceivingItemForm(forms.ModelForm):
     """
     Line-level form for recording actual quantity received.
+    Force a value so we never save NULL and then show "Not recorded yet".
     """
     class Meta:
         model = ReceivingItem
@@ -285,6 +287,17 @@ class ReceivingItemForm(forms.ModelForm):
             ),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["actual_quantity"].required = True  # important
+
+    def clean_actual_quantity(self):
+        v = self.cleaned_data.get("actual_quantity")
+        if v is None:
+            raise forms.ValidationError("Actual received is required for each line item.")
+        if v < Decimal("0"):
+            raise forms.ValidationError("Actual received cannot be negative.")
+        return v
 
 
 ReceivingItemFormSet = inlineformset_factory(
@@ -294,3 +307,44 @@ ReceivingItemFormSet = inlineformset_factory(
     extra=0,
     can_delete=False,
 )
+
+
+class ReceivingAccountingNotesForm(forms.Form):
+    review_notes = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+        required=False,
+        label="Accounting review notes (overall)",
+    )
+
+
+
+class ReceivingAccountingItemForm(forms.ModelForm):
+    class Meta:
+        model = ReceivingItem
+        fields = ["accounting_queried", "accounting_notes"]
+        widgets = {
+            "accounting_queried": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "accounting_notes": forms.Textarea(attrs={"rows": 2, "class": "form-control form-control-sm"}),
+        }
+
+
+ReceivingAccountingItemFormSet = inlineformset_factory(
+    parent_model=Receiving,
+    model=ReceivingItem,
+    form=ReceivingAccountingItemForm,
+    extra=0,
+    can_delete=False,
+)
+
+class ReceivingReviewNotesForm(forms.Form):
+    review_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+    )
+
+
+class ReceivingAmendmentNotesForm(forms.Form):
+    amendment_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+    )

@@ -7,39 +7,34 @@ from .master_data import TimeStampedModel
 
 
 class Receiving(TimeStampedModel):
-    """
-    Tracks physical receipt of goods against a Purchase Order, with supplier invoice and review workflow.
-    """
-
     class Meta:
         permissions = [
             ("record_receiving", "Can record goods receipt and upload invoice"),
             ("review_receiving", "Can perform accounting review on receivings"),
-            ("amend_receiving",  "Can amend receivings after accounting query (COO)"),
+            ("approve_receiving", "Can approve/deny receivings (COO)"),
+            # keep your old permission if you already assigned it to groups
+            ("amend_receiving", "Legacy (do not use)"),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["purchase_order"],
-                name="unique_receiving_per_purchase_order",
-            )
+            models.UniqueConstraint(fields=["purchase_order"], name="unique_receiving_per_purchase_order")
         ]
 
-    # Status constants
-    PENDING = "PENDING"              # PO approved, waiting for physical receipt entry
-    UNDER_REVIEW = "UNDER_REVIEW"    # Goods received, accounting doing three-way check
-    QUERIED = "QUERIED"              # Accounting found issues; COO-level amendment required
+    PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    PENDING_COO = "PENDING_COO"     # accounting sent to COO for approve/deny
+    REVIWED = "REVIEWED"            # keep constant name typo; value is correct
+    DENIED = "DENIED"
 
-    # Keep your typo constant name to avoid breaking other places:
-    # The VALUE is correct ("REVIEWED"), the constant name is misspelled.
-    REVIWED = "REVIEWED"             # Three-way check completed, cleared for payment
+    # Keep QUERIED only if you already have rows in DB with this value; otherwise remove it.
+    QUERIED = "QUERIED"
 
     STATUS_CHOICES = [
         (PENDING, "Pending Receipt"),
         (UNDER_REVIEW, "Pending Accounting Review"),
-        (QUERIED, "Queried (Needs COO Amendment)"),
-        (REVIWED, "Reviewed and Cleared for Payment"),
+        (PENDING_COO, "Pending COO Approval"),
+        (REVIWED, "Cleared for Payment"),
+        (DENIED, "Denied"),
     ]
-
     purchase_order = models.ForeignKey(
         PurchaseOrder,
         on_delete=models.CASCADE,
@@ -96,24 +91,24 @@ class Receiving(TimeStampedModel):
         help_text="Timestamp when accounting completed review (cleared or queried).",
     )
 
-    # COO amendment audit (optional but useful)
-    amendment_notes = models.TextField(
-        blank=True,
-        help_text="Optional COO notes describing what was amended after query.",
-    )
-    amended_by = models.ForeignKey(
+     # Accounting “send to COO” audit
+    sent_to_coo_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="receivings_amended",
-        help_text="COO who amended the receiving after accounting query.",
+        null=True, blank=True,
+        related_name="receivings_sent_to_coo",
     )
-    amended_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp when COO amended this receiving after query.",
+    sent_to_coo_at = models.DateTimeField(null=True, blank=True)
+
+    # COO decision audit
+    coo_decision_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="receivings_coo_decided",
     )
+    coo_decision_at = models.DateTimeField(null=True, blank=True)
+    coo_decision_notes = models.TextField(blank=True)
 
     def __str__(self):
         return f"Receiving #{self.id} for {self.purchase_order}"

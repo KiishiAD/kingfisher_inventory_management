@@ -317,16 +317,13 @@ class ReceivingAccountingNotesForm(forms.Form):
     )
 
 
-
 class ReceivingAccountingItemForm(forms.ModelForm):
     class Meta:
         model = ReceivingItem
-        fields = ["accounting_queried", "accounting_notes"]
+        fields = ["accounting_notes"]
         widgets = {
-            "accounting_queried": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "accounting_notes": forms.Textarea(attrs={"rows": 2, "class": "form-control form-control-sm"}),
         }
-
 
 ReceivingAccountingItemFormSet = inlineformset_factory(
     parent_model=Receiving,
@@ -336,6 +333,17 @@ ReceivingAccountingItemFormSet = inlineformset_factory(
     can_delete=False,
 )
 
+
+class ReceivingCooDecisionForm(forms.Form):
+    ACTIONS = [
+        ("APPROVE", "Approve"),
+        ("DENY", "Deny"),
+    ]
+    action = forms.ChoiceField(choices=ACTIONS, widget=forms.RadioSelect)
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+    )
 class ReceivingReviewNotesForm(forms.Form):
     review_notes = forms.CharField(
         required=False,

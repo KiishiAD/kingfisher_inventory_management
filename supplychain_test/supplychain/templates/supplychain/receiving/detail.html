@@ -66,20 +66,9 @@
     font-weight: 500;
   }
 
-  .kf-actions {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
-    background: rgba(255,255,255,.92);
-    backdrop-filter: blur(6px);
-    border: 1px solid #dee2e6;
-    padding: .75rem;
-    border-radius: .75rem;
-  }
-
   .kf-divider { height: 1px; background: #dee2e6; margin: .75rem 0; }
 
-  /* Audit trail look (matches your PO audit style) */
+  /* Timeline look */
   .po-timeline-card {
     max-height: 360px;
     overflow-y: auto;
@@ -160,6 +149,43 @@
     transition: transform .15s ease;
   }
   details[open] .kf-chevron { transform: rotate(180deg); }
+
+  /* Action buttons (PO-style) */
+  .kf-action-bar { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .kf-action-btn {
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font-weight: 600;
+    letter-spacing: .2px;
+    border-width: 1px;
+  }
+  .kf-approve { color: #146c43; border-color: rgba(20,108,67,.35); background: rgba(20,108,67,.06); }
+  .kf-approve:hover { background: rgba(20,108,67,.12); border-color: rgba(20,108,67,.55); }
+  .kf-deny { color: #b02a37; border-color: rgba(176,42,55,.35); background: rgba(176,42,55,.06); }
+  .kf-deny:hover { background: rgba(176,42,55,.12); border-color: rgba(176,42,55,.55); }
+  .kf-send { color: #374151; border-color: rgba(55,65,81,.35); background: rgba(55,65,81,.06); }
+  .kf-send:hover { background: rgba(55,65,81,.12); border-color: rgba(55,65,81,.55); }
+
+  .kf-action-btn.active {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #fff !important;
+  }
+
+  .kf-notes {
+    border-radius: .75rem;
+    border: 1px solid #dee2e6;
+    background: #fbfbfc;
+    padding: .75rem .9rem;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    width: 100%;
+  }
+  .kf-notes:focus {
+    background: #fff;
+    border-color: rgba(13,110,253,.35);
+    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+    outline: none;
+  }
 </style>
 
 <form id="receiving-form" method="post" enctype="multipart/form-data">
@@ -172,9 +198,12 @@
       {% if mode == "entry" %}
         <div class="kf-help mt-1">Record quantities received and upload supplier invoice.</div>
       {% elif mode == "accounting_review" %}
-        <div class="kf-help mt-1">Accounting review: tick “Query?” per line and add notes, then submit.</div>
-      {% elif mode == "coo_amend" %}
-        <div class="kf-help mt-1">COO amendment: update quantities/invoice, add amendment note, then resubmit to accounting.</div>
+        <div class="kf-help mt-1">
+          Accounting decision: Approve / Deny / Send for COO approval.
+          {% if requires_coo %}<strong>Approve will send to COO automatically</strong> because oversupply &gt; 0.50 exists.{% endif %}
+        </div>
+      {% elif mode == "coo_approval" %}
+        <div class="kf-help mt-1">COO decision: approve to clear for payment, or deny.</div>
       {% else %}
         <div class="kf-help mt-1">View receiving details.</div>
       {% endif %}
@@ -186,15 +215,26 @@
     </div>
   </div>
 
+  {% if is_pending_coo and mode != "coo_approval" %}
+    <div class="alert alert-warning">
+      Sent to COO for approval on {{ receiving.sent_to_coo_at|date:"Y-m-d H:i" }}. Awaiting COO decision.
+    </div>
+  {% endif %}
+
   <div class="row g-3">
     <div class="col-12 col-lg-8">
       <div class="kf-card mb-3">
         <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-start">
           <div>
             <div class="fw-semibold">Receiving details</div>
-            <div class="kf-help">Supplier + current receiving stage.</div>
+            <div class="kf-help">Supplier + current stage.</div>
           </div>
-          <div class="kf-pill">{{ receiving.get_status_display }}</div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="kf-pill">{{ receiving.get_status_display }}</div>
+            {% if is_pending_coo %}
+              <div class="kf-pill" style="border-color: rgba(255,193,7,.5); background: rgba(255,193,7,.12);">Awaiting COO</div>
+            {% endif %}
+          </div>
         </div>
 
         <div class="p-3">
@@ -233,7 +273,7 @@
             <div class="kf-help">PO quantities vs actual received.</div>
           </div>
 
-          {% if mode == "entry" or mode == "coo_amend" %}
+          {% if mode == "entry" %}
             <div class="text-muted small">Updates as you type</div>
           {% else %}
             <div class="text-muted small">Review</div>
@@ -241,17 +281,11 @@
         </div>
 
         <div class="p-3">
-          {% if mode == "entry" or mode == "coo_amend" %}
-            {% if item_formset and item_formset.non_form_errors %}
-              <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
-            {% endif %}
-          {% elif mode == "accounting_review" %}
-            {% if accounting_formset and accounting_formset.non_form_errors %}
-              <div class="alert alert-danger mb-2">{{ accounting_formset.non_form_errors }}</div>
-            {% endif %}
-            {% if review_form and review_form.non_field_errors %}
-              <div class="alert alert-danger mb-2">{{ review_form.non_field_errors }}</div>
-            {% endif %}
+          {% if mode == "entry" and item_formset and item_formset.non_form_errors %}
+            <div class="alert alert-danger mb-2">{{ item_formset.non_form_errors }}</div>
+          {% endif %}
+          {% if mode == "accounting_review" and accounting_formset and accounting_formset.non_form_errors %}
+            <div class="alert alert-danger mb-2">{{ accounting_formset.non_form_errors }}</div>
           {% endif %}
 
           <div class="table-responsive">
@@ -263,20 +297,23 @@
                   <th class="text-end" style="width: 140px;">Unit price</th>
                   <th class="text-end" style="width: 160px;">PO line total</th>
 
-                  {% if mode == "accounting_review" %}
-                    <th class="text-end" style="width: 150px;">Actual received</th>
-                    <th class="text-end" style="min-width: 220px;">Variance</th>
-                    <th class="text-center" style="width: 90px;">Query?</th>
-                    <th style="min-width: 260px;">Accounting note</th>
-                  {% else %}
+                  {% if mode == "entry" %}
                     <th class="text-end" style="width: 190px;">Actual received</th>
                     <th class="text-end" style="min-width: 220px;">Variance</th>
+                  {% elif mode == "accounting_review" %}
+                    <th class="text-end" style="width: 150px;">Actual received</th>
+                    <th class="text-end" style="min-width: 220px;">Variance</th>
+                    <th style="min-width: 260px;">Line note (optional)</th>
+                  {% else %}
+                    <th class="text-end" style="width: 150px;">Actual received</th>
+                    <th class="text-end" style="min-width: 220px;">Variance</th>
+                    <th style="min-width: 260px;">Accounting notes</th>
                   {% endif %}
                 </tr>
               </thead>
 
               <tbody>
-                {% if mode == "entry" or mode == "coo_amend" %}
+                {% if mode == "entry" %}
                   {{ item_formset.management_form }}
                   {% for form in item_formset.forms %}
                     {% with po_item=form.instance.po_item %}
@@ -333,17 +370,8 @@
                         {% endif %}
                       </td>
 
-                      <td class="text-center">
-                        {{ form.id }}
-                        <div class="form-check d-flex justify-content-center">
-                          {{ form.accounting_queried }}
-                        </div>
-                        {% for error in form.accounting_queried.errors %}
-                          <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                      </td>
-
                       <td>
+                        {{ form.id }}
                         {{ form.accounting_notes }}
                         {% for error in form.accounting_notes.errors %}
                           <div class="text-danger small mt-1">{{ error }}</div>
@@ -361,9 +389,11 @@
                       <td class="text-end kf-mono">{{ po_item.quantity|floatformat:2 }}</td>
                       <td class="text-end kf-mono">{{ po_item.unit_cost|floatformat:2 }}</td>
                       <td class="text-end kf-mono">{{ po_item.line_total|floatformat:2 }}</td>
+
                       <td class="text-end kf-mono">
                         {% if ri.actual_quantity is not None %}{{ ri.actual_quantity|floatformat:2 }}{% else %}—{% endif %}
                       </td>
+
                       <td class="text-end">
                         {% if ri.variance_css == "text-success" %}
                           <span class="kf-variance-pill kf-var-ok">{{ ri.variance_text }}</span>
@@ -373,6 +403,14 @@
                           <span class="kf-variance-pill kf-var-under">{{ ri.variance_text }}</span>
                         {% else %}
                           <span class="kf-variance-pill kf-var-empty">{{ ri.variance_text }}</span>
+                        {% endif %}
+                      </td>
+
+                      <td>
+                        {% if ri.accounting_notes %}
+                          <div class="text-muted">{{ ri.accounting_notes|linebreaksbr }}</div>
+                        {% else %}
+                          <span class="text-muted">—</span>
                         {% endif %}
                       </td>
                     </tr>
@@ -394,65 +432,76 @@
                 <div class="text-danger small mt-1">{{ error }}</div>
               {% endfor %}
               <div class="kf-help mt-2">
-                Short summary (e.g., "2 lines queried; supplier invoice mismatch on milk qty").
+                Example: "Invoice matches; oversupply on rice line; sending to COO."
               </div>
-            </div>
-          {% endif %}
-
-          {% if mode == "coo_amend" and amend_form %}
-            <div class="kf-divider"></div>
-            <div>
-              <label class="form-label fw-semibold" for="{{ amend_form.amendment_notes.id_for_label }}">
-                COO amendment note
-              </label>
-              {{ amend_form.amendment_notes }}
-              {% for error in amend_form.amendment_notes.errors %}
-                <div class="text-danger small mt-1">{{ error }}</div>
-              {% endfor %}
-              <div class="kf-help mt-2">What changed and why.</div>
             </div>
           {% endif %}
         </div>
       </div>
-
-      {% if mode == "entry" %}
-        <div class="kf-actions mt-3">
-          <div class="d-flex gap-2">
-            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary ms-auto">Submit receiving</button>
-          </div>
-        </div>
-
-      {% elif mode == "accounting_review" %}
-        <div class="kf-actions mt-3">
-          <div class="d-flex gap-2 flex-wrap">
-            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
-            <button type="submit" class="btn btn-success ms-auto">Submit accounting review</button>
-          </div>
-        </div>
-
-      {% elif mode == "coo_amend" %}
-        <div class="kf-actions mt-3">
-          <div class="d-flex gap-2">
-            <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary ms-auto">Submit amendments</button>
-          </div>
-        </div>
-
-      {% else %}
-        <div class="mt-3">
-          <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back to list</a>
-        </div>
-      {% endif %}
     </div>
 
     <div class="col-12 col-lg-4">
+      {% if mode == "accounting_review" %}
+        <div class="kf-card mb-3">
+          <div class="kf-card-header px-3 py-3">
+            <div class="fw-semibold">Process (Accounting)</div>
+            <div class="kf-help">Choose an action then submit.</div>
+          </div>
+
+          <div class="p-3">
+            <input type="hidden" name="accounting_action" id="accounting_action_field" value="">
+
+            <div class="kf-action-bar mb-3" role="group" aria-label="Accounting actions">
+              <button type="button" class="btn kf-action-btn kf-approve" data-accounting-action="APPROVE">Approve</button>
+              <button type="button" class="btn kf-action-btn kf-deny" data-accounting-action="DENY">Deny</button>
+              <button type="button" class="btn kf-action-btn kf-send" data-accounting-action="SEND_COO">Send for COO approval</button>
+            </div>
+
+            <div class="kf-help mb-3">
+              {% if requires_coo %}
+                Oversupply &gt; 0.50 exists. If you choose <strong>Approve</strong>, this receiving will be <strong>sent to COO</strong> (status stays Pending Accounting Review).
+              {% else %}
+                No oversupply above 0.50. <strong>Approve</strong> will clear for payment.
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Submit</button>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if mode == "coo_approval" %}
+        <div class="kf-card mb-3">
+          <div class="kf-card-header px-3 py-3">
+            <div class="fw-semibold">Process (COO)</div>
+            <div class="kf-help">Approve to clear for payment, or deny.</div>
+          </div>
+
+          <div class="p-3">
+            <input type="hidden" name="coo_action" id="coo_action_field" value="">
+
+            <div class="kf-action-bar mb-3" role="group" aria-label="COO actions">
+              <button type="button" class="btn kf-action-btn kf-approve" data-coo-action="APPROVE">Approve</button>
+              <button type="button" class="btn kf-action-btn kf-deny" data-coo-action="DENY">Deny</button>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="coo_notes">Notes (optional)</label>
+              <textarea name="coo_notes" id="coo_notes" rows="4" class="kf-notes form-control"></textarea>
+              <div class="kf-help mt-2">Reason for approval/denial.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Submit</button>
+          </div>
+        </div>
+      {% endif %}
+
       <div class="kf-card mb-3">
         <div class="kf-card-header px-3 py-3">
           <div class="fw-semibold">Supplier invoice</div>
           <div class="kf-help">
-            {% if mode == "entry" or mode == "coo_amend" %}
-              Upload while editing.
+            {% if mode == "entry" %}
+              Upload while recording.
             {% else %}
               View/download (read-only).
             {% endif %}
@@ -460,31 +509,19 @@
         </div>
 
         <div class="p-3">
-          {% if header_form %}
-            {% if mode == "entry" or mode == "coo_amend" %}
-              {{ header_form.non_field_errors }}
+          {% if mode == "entry" and header_form %}
+            {{ header_form.non_field_errors }}
 
-              <div class="kf-filebox">
-                <label class="form-label fw-semibold" for="{{ header_form.supplier_invoice.id_for_label }}">
-                  Invoice file
-                </label>
-                {{ header_form.supplier_invoice }}
-                {% for error in header_form.supplier_invoice.errors %}
-                  <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-                <div class="kf-help mt-2">Saved when you submit.</div>
-              </div>
-            {% else %}
-              <div class="kf-filebox">
-                {% if receiving.supplier_invoice %}
-                  <div class="fw-semibold">Uploaded</div>
-                  <div class="kf-help">Invoice is attached to this receiving.</div>
-                {% else %}
-                  <div class="fw-semibold">Not uploaded</div>
-                  <div class="kf-help">No supplier invoice on this receiving.</div>
-                {% endif %}
-              </div>
-            {% endif %}
+            <div class="kf-filebox">
+              <label class="form-label fw-semibold" for="{{ header_form.supplier_invoice.id_for_label }}">
+                Invoice file
+              </label>
+              {{ header_form.supplier_invoice }}
+              {% for error in header_form.supplier_invoice.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+              <div class="kf-help mt-2">Saved when you submit.</div>
+            </div>
           {% else %}
             <div class="kf-filebox">
               {% if receiving.supplier_invoice %}
@@ -506,17 +543,17 @@
         </div>
       </div>
 
-      <div class="kf-card mb-3">
+      <div class="kf-card">
         <div class="kf-card-header px-3 py-3">
           <div class="fw-semibold">Audit trail</div>
-          <div class="kf-help">Receiving + full workflow timeline.</div>
+          <div class="kf-help">Single workflow timeline for this purchase order.</div>
         </div>
+
         <div class="p-3">
-          <div class="kf-divider"></div>
           <details class="kf-details">
             <summary class="d-flex justify-content-between align-items-center">
               <div class="d-flex align-items-center gap-2">
-                <span class="fw-semibold">Show workflow timeline</span>
+                <span class="fw-semibold">Show audit trail</span>
                 <span class="badge bg-secondary">{{ timeline|length }} events</span>
               </div>
               <span class="kf-chevron" aria-hidden="true">▾</span>
@@ -551,10 +588,12 @@
                                 <span class="po-badge po-badge-other">EVT</span>
                               {% endif %}
                             </div>
+
                             <div>
                               {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
                               {{ e.label }}
                             </div>
+
                             {% if e.details %}
                               <div class="mt-1 text-muted">
                                 {{ e.details|linebreaksbr }}
@@ -579,7 +618,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if mode == "entry" or mode == "coo_amend" %}
+{% if mode == "entry" %}
 <script>
 (function() {
   var TOL = 0.5;
@@ -644,20 +683,67 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     ensureInputClasses();
-
     document.querySelectorAll('.receiving-row').forEach(function(row) {
       var input = row.querySelector('.actual-qty-input');
       if (!input) return;
       updateRow(row);
       input.addEventListener('input', function() { updateRow(row); });
     });
+  });
+})();
+</script>
+{% endif %}
 
-    var form = document.getElementById('receiving-form');
-    if (form) {
-      form.addEventListener('submit', function(e) {
-        var ok = window.confirm("Submit?\n\nThis action cannot be undone.");
-        if (!ok) e.preventDefault();
-      });
+{% if mode == "accounting_review" %}
+<script>
+(function(){
+  const form = document.getElementById("receiving-form");
+  if (!form) return;
+
+  const hidden = document.getElementById("accounting_action_field");
+  const buttons = Array.from(document.querySelectorAll("[data-accounting-action]"));
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const v = btn.getAttribute("data-accounting-action");
+      if (hidden) hidden.value = v;
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  form.addEventListener("submit", (e) => {
+    if (!hidden || !hidden.value) {
+      e.preventDefault();
+      alert("Select Approve, Deny, or Send for COO approval before submitting.");
+    }
+  });
+})();
+</script>
+{% endif %}
+
+{% if mode == "coo_approval" %}
+<script>
+(function(){
+  const form = document.getElementById("receiving-form");
+  if (!form) return;
+
+  const hidden = document.getElementById("coo_action_field");
+  const buttons = Array.from(document.querySelectorAll("[data-coo-action]"));
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const v = btn.getAttribute("data-coo-action");
+      if (hidden) hidden.value = v;
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  form.addEventListener("submit", (e) => {
+    if (!hidden || !hidden.value) {
+      e.preventDefault();
+      alert("Select Approve or Deny before submitting.");
     }
   });
 })();

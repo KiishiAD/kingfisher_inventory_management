@@ -25,12 +25,8 @@
     background: #fbfbfc;
   }
 
-  .kf-input {
-    border-radius: .6rem;
-  }
-  .kf-input:focus {
-    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
-  }
+  .kf-input { border-radius: .6rem; }
+  .kf-input:focus { box-shadow: 0 0 0 .2rem rgba(13,110,253,.10); }
 
   .kf-variance-pill {
     display: inline-flex;
@@ -43,21 +39,28 @@
     font-size: .85rem;
     white-space: nowrap;
   }
+
+  /* GREEN = exact match OR within tolerance (+/- 0.50) */
   .kf-var-ok {
     color: #146c43;
     border-color: rgba(20,108,67,.25);
     background: rgba(20,108,67,.06);
   }
+
+  /* BLUE = undersupplied past 0.50 */
   .kf-var-under {
+    color: #0d6efd;
+    border-color: rgba(13,110,253,.25);
+    background: rgba(13,110,253,.06);
+  }
+
+  /* RED = oversupplied past 0.50 */
+  .kf-var-over {
     color: #b02a37;
     border-color: rgba(176,42,55,.25);
     background: rgba(176,42,55,.06);
   }
-  .kf-var-over {
-    color: #1f2937;
-    border-color: rgba(31,41,55,.20);
-    background: rgba(31,41,55,.05);
-  }
+
   .kf-var-empty {
     color: #6c757d;
     border-color: rgba(108,117,125,.25);
@@ -199,9 +202,9 @@
                         {% if ri.variance_css == "text-success" %}
                           <span class="kf-variance-pill kf-var-ok">{{ ri.variance_text }}</span>
                         {% elif ri.variance_css == "text-danger" %}
-                          <span class="kf-variance-pill kf-var-under">{{ ri.variance_text }}</span>
-                        {% elif ri.variance_css == "text-primary" %}
                           <span class="kf-variance-pill kf-var-over">{{ ri.variance_text }}</span>
+                        {% elif ri.variance_css == "text-primary" %}
+                          <span class="kf-variance-pill kf-var-under">{{ ri.variance_text }}</span>
                         {% else %}
                           <span class="kf-variance-pill kf-var-empty">{{ ri.variance_text }}</span>
                         {% endif %}
@@ -272,19 +275,7 @@
         </div>
       </div>
 
-      <div class="kf-card">
-        <div class="kf-card-header px-3 py-3">
-          <div class="fw-semibold">Summary</div>
-          <div class="kf-help">What happens on submit.</div>
-        </div>
-        <div class="p-3">
-          <ul class="mb-0 kf-help">
-            <li>Sets <strong>received_by</strong> and <strong>received_at</strong> if empty.</li>
-            <li>Moves status to <strong>{{ receiving.UNDER_REVIEW|default:"UNDER_REVIEW" }}</strong>.</li>
-            <li>Saves all receiving line items.</li>
-          </ul>
-        </div>
-      </div>
+      {# Summary card removed as requested #}
     </div>
   </div>
 </form>
@@ -294,11 +285,15 @@
 {% if is_editable %}
 <script>
 (function() {
+  var TOL = 0.5;
+
   function toNumber(v) {
     var n = parseFloat(v);
     return isNaN(n) ? 0 : n;
   }
-  function fmt(v) { return v.toFixed(2); }
+
+  function round2(v) { return Math.round(v * 100) / 100; }
+  function fmt(v) { return round2(v).toFixed(2); }
 
   function setPill(pill, mode, text) {
     pill.classList.remove('kf-var-ok','kf-var-under','kf-var-over','kf-var-empty');
@@ -308,7 +303,6 @@
   }
 
   function ensureInputClasses() {
-    // If your widget already sets classes, this is harmless.
     document.querySelectorAll('input[name$="-actual_quantity"]').forEach(function(inp) {
       inp.classList.add('form-control','form-control-sm','kf-input','actual-qty-input');
       inp.setAttribute('inputmode','decimal');
@@ -328,14 +322,29 @@
     }
 
     var actual = toNumber(raw);
-    var diff = actual - poQty;
+    var diff = round2(actual - poQty);
 
-    if (diff === 0) {
+    // Exact match
+    if (Math.abs(diff) < 1e-9) {
       setPill(pill, 'kf-var-ok', 'Supplied amount matches PO');
-    } else if (diff < 0) {
-      setPill(pill, 'kf-var-under', 'Undersupplied by ' + fmt(Math.abs(diff)));
-    } else {
+      return;
+    }
+
+    // Past tolerance
+    if (diff > TOL) {
       setPill(pill, 'kf-var-over', 'Oversupplied by ' + fmt(diff));
+      return;
+    }
+    if (diff < -TOL) {
+      setPill(pill, 'kf-var-under', 'Undersupplied by ' + fmt(Math.abs(diff)));
+      return;
+    }
+
+    // Within tolerance => green
+    if (diff > 0) {
+      setPill(pill, 'kf-var-ok', 'Slightly oversupplied by ' + fmt(diff) + ' (within 0.50)');
+    } else {
+      setPill(pill, 'kf-var-ok', 'Slightly undersupplied by ' + fmt(Math.abs(diff)) + ' (within 0.50)');
     }
   }
 
@@ -352,9 +361,7 @@
     var form = document.getElementById('receiving-form');
     if (form) {
       form.addEventListener('submit', function(e) {
-        var ok = window.confirm(
-          "Submit receiving?\n\nThis action cannot be undone."
-        );
+        var ok = window.confirm("Submit receiving?\n\nThis action cannot be undone.");
         if (!ok) e.preventDefault();
       });
     }

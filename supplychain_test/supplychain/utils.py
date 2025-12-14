@@ -136,8 +136,10 @@ def generate_receiving_for_purchase_order(purchase_order):
             ReceivingItem.objects.create(
                 receiving=receiving,
                 po_item=po_item,
-                actual_quantity=Decimal("0.00"),
+                actual_quantity=None,        # important: None means "Not recorded yet"
                 flagged_for={},
+                accounting_queried=False,
+                accounting_notes="",
             )
     return receiving
 

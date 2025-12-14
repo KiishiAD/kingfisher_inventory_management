@@ -75,12 +75,17 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
     def _annotate_variance(self, receiving):
         """
-        Attach variance_text and variance_css to each ReceivingItem
-        for use in the read-only template.
+         Attach variance_text and variance_css to each ReceivingItem
+    for use in the read-only template.
+
+    Rules:
+      - diff > 0.50  => RED (text-danger) oversupplied past 0.5
+      - |diff| <= 0.50 => GREEN (text-success) match / within tolerance
+      - diff < -0.50 => BLUE (text-primary) undersupplied past 0.5
         """
-        items = list(
-            receiving.items.select_related("po_item__product").all()
-        )
+
+        items = list(receiving.items.select_related("po_item__product").all())
+        tol = Decimal("0.50")
 
         for ri in items:
             po_qty = ri.po_item.quantity or Decimal("0")
@@ -97,14 +102,23 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             if diff == 0:
                 ri.variance_text = "Supplied amount matches PO"
                 ri.variance_css = "text-success"
-            elif diff < 0:
-                ri.variance_text = f"Undersupplied by {abs_diff:.2f}"
-                ri.variance_css = "text-danger"
-            else:
+            elif abs_diff <= tol:
+                # within tolerance -> green
+                if diff > 0:
+                    ri.variance_text = f"Slightly oversupplied by {abs_diff:.2f} (within 0.50)"
+                else:
+                    ri.variance_text = f"Slightly undersupplied by {abs_diff:.2f} (within 0.50)"
+                ri.variance_css = "text-success"
+            elif diff > tol:
                 ri.variance_text = f"Oversupplied by {abs_diff:.2f}"
-                ri.variance_css = "text-primary"
+                ri.variance_css = "text-danger"   # red
+            else:
+                ri.variance_text = f"Undersupplied by {abs_diff:.2f}"
+                ri.variance_css = "text-primary"  # blue
 
         return items
+        
+      
 
 
     def get(self, request, pk):

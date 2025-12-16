@@ -3,8 +3,6 @@
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
-    IssuanceRequest,
-    IssuanceItem,
     Receiving,
     ReceivingItem,
 )

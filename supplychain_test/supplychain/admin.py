@@ -5,7 +5,6 @@ from .models import (
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderApproval,
     Receiving, ReceivingItem, InvoiceLineApproval,
     Payment,
-    IssuanceRequest, IssuanceItem,
     StockTransaction, LowStockAlert, Supplier_destination_sub_category,Destination, Profile
 )
 
@@ -96,16 +95,6 @@ class PaymentAdmin(admin.ModelAdmin):
     list_display = ('purchase_order', 'payment_type', 'approved_by_mum', 'processed_at')
     list_filter = ('payment_type', 'approved_by_mum')
 
-# Store Issuance
-@admin.register(IssuanceRequest)
-class IssuanceRequestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'requester', 'status', 'created_at')
-    list_filter = ('status',)
-
-@admin.register(IssuanceItem)
-class IssuanceItemAdmin(admin.ModelAdmin):
-    list_display = ('issuance_request', 'product', 'quantity')
-    list_filter = ('product',)
 
 # Inventory & Alerts
 @admin.register(StockTransaction)

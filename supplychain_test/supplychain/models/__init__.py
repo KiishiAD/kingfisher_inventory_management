@@ -12,6 +12,5 @@ __all__ = [
     'Requisition', 'RequisitionItem', 'RequisitionApproval',
     'PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApproval',
     'Receiving', 'ReceivingItem', 'InvoiceLineApproval',
-    'Payment', 'IssuanceRequest', 'IssuanceItem',
-    'StockTransaction', 'LowStockAlert', 'Profile'
+    'Payment', 'StockTransaction', 'LowStockAlert', 'Profile'
 ]

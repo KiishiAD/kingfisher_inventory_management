@@ -1,7 +1,336 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Payments{% endblock %}
 
 {% block content %}
-<h1>Payments</h1>
-<p class="text-muted">Payment functionality will appear here.</p>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Payments</h1>
+    <div class="rcv-help">Payments created when a Receiving is cleared for payment.</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <span class="text-muted small rcv-mono">
+      <span id="visible-count">0</span> / <span id="total-count">0</span>
+    </span>
+    <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">
+      Download CSV
+    </button>
+  </div>
+</div>
+
+<div class="rcv-card mb-3">
+  <div class="rcv-card-header px-3 py-3">
+    <div class="fw-semibold">Filters</div>
+    <div class="rcv-help">Updates instantly as you type/select.</div>
+  </div>
+
+  <div class="p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Search</label>
+        <div class="rcv-search">
+          <span class="rcv-search-icon">⌕</span>
+          <input id="q" type="text" class="form-control" placeholder="Payment #, PO #, supplier, status…">
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Supplier</label>
+        <select id="supplier" class="form-select">
+          <option value="">All</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Status</label>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button"
+                  class="btn btn-outline-secondary btn-sm rcv-pill status-filter {% if not active_status %}active{% endif %}"
+                  data-status="">
+            All
+          </button>
+          {% for value, label in status_choices %}
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm rcv-pill status-filter {% if value == active_status %}active{% endif %}"
+                    data-status="{{ value }}">
+              {{ label }}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-12 d-flex justify-content-lg-end">
+        <button type="button" id="clear-filters" class="btn btn-outline-secondary">
+          Clear filters
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rcv-card">
+  <div class="rcv-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">All payments</div>
+      <div class="rcv-help">Export downloads the currently visible rows.</div>
+    </div>
+    <div class="text-muted small" id="active-filter-label">No filters</div>
+  </div>
+
+  <div class="p-3">
+    {% if payments %}
+      <div class="table-responsive">
+        <table id="pay-table" class="table table-sm table-hover rcv-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Payment #</th>
+              <th style="width: 90px;">PO #</th>
+              <th>Supplier</th>
+              <th style="width: 180px;">Status</th>
+              <th style="width: 120px;" class="text-end">PO Total</th>
+              <th style="width: 90px;" class="text-end">Items</th>
+              <th style="width: 170px;">Processed at</th>
+              <th style="width: 110px;" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in payments %}
+              <tr class="pay-row"
+                  data-id="{{ p.id }}"
+                  data-po="{{ p.purchase_order.id }}"
+                  data-supplier-key="{{ p.purchase_order.supplier.name|lower }}"
+                  data-supplier-display="{{ p.purchase_order.supplier.name }}"
+                  data-status="{{ p.status }}">
+                <td class="fw-semibold rcv-mono">{{ p.id }}</td>
+                <td class="rcv-mono">{{ p.purchase_order.id }}</td>
+                <td>{{ p.purchase_order.supplier.name }}</td>
+                <td class="fw-semibold">{{ p.get_status_display }}</td>
+                <td class="text-end rcv-mono">{{ p.po_total|floatformat:2 }}</td>
+                <td class="text-end rcv-mono">{{ p.item_count }}</td>
+                <td class="rcv-mono">
+                  {% if p.processed_at %}{{ p.processed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:po-detail' p.purchase_order.id %}">
+                    View PO
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div id="no-results" class="text-center text-muted py-4 d-none">
+        No payments match your filters.
+      </div>
+
+      {% if is_paginated %}
+        <nav class="mt-3" aria-label="Page navigation">
+          <ul class="pagination mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ active_status }}">
+                  Previous
+                </a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <a class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</a>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ active_status }}">
+                  Next
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="mb-0">No payments found.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function byId(id) { return document.getElementById(id); }
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+
+  var currentStatus = "{{ active_status|default:'' }}";
+
+  function getState() {
+    return {
+      q: norm(byId('q').value),
+      supplier: norm(byId('supplier').value),
+      status: currentStatus || "",
+    };
+  }
+
+  function rowMatches(row, state) {
+    var id = row.dataset.id || '';
+    var po = row.dataset.po || '';
+    var supplierKey = row.dataset.supplierKey || '';
+    var supplierDisplay = row.dataset.supplierDisplay || '';
+    var status = row.dataset.status || '';
+
+    if (state.status && status !== state.status) return false;
+    if (state.supplier && supplierKey !== state.supplier) return false;
+
+    if (state.q) {
+      var hay = norm(id + ' ' + po + ' ' + supplierDisplay + ' ' + status);
+      if (hay.indexOf(state.q) === -1) return false;
+    }
+    return true;
+  }
+
+  function updateActiveLabel(state) {
+    var parts = [];
+    if (state.status) parts.push('Status');
+    if (state.q) parts.push('Search');
+    if (state.supplier) parts.push('Supplier');
+    byId('active-filter-label').textContent = parts.length ? parts.join(' · ') : 'No filters';
+  }
+
+  function applyFilters() {
+    var state = getState();
+    var rows = Array.from(document.querySelectorAll('.pay-row'));
+    var visible = 0;
+
+    rows.forEach(function(row) {
+      var ok = rowMatches(row, state);
+      row.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+
+    byId('visible-count').textContent = String(visible);
+    byId('total-count').textContent = String(rows.length);
+
+    var noResults = byId('no-results');
+    if (noResults) noResults.classList.toggle('d-none', visible !== 0);
+
+    updateActiveLabel(state);
+  }
+
+  function buildSelectOptions() {
+    var select = byId('supplier');
+    if (!select) return;
+
+    var map = new Map();
+    document.querySelectorAll('.pay-row').forEach(function(row) {
+      var key = norm(row.dataset.supplierKey);
+      var display = (row.dataset.supplierDisplay || '').trim();
+      if (key && display && !map.has(key)) map.set(key, display);
+    });
+
+    Array.from(map.entries())
+      .sort(function(a, b) { return a[1].localeCompare(b[1]); })
+      .forEach(function(pair) {
+        var opt = document.createElement('option');
+        opt.value = pair[0];
+        opt.textContent = pair[1];
+        select.appendChild(opt);
+      });
+  }
+
+  function csvEscape(v) {
+    var s = (v === null || v === undefined) ? '' : String(v);
+    s = s.replace(/"/g, '""');
+    if (/[",\n]/.test(s)) s = '"' + s + '"';
+    return s;
+  }
+
+  function exportVisibleCSV() {
+    var rows = Array.from(document.querySelectorAll('#pay-table tbody tr'))
+      .filter(function(r) { return r.style.display !== 'none'; });
+
+    var headers = ['payment_id', 'purchase_order_id', 'supplier', 'status', 'po_total', 'items', 'processed_at'];
+    var lines = [headers.join(',')];
+
+    rows.forEach(function(r) {
+      var pid = r.dataset.id || '';
+      var po = r.dataset.po || '';
+      var supplier = r.dataset.supplierDisplay || '';
+      var status = r.dataset.status || '';
+
+      var poTotal = (r.querySelector('td:nth-child(5)') || {}).textContent || '';
+      poTotal = poTotal.trim();
+
+      var items = (r.querySelector('td:nth-child(6)') || {}).textContent || '';
+      items = items.trim();
+
+      var processedAt = (r.querySelector('td:nth-child(7)') || {}).textContent || '';
+      processedAt = processedAt.trim();
+
+      lines.push([pid, po, supplier, status, poTotal, items, processedAt].map(csvEscape).join(','));
+    });
+
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'payments.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function wireStatusButtons() {
+    document.querySelectorAll('.status-filter').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status || '';
+        applyFilters();
+      });
+    });
+  }
+
+  function wireInputs() {
+    ['q', 'supplier'].forEach(function(id) {
+      var el = byId(id);
+      if (!el) return;
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+
+    var clearBtn = byId('clear-filters');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        byId('q').value = '';
+        byId('supplier').value = '';
+        currentStatus = '';
+        document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
+        var allBtn = document.querySelector('.status-filter[data-status=""]');
+        if (allBtn) allBtn.classList.add('active');
+        applyFilters();
+      });
+    }
+
+    var exportBtn = byId('export-csv');
+    if (exportBtn) exportBtn.addEventListener('click', exportVisibleCSV);
+  }
+
+  function initSelect2IfAvailable() {
+    if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+    window.jQuery('#supplier').select2({ width: '100%', placeholder: 'All', allowClear: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    buildSelectOptions();
+    initSelect2IfAvailable();
+    wireStatusButtons();
+    wireInputs();
+    applyFilters();
+  });
+})();
+</script>
 {% endblock %}

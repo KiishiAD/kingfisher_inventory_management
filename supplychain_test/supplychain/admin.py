@@ -92,8 +92,8 @@ class InvoiceLineApprovalAdmin(admin.ModelAdmin):
 # Payment
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('purchase_order', 'payment_type', 'approved_by_mum', 'processed_at')
-    list_filter = ('payment_type', 'approved_by_mum')
+    list_display = ('purchase_order', 'payment_type', 'approved_by_coo', 'processed_at')
+    list_filter = ('payment_type', 'approved_by_coo')
 
 
 # Inventory & Alerts

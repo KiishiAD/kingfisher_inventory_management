@@ -272,3 +272,50 @@ details[open] .kf-chevron { transform: rotate(180deg); }
   box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
   outline: none;
 }
+
+/* =========================================================
+   Shared list-page styling (PO list, Receiving list, Payments list)
+   ========================================================= */
+
+/* Card containers */
+.po-card, .rcv-card, .pay-card, .kf-card {
+  border: 1px solid #dee2e6;
+  border-radius: .75rem;
+  background: #fff;
+}
+
+.po-card-header, .rcv-card-header, .pay-card-header, .kf-card-header {
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Helper text */
+.po-help, .rcv-help, .pay-help {
+  font-size: .875rem;
+  color: #6c757d;
+}
+
+/* Tables */
+.po-table td, .po-table th,
+.rcv-table td, .rcv-table th,
+.pay-table td, .pay-table th {
+  vertical-align: middle;
+}
+
+/* Pills + mono numbers */
+.po-pill, .rcv-pill, .pay-pill { border-radius: 999px; }
+.po-mono, .rcv-mono, .pay-mono { font-variant-numeric: tabular-nums; }
+
+/* Search input with icon */
+.po-search, .rcv-search, .pay-search { position: relative; }
+.po-search .form-control, .rcv-search .form-control, .pay-search .form-control { padding-left: 2.25rem; }
+
+.po-search .po-search-icon,
+.rcv-search .rcv-search-icon,
+.pay-search .pay-search-icon {
+  position: absolute;
+  left: .75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  pointer-events: none;
+}

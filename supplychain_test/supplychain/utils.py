@@ -202,16 +202,9 @@ def build_workitem_timeline(requisition):
             })
 
         # Optional: include receiving event if you want (safe, minimal)
-        receiving = getattr(po, "receivings", None)
-        if receiving is not None:
-            rec = po.receivings.order_by("-created_at").first()
-            if rec:
-                events.append({
-                    "timestamp": rec.created_at,
-                    "who": rec.received_by,
-                    "label": f"Receiving #{rec.id} created",
-                    "details": f"Status: {rec.get_status_display()}",
-                })
+        rec = po.receivings.order_by("created_at").first()
+        if rec:
+            events.extend(build_receiving_timeline_events(rec))
 
     # 4. Issuance (linked from requisition)
     issuance = getattr(requisition, "issuance_request", None)
@@ -230,7 +223,9 @@ def build_workitem_timeline(requisition):
 def build_workitem_timeline_for_po(po):
     """
     Unified workflow timeline starting from a PurchaseOrder.
+    FIX: include append-only receiving history (not a single mutable status line).
     """
+    # If PO is linked to a requisition, reuse the requisition-rooted timeline
     if po.requisition_id:
         return build_workitem_timeline(po.requisition)
 
@@ -258,17 +253,219 @@ def build_workitem_timeline_for_po(po):
             "details": payment.payment_notes,
         })
 
-    rec = po.receivings.order_by("-created_at").first()
+    # Receiving (append-only incremental events)
+    rec = po.receivings.order_by("created_at").first()
     if rec:
+        events.extend(build_receiving_timeline_events(rec))
+
+    events = [e for e in events if e.get("timestamp")]
+    events.sort(key=lambda e: e["timestamp"])
+    return events
+    
+def build_receiving_timeline_events(receiving):
+    """
+    Incremental (append-only) receiving events based on timestamped audit fields.
+    Avoids the "single event keeps changing" problem.
+    """
+    events = []
+
+    # 1) Created
+    events.append({
+        "timestamp": getattr(receiving, "created_at", None),
+        "who": None,
+        "label": f"Receiving #{receiving.id} created",
+        "details": "",
+    })
+
+    # 2) Goods recorded (entry submit)
+    if getattr(receiving, "received_at", None):
+        details_bits = []
+
+        if getattr(receiving, "supplier_invoice", None):
+            details_bits.append("Invoice uploaded.")
+        else:
+            details_bits.append("No invoice uploaded.")
+
+        details_bits.append(_receiving_variance_details(receiving))
+
         events.append({
-            "timestamp": rec.created_at,
-            "who": rec.received_by,
-            "label": f"Receiving #{rec.id} created",
-            "details": f"Status: {rec.get_status_display()}",
+            "timestamp": receiving.received_at,
+            "who": getattr(receiving, "received_by", None),
+            "label": "Receiving recorded (goods received)",
+            "details": "\n".join([b for b in details_bits if b]),
         })
 
+    # 3) Accounting review (submitted)
+    if getattr(receiving, "reviewed_at", None):
+        status = getattr(receiving, "status", "")
+        reviewed_value = getattr(type(receiving), "REVIWED", "REVIEWED")
+        denied_value = getattr(type(receiving), "DENIED", "DENIED")
+
+        sent_to_coo = bool(getattr(receiving, "sent_to_coo_at", None))
+
+        if status == denied_value and not getattr(receiving, "coo_decision_at", None):
+            label = "Receiving denied by accounting"
+        elif status == reviewed_value and not sent_to_coo:
+            label = "Receiving approved by accounting (cleared for payment)"
+        elif sent_to_coo:
+            label = "Receiving reviewed by accounting"
+        else:
+            label = "Receiving accounting review submitted"
+
+        details_bits = []
+        rn = (getattr(receiving, "review_notes", "") or "").strip()
+        if rn:
+            details_bits.append(rn)
+
+        qd = _receiving_queried_lines_details(receiving)
+        if qd:
+            details_bits.append(qd)
+
+        events.append({
+            "timestamp": receiving.reviewed_at,
+            "who": getattr(receiving, "reviewed_by", None),
+            "label": label,
+            "details": "\n".join(details_bits).strip(),
+        })
+
+    # 4) Sent to COO
+    if getattr(receiving, "sent_to_coo_at", None):
+        # Show only the big oversupply reasons (if any)
+        oversupply_lines = []
+        tol = Decimal("0.50")
+        for ri in receiving.items.select_related("po_item__product").all():
+            if ri.actual_quantity is None:
+                continue
+            po_qty = ri.po_item.quantity or Decimal("0")
+            diff = Decimal(ri.actual_quantity) - po_qty
+            if diff > tol:
+                product = getattr(ri.po_item.product, "name", str(ri.po_item.product))
+                oversupply_lines.append(f"{product}: +{_fmt2(diff)}")
+
+        details = ""
+        if oversupply_lines:
+            details = "Oversupply > 0.50:\n" + "\n".join(oversupply_lines[:6])
+            if len(oversupply_lines) > 6:
+                details += f"\n+ {len(oversupply_lines) - 6} more oversupply lines"
+
+        events.append({
+            "timestamp": receiving.sent_to_coo_at,
+            "who": getattr(receiving, "sent_to_coo_by", None),
+            "label": "Receiving sent to COO for approval/denial",
+            "details": details,
+        })
+
+    # 5) COO decision
+    if getattr(receiving, "coo_decision_at", None):
+        status = getattr(receiving, "status", "")
+        approved_value = getattr(type(receiving), "REVIWED", "REVIEWED")
+        denied_value = getattr(type(receiving), "DENIED", "DENIED")
+
+        if status == approved_value:
+            label = "Receiving approved by COO (cleared for payment)"
+        elif status == denied_value:
+            label = "Receiving denied by COO"
+        else:
+            label = "Receiving COO decision recorded"
+
+        details = (getattr(receiving, "coo_decision_notes", "") or "").strip()
+
+        events.append({
+            "timestamp": receiving.coo_decision_at,
+            "who": getattr(receiving, "coo_decision_by", None),
+            "label": label,
+            "details": details,
+        })
+
+    events = [e for e in events if e.get("timestamp")]
     events.sort(key=lambda e: e["timestamp"])
     return events
 
+  
 
-    
+def _fmt2(d):
+    if d is None:
+        return "—"
+    try:
+        return f"{Decimal(d):.2f}"
+    except Exception:
+        return str(d)
+
+def _receiving_variance_details(receiving, max_lines=6, tol=Decimal("0.50")):
+    """
+    Returns a concise multi-line string describing what was recorded (and variances).
+    This is a *snapshot* summary and works well for an append-only timeline.
+    """
+    rows = []
+    mismatches = []
+
+    items = list(
+        receiving.items.select_related("po_item__product").all()
+    )
+
+    for ri in items:
+        po_qty = (ri.po_item.quantity or Decimal("0"))
+        actual = ri.actual_quantity
+
+        product = getattr(ri.po_item.product, "name", str(ri.po_item.product))
+
+        if actual is None:
+            mismatches.append(f"{product}: PO {_fmt2(po_qty)} → Received —")
+            continue
+
+        diff = Decimal(actual) - po_qty
+        if diff == 0:
+            continue
+
+        sign = "+" if diff > 0 else "-"
+        abs_diff = abs(diff)
+
+        # classify oversupply > tol, undersupply, slight diffs
+        if diff > tol:
+            tag = "OVERSUPPLY"
+        elif diff < -tol:
+            tag = "UNDERSUPPLY"
+        else:
+            tag = "WITHIN 0.50"
+
+        mismatches.append(
+            f"{product}: PO {_fmt2(po_qty)} → Received {_fmt2(actual)} ({sign}{_fmt2(abs_diff)}; {tag})"
+        )
+
+    if not mismatches:
+        return "All received quantities match the PO."
+
+    # Limit lines so the timeline stays readable
+    shown = mismatches[:max_lines]
+    remaining = len(mismatches) - len(shown)
+
+    rows.extend(shown)
+    if remaining > 0:
+        rows.append(f"+ {remaining} more variance lines")
+
+    return "\n".join(rows)
+
+def _receiving_queried_lines_details(receiving, max_lines=6):
+    qs = (
+        receiving.items
+        .filter(accounting_queried=True)
+        .select_related("po_item__product")
+    )
+    items = list(qs)
+    if not items:
+        return ""
+
+    lines = []
+    for ri in items[:max_lines]:
+        product = getattr(ri.po_item.product, "name", str(ri.po_item.product))
+        note = (ri.accounting_notes or "").strip()
+        if note:
+            lines.append(f"{product}: {note}")
+        else:
+            lines.append(f"{product}: queried")
+
+    remaining = len(items) - min(len(items), max_lines)
+    if remaining > 0:
+        lines.append(f"+ {remaining} more queried lines")
+
+    return "Queried lines:\n" + "\n".join(lines)

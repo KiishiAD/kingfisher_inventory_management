@@ -212,6 +212,11 @@
     <div class="d-flex gap-2">
       <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
       <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
+
+      {# NEW: submit button for entry mode #}
+      {% if mode == "entry" %}
+        <button type="submit" class="btn btn-primary">Submit Receiving</button>
+      {% endif %}
     </div>
   </div>
 

@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
+import uuid
 
 
 ### Master Data
@@ -62,12 +64,14 @@ class Supplier_destination_sub_category(models.Model):
 
 
 class Product(TimeStampedModel):
-    
     class Meta:
         permissions = [
             ("bulk_upload_products", "Can bulk upload products"),
         ]
-    sku = models.CharField(max_length=64, unique=True,null= False)  
+
+    # allow blank so the model can generate it; keep unique + non-null in DB
+    sku = models.CharField(max_length=64, unique=True, blank=True)
+
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)
@@ -77,8 +81,14 @@ class Product(TimeStampedModel):
     assigned_users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
-        related_name='managed_products'
+        related_name="managed_products",
     )
+
+    def save(self, *args, **kwargs):
+        if not self.sku:
+            base = slugify(self.name)[:40] or "product"
+            self.sku = f"{base}-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

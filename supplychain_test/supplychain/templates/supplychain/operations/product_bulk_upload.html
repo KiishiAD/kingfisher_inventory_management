@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload Products{% endblock %}
+
+{% block content %}
+<h1>Bulk Upload Products</h1>
+
+<div class="card p-3 mb-3">
+  <div class="fw-semibold mb-2">Columns</div>
+  <div class="small text-muted">
+    Required: name, unit_cost, uom_code<br>
+    Optional: sku, uom_name, description, categories, vendors, assigned_users
+  </div>
+  <div class="small text-muted mt-2">
+    Use commas for lists (e.g. categories: "Meat, Frozen"; vendors: "Booker, Costco").
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card p-3">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Upload</button>
+</form>
+
+{% if result %}
+  <div class="card p-3 mt-3">
+    <div class="fw-semibold">Result</div>
+    <div>Created: {{ result.created }} | Updated: {{ result.updated }}</div>
+
+    {% if result.errors %}
+      <hr>
+      <div class="fw-semibold">Errors (showing up to 100)</div>
+      <ul class="mb-0">
+        {% for e in result.errors|slice:":100" %}
+          <li class="text-danger">{{ e }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

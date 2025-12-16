@@ -21,6 +21,7 @@ from .views.receiving_views import (ReceivingListView, ReceivingDetailView
 )
 from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
 from .views.payments_views import PaymentDetailView, PaymentsListView
+from .views.product_bulk_upload_views import ProductBulkUploadView
 
 app_name = "supplychain"
 
@@ -61,5 +62,8 @@ urlpatterns = [
 
     # Payments
     path('payments/', PaymentsListView.as_view(), name='payments-list'),
-    path("payments/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail")
+    path("payments/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail"),
+
+    #Bulk Product Upload
+    path("operations/products/bulk-upload/", ProductBulkUploadView.as_view(), name="product-bulk-upload"),
 ]

@@ -373,3 +373,47 @@ details[open] .kf-chevron { transform: rotate(180deg); }
   box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
   outline: none;
 }
+
+
+
+.kf-navbar .navbar-nav .nav-link{
+  position: relative;
+  border-radius: 999px;
+  padding: .35rem .75rem;
+  margin-right: .25rem;
+  transition: background-color .15s ease, color .15s ease, transform .05s ease;
+}
+
+/* hover/focus */
+.kf-navbar .navbar-nav .nav-link:hover,
+.kf-navbar .navbar-nav .nav-link:focus{
+  background-color: rgba(255,255,255,.10);
+  text-decoration: none;
+}
+
+.kf-navbar .navbar-nav .nav-link:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 .2rem rgba(13,110,253,.25);
+}
+
+/* active (Bootstrap adds .active) */
+.kf-navbar .navbar-nav .nav-link.active{
+  background-color: rgba(255,255,255,.18);
+  color: var(--kf-nav-link) !important;
+  font-weight: 600;
+}
+
+/* subtle "press" feedback */
+.kf-navbar .navbar-nav .nav-link:active{
+  transform: translateY(1px);
+}
+
+/* dark theme tuning (slightly softer pill bg) */
+html[data-bs-theme="dark"] .kf-navbar .navbar-nav .nav-link:hover,
+html[data-bs-theme="dark"] .kf-navbar .navbar-nav .nav-link:focus{
+  background-color: rgba(255,255,255,.08);
+}
+
+html[data-bs-theme="dark"] .kf-navbar .navbar-nav .nav-link.active{
+  background-color: rgba(255,255,255,.12);
+}

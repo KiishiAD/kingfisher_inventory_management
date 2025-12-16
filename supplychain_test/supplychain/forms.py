@@ -399,3 +399,8 @@ class PaymentProcessForm(forms.ModelForm):
             raise forms.ValidationError("Card last 4 must be exactly 4 digits.")
 
         return cleaned
+
+
+
+class ProductBulkUploadForm(forms.Form):
+    file = forms.FileField()

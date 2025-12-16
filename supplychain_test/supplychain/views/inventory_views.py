@@ -18,7 +18,7 @@ from ..models import Product, StockTransaction, LowStockAlert, Category
 
 
 # ----------------------------
-# Filters / Forms
+# Filters / Forms (optional; you can remove if unused)
 # ----------------------------
 
 class InventoryFilterForm(forms.Form):
@@ -71,21 +71,31 @@ def _coalesce_decimal(expr):
     return Coalesce(expr, DEC0, output_field=DEC_OUT)
 
 
+def _last_movement_subquery():
+    return Subquery(
+        StockTransaction.objects
+        .filter(product_id=OuterRef("pk"))
+        .order_by("-created_at")
+        .values("created_at")[:1],
+        output_field=DateTimeField(),
+    )
+
+
 # ----------------------------
 # Views
 # ----------------------------
 
 class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """
-    Inventory list.
+    Inventory list:
     - Server-side pagination (paginate_by)
-    - Client-side filtering in the template like your PO list (current page only)
+    - Client-side filtering like PO list (CURRENT PAGE ONLY)
     """
     model = Product
     template_name = "supplychain/inventory/list.html"
     context_object_name = "products"
     paginate_by = 50
-    permission_required = "supplychain.view_inventory"  # change if you don't have this perm
+    permission_required = "supplychain.view_inventory"  # adjust if needed
 
     def get_queryset(self):
         qs = (
@@ -94,19 +104,11 @@ class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             .prefetch_related("categories")  # M2M
         )
 
-        last_movement_at = Subquery(
-            StockTransaction.objects
-            .filter(product_id=OuterRef("pk"))
-            .order_by("-created_at")
-            .values("created_at")[:1],
-            output_field=DateTimeField(),
-        )
-
         signed_qty = _signed_qty_expr(prefix="stock_transactions__")
 
         qs = qs.annotate(
             on_hand=_coalesce_decimal(Sum(signed_qty, output_field=DEC_OUT)),
-            last_movement_at=last_movement_at,
+            last_movement_at=_last_movement_subquery(),
         ).order_by("name")
 
         return qs
@@ -114,16 +116,9 @@ class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["section"] = "inventory"
-
-        # dropdown source (your Product field is categories M2M)
         ctx["categories"] = Category.objects.all().order_by("name")
-
-        # active = acknowledged=False (your LowStockAlert has no resolved_at)
         ctx["active_low_stock_count"] = LowStockAlert.objects.filter(acknowledged=False).count()
-
-        # (optional) keep form object if your template wants it
         ctx["filter_form"] = InventoryFilterForm(self.request.GET or None)
-
         return ctx
 
 
@@ -176,7 +171,7 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def get(self, request, pk: int):
         product = get_object_or_404(
             Product.objects.prefetch_related("categories"),
-            pk=pk
+            pk=pk,
         )
 
         signed = Case(
@@ -192,6 +187,14 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             .filter(product=product)
             .aggregate(qty=_coalesce_decimal(Sum(signed, output_field=DEC_OUT)))
         )["qty"] or Decimal("0.00")
+
+        last_movement_at = (
+            StockTransaction.objects
+            .filter(product=product)
+            .order_by("-created_at")
+            .values_list("created_at", flat=True)
+            .first()
+        )
 
         txns_qs = (
             product.stock_transactions
@@ -209,12 +212,19 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             .first()
         )
 
+        # keep existing query params when paging
+        qd = request.GET.copy()
+        qd.pop("page", None)
+        qs_no_page = qd.urlencode()
+
         return render(request, "supplychain/inventory/detail.html", {
             "section": "inventory",
             "product": product,
             "on_hand": on_hand,
             "active_alert": active_alert,
             "page_obj": page_obj,
+            "last_movement_at": last_movement_at,
+            "qs_no_page": qs_no_page,
         })
 
 
@@ -243,7 +253,7 @@ class InventoryMovementReportView(LoginRequiredMixin, PermissionRequiredMixin, V
         if q:
             txns = txns.filter(product__name__icontains=q)
         if cat_id:
-            txns = txns.filter(product__categories__id=cat_id)
+            txns = txns.filter(product__categories__id=cat_id)  # M2M filter
 
         received_expr = Case(
             When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),

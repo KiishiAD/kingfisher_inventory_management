@@ -106,13 +106,12 @@
           </thead>
           <tbody>
             {% for p in products %}
-              {# Build a category-id list for filtering, e.g. "1,3,8" #}
               <tr class="inv-row"
                   data-id="{{ p.id }}"
                   data-name-display="{{ p.name }}"
                   data-name-key="{{ p.name|lower }}"
-                  data-category-ids="{% for c in p.categories.all %}{{ c.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                  data-category-names="{% for c in p.categories.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                  data-category-ids="{% for c in p.categories.all %}{% if not forloop.first %},{% endif %}{{ c.id }}{% endfor %}"
+                  data-category-names="{% for c in p.categories.all %}{% if not forloop.first %}, {% endif %}{{ c.name }}{% endfor %}"
                   data-status="{% if p.low_stock_threshold %}
                                 {% if p.on_hand < p.low_stock_threshold %}BELOW{% else %}OK{% endif %}
                               {% else %}
@@ -215,33 +214,46 @@
 
   var currentStatus = "";
 
+  function getCategoryValue() {
+    // If Select2 exists, use it (most reliable)
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+      var v = window.jQuery('#category').val();
+      return (v === null || v === undefined) ? '' : String(v).trim();
+    }
+    var el = byId('category');
+    return el ? String(el.value || '').trim() : '';
+  }
+
   function getState() {
     return {
       q: norm(byId('q').value),
-      categoryId: (byId('category').value || '').trim(),
+      categoryId: getCategoryValue(),
       status: currentStatus || ""
     };
   }
 
   function rowHasCategory(row, catId) {
     if (!catId) return true;
-    var ids = (row.dataset.categoryIds || '').trim(); // "1,3,8"
-    if (!ids) return false;
-    // exact match against comma-separated list
-    return (',' + ids + ',').indexOf(',' + catId + ',') !== -1;
+
+    var raw = (row.getAttribute('data-category-ids') || '').trim(); // "1,3,8"
+    if (!raw) return false;
+
+    // Robust split
+    var ids = raw.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+    return ids.indexOf(String(catId)) !== -1;
   }
 
   function rowMatches(row, state) {
-    var status = (row.dataset.status || '').trim();
+    var status = (row.getAttribute('data-status') || '').trim();
     if (state.status && status !== state.status) return false;
     if (!rowHasCategory(row, state.categoryId)) return false;
 
     if (state.q) {
       var hay = norm(
-        (row.dataset.id || '') + ' ' +
-        (row.dataset.nameDisplay || '') + ' ' +
-        (row.dataset.categoryNames || '') + ' ' +
-        (row.dataset.status || '')
+        (row.getAttribute('data-id') || '') + ' ' +
+        (row.getAttribute('data-name-display') || '') + ' ' +
+        (row.getAttribute('data-category-names') || '') + ' ' +
+        (row.getAttribute('data-status') || '')
       );
       if (hay.indexOf(state.q) === -1) return false;
     }
@@ -276,62 +288,35 @@
     updateActiveLabel(state);
   }
 
-  function csvEscape(v) {
-    var s = (v === null || v === undefined) ? '' : String(v);
-    s = s.replace(/"/g, '""');
-    if (/[",\n]/.test(s)) s = '"' + s + '"';
-    return s;
-  }
-
-  function exportVisibleCSV() {
-    var rows = Array.from(document.querySelectorAll('#inv-table tbody tr'))
-      .filter(function(r) { return r.style.display !== 'none'; });
-
-    var headers = ['id', 'name', 'categories', 'on_hand', 'threshold', 'status', 'last_movement'];
-    var lines = [headers.join(',')];
-
-    rows.forEach(function(r) {
-      lines.push([
-        r.dataset.id || '',
-        r.dataset.nameDisplay || '',
-        r.dataset.categoryNames || '',
-        r.dataset.onHand || '',
-        r.dataset.threshold || '',
-        r.dataset.status || '',
-        r.dataset.last || ''
-      ].map(csvEscape).join(','));
-    });
-
-    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
   function wireStatusButtons() {
     document.querySelectorAll('.status-filter').forEach(function(btn) {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.status-filter').forEach(function(b) { b.classList.remove('active'); });
         btn.classList.add('active');
-        currentStatus = btn.dataset.status || '';
+        currentStatus = btn.getAttribute('data-status') || '';
         applyFilters();
       });
     });
   }
 
   function wireInputs() {
-    ['q', 'category'].forEach(function(id) {
-      var el = byId(id);
-      if (!el) return;
-      el.addEventListener('input', applyFilters);
-      el.addEventListener('change', applyFilters);
-    });
+    var q = byId('q');
+    if (q) {
+      q.addEventListener('input', applyFilters);
+      q.addEventListener('change', applyFilters);
+    }
+
+    var cat = byId('category');
+    if (cat) {
+      cat.addEventListener('change', applyFilters);
+    }
+
+    // If Select2 is enabled, also listen to its events explicitly
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+      window.jQuery('#category').on('select2:select select2:clear change', function() {
+        applyFilters();
+      });
+    }
 
     var clearBtn = byId('clear-filters');
     if (clearBtn) {
@@ -344,12 +329,13 @@
         var allBtn = document.querySelector('.status-filter[data-status=""]');
         if (allBtn) allBtn.classList.add('active');
 
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+          window.jQuery('#category').val('').trigger('change');
+        }
+
         applyFilters();
       });
     }
-
-    var exportBtn = byId('export-csv');
-    if (exportBtn) exportBtn.addEventListener('click', exportVisibleCSV);
   }
 
   function initSelect2IfAvailable() {

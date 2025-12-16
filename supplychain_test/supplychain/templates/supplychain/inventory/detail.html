@@ -142,39 +142,40 @@
   </div>
 
   <div class="card-body border-top">
-    {% if page_obj and page_obj.paginator.num_pages > 1 %}
-      <nav aria-label="Pagination">
-        <ul class="pagination mb-0">
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+  <nav aria-label="Pagination">
+    <ul class="pagination mb-0">
 
-          {% if page_obj.has_previous %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">
-                Prev
-              </a>
-            </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">Prev</span></li>
-          {% endif %}
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link"
+             href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">
+            Prev
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Prev</span></li>
+      {% endif %}
 
-          <li class="page-item disabled">
-            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-          </li>
+      <li class="page-item disabled">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
 
-          {% if page_obj.has_next %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">
-                Next
-              </a>
-            </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">Next</span></li>
-          {% endif %}
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link"
+             href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">
+            Next
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
 
-        </ul>
-      </nav>
-    {% endif %}
+    </ul>
+  </nav>
+{% endif %}
+
   </div>
 </div>
 {% endblock %}

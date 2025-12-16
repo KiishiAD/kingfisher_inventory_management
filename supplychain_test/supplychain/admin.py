@@ -99,8 +99,8 @@ class PaymentAdmin(admin.ModelAdmin):
 # Inventory & Alerts
 @admin.register(StockTransaction)
 class StockTransactionAdmin(admin.ModelAdmin):
-    list_display = ('product', 'transaction_type', 'quantity', 'timestamp')
-    list_filter = ('transaction_type', 'product')
+    list_display = ('product', 'transaction_type', 'quantity', 'created_at','updated_at')
+    list_filter = ('transaction_type', 'product','created_at','updated_at')
 
 @admin.register(LowStockAlert)
 class LowStockAlertAdmin(admin.ModelAdmin):

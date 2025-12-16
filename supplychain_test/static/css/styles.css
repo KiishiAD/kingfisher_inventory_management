@@ -417,3 +417,39 @@ html[data-bs-theme="dark"] .kf-navbar .navbar-nav .nav-link:focus{
 html[data-bs-theme="dark"] .kf-navbar .navbar-nav .nav-link.active{
   background-color: rgba(255,255,255,.12);
 }
+
+
+html[data-bs-theme="dark"] .po-timeline-card {
+  background-color: var(--kf-surface-1) !important;
+  border-color: var(--kf-border) !important;
+}
+
+html[data-bs-theme="dark"] .po-timeline-body {
+  background-color: var(--kf-surface-2) !important;
+  color: var(--kf-text) !important;
+}
+
+html[data-bs-theme="dark"] .po-timeline::before {
+  background-color: rgba(148,163,184,.35) !important;
+}
+
+html[data-bs-theme="dark"] .po-timeline-meta {
+  color: var(--kf-muted) !important;
+}
+
+html[data-bs-theme="dark"] .kf-chevron {
+  background: var(--kf-surface-1) !important;
+  border-color: var(--kf-border) !important;
+  color: var(--kf-text) !important;
+}
+
+/* If any templates force grey text via Bootstrap utility classes */
+html[data-bs-theme="dark"] .text-muted {
+  color: var(--kf-muted) !important;
+}
+
+/* If any templates force white surfaces with Bootstrap helpers */
+html[data-bs-theme="dark"] .bg-white,
+html[data-bs-theme="dark"] .bg-light {
+  background-color: var(--kf-surface-1) !important;
+}

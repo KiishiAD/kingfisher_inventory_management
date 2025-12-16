@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 import uuid
 
 
@@ -82,6 +84,14 @@ class Product(TimeStampedModel):
         settings.AUTH_USER_MODEL,
         blank=True,
         related_name="managed_products",
+    )
+    low_stock_threshold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="If set, create an alert when on-hand stock drops below this value."
     )
 
     def save(self, *args, **kwargs):

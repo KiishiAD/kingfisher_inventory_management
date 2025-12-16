@@ -53,18 +53,27 @@ class StockTransaction(TimeStampedModel):
 
 class LowStockAlert(TimeStampedModel):
     class Meta:
-        permissions = [
-            ("acknowledge_lowstock",  "Can acknowledge low-stock alerts"),
-        ]
-    """Alerts when stock falls below a configured threshold, with acknowledgement tracking."""
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        related_name='low_stock_alerts'
-    )
+        permissions = [("acknowledge_lowstock", "Can acknowledge low-stock alerts")]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="low_stock_alerts")
+
+    # snapshot of the product threshold at trigger time
     threshold = models.DecimalField(max_digits=10, decimal_places=2)
+
     triggered_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
     acknowledged = models.BooleanField(default=False)
+    acknowledged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="ack_lowstock_alerts"
+    )
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+
+
+    @property
+    def is_active(self):
+        return self.resolved_at is None
+
 
     def __str__(self):
         return f"Low stock alert for {self.product} at {self.triggered_at}"

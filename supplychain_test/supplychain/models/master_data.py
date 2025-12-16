@@ -62,6 +62,12 @@ class Supplier_destination_sub_category(models.Model):
 
 
 class Product(TimeStampedModel):
+    
+    class Meta:
+        permissions = [
+            ("bulk_upload_products", "Can bulk upload products"),
+        ]
+    sku = models.CharField(max_length=64, unique=True,null= False)  
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)

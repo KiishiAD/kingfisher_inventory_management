@@ -1,131 +1,272 @@
 /* static/css/styles.css  (FULL FILE — paste/replace) */
 
+/* =========================
+   Theme tokens (Light/Dark)
+   ========================= */
+
+:root{
+  --kf-bg: #f5f7fa;
+  --kf-surface-1: #ffffff;
+  --kf-surface-2: #fbfbfc;
+  --kf-border: #dee2e6;
+
+  --kf-text: #111827;
+  --kf-muted: #6c757d;
+
+  --kf-nav-bg: #1f3e5a;
+  --kf-nav-link: #ffffff;
+  --kf-nav-link-hover: #d1e3ff;
+
+  --kf-sidebar-bg: #f8f9fa;
+  --kf-sidebar-link: #333333;
+  --kf-sidebar-link-hover: #1f3e5a;
+
+  --kf-card-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+
+/* Dark mode palette */
+html[data-bs-theme="dark"]{
+  --kf-bg: #0b1220;        /* deep slate */
+  --kf-surface-1: #0f172a; /* card */
+  --kf-surface-2: #111c33; /* slightly raised */
+  --kf-border: #233043;
+
+  --kf-text: #e5e7eb;
+  --kf-muted: rgba(229,231,235,.72);
+
+  --kf-nav-bg: #0b1220;
+  --kf-nav-link: #e5e7eb;
+  --kf-nav-link-hover: #ffffff;
+
+  --kf-sidebar-bg: #0b1220;
+  --kf-sidebar-link: #cbd5e1;
+  --kf-sidebar-link-hover: #ffffff;
+
+  --kf-card-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+/* =========================
+   App base
+   ========================= */
+
 body {
-    background-color: #f5f7fa;
-    font-family: Arial, sans-serif;
+  background-color: var(--kf-bg);
+  color: var(--kf-text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-.navbar-brand {
-    font-weight: 600;
+footer.kf-footer {
+  background-color: var(--kf-surface-1);
 }
 
-.navbar-dark {
-    background-color: #1f3e5a !important;
+/* =========================
+   Navbar
+   ========================= */
+
+.kf-navbar {
+  background-color: var(--kf-nav-bg) !important;
 }
 
-.navbar-dark .nav-link {
-    color: #fff;
+.kf-navbar .navbar-brand {
+  font-weight: 600;
 }
 
-.navbar-dark .nav-link:hover,
-.navbar-dark .nav-link:focus {
-    color: #d1e3ff;
+.kf-navbar .nav-link {
+  color: var(--kf-nav-link) !important;
 }
 
-.sidebar {
-    background-color: #f8f9fa;
-    border-right: 1px solid #dee2e6;
-    min-height: 100vh;
+.kf-navbar .nav-link:hover,
+.kf-navbar .nav-link:focus {
+  color: var(--kf-nav-link-hover) !important;
 }
 
-.sidebar .nav-link {
-    color: #333;
+/* =========================
+   Sidebar
+   ========================= */
+
+.sidebar,
+.kf-sidebar {
+  background-color: var(--kf-sidebar-bg);
+  border-right: 1px solid var(--kf-border);
+  min-height: 100vh;
+}
+
+.sidebar .nav-link,
+.kf-sidebar .nav-link {
+  color: var(--kf-sidebar-link);
 }
 
 .sidebar .nav-link:hover,
-.sidebar .nav-link:focus {
-    color: #1f3e5a;
+.sidebar .nav-link:focus,
+.kf-sidebar .nav-link:hover,
+.kf-sidebar .nav-link:focus {
+  color: var(--kf-sidebar-link-hover);
 }
 
-footer {
-    background-color: #ffffff;
+/* Make accordion match theme */
+.kf-sidebar .accordion{
+  --bs-accordion-bg: var(--kf-sidebar-bg);
+  --bs-accordion-border-color: var(--kf-border);
+  --bs-accordion-btn-bg: var(--kf-sidebar-bg);
+  --bs-accordion-btn-color: var(--kf-text);
+  --bs-accordion-active-bg: var(--kf-surface-2);
+  --bs-accordion-active-color: var(--kf-text);
 }
 
-/* Legacy timeline (keep) */
-.timeline {
-    position: relative;
-    padding-left: 2rem;
+.kf-sidebar .accordion-button:focus{
+  box-shadow: 0 0 0 .2rem rgba(13,110,253,.15);
 }
 
-.timeline::before {
-    content: "";
-    position: absolute;
-    left: 0.75rem;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: #0d6efd;
-}
+/* =========================
+   Formset + misc
+   ========================= */
 
-.timeline-item {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
+input[name$='-DELETE'] { display: none; }
 
-.timeline-dot {
-    position: absolute;
-    left: 0.55rem;
-    top: 0.4rem;
-    width: 0.75rem;
-    height: 0.75rem;
-    background-color: #0d6efd;
-    border-radius: 50%;
-}
+.qty-input { max-width: 6rem; }
 
-.timeline-content {
-    margin-left: 2rem;
-}
-
-/* Hide formset delete checkboxes */
-input[name$='-DELETE'] {
-    display: none;
-}
-
-/* Make quantity input narrower than product/supplier */
-.qty-input {
-  max-width: 6rem;
-}
-
-/* ========= Shared Kingfisher UI (cards, tables, filters) ========= */
+/* =========================
+   Shared “card” system (fixes your rq-card/po-card staying white)
+   ========================= */
 
 .kf-card,
-.rcv-card {
-  border: 1px solid #dee2e6;
+.rcv-card,
+.rq-card,
+.po-card {
+  border: 1px solid var(--kf-border);
   border-radius: .75rem;
-  background: #fff;
+  background: var(--kf-surface-1);
+  box-shadow: var(--kf-card-shadow);
+}
+
+/* Force dark mode override even if some templates define .rq-card{background:#fff} later */
+html[data-bs-theme="dark"] .kf-card,
+html[data-bs-theme="dark"] .rcv-card,
+html[data-bs-theme="dark"] .rq-card,
+html[data-bs-theme="dark"] .po-card {
+  background: var(--kf-surface-1) !important;
+  border-color: var(--kf-border) !important;
 }
 
 .kf-card-header,
-.rcv-card-header {
-  border-bottom: 1px solid #dee2e6;
+.rcv-card-header,
+.rq-card-header,
+.po-card-header {
+  border-bottom: 1px solid var(--kf-border);
+  background: transparent;
 }
 
+/* helpers */
 .kf-help,
-.rcv-help {
+.rcv-help,
+.rq-help,
+.po-help {
   font-size: .875rem;
-  color: #6c757d;
+  color: var(--kf-muted);
 }
 
 .kf-table td, .kf-table th,
-.rcv-table td, .rcv-table th {
+.rcv-table td, .rcv-table th,
+.rq-table td, .rq-table th,
+.po-table td, .po-table th {
   vertical-align: middle;
 }
 
-.rcv-pill { border-radius: 999px; }
-.rcv-mono { font-variant-numeric: tabular-nums; }
+/* pills / monos */
+.rcv-pill, .rq-pill, .po-pill { border-radius: 999px; }
+.rcv-mono, .kc-mono, .po-mono { font-variant-numeric: tabular-nums; }
 
-.rcv-search { position: relative; }
-.rcv-search .form-control { padding-left: 2.25rem; }
-.rcv-search .rcv-search-icon {
+/* Search input patterns (rq/po/rcv) */
+.rcv-search, .rq-search, .po-search { position: relative; }
+.rcv-search .form-control, .rq-search .form-control, .po-search .form-control { padding-left: 2.25rem; }
+.rcv-search .rcv-search-icon,
+.rq-search .rq-search-icon,
+.po-search .po-search-icon {
   position: absolute; left: .75rem; top: 50%;
   transform: translateY(-50%);
-  color: #6c757d;
+  color: var(--kf-muted);
   pointer-events: none;
 }
 
-/* ========= Audit dropdown (details/summary) ========= */
+/* =========================
+   Tables (make them readable in dark mode)
+   ========================= */
+
+html[data-bs-theme="dark"] .table{
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--kf-text);
+  --bs-table-border-color: var(--kf-border);
+  --bs-table-striped-bg: rgba(255,255,255,.03);
+  --bs-table-hover-bg: rgba(255,255,255,.05);
+}
+
+html[data-bs-theme="dark"] .table thead th{
+  color: var(--kf-text);
+}
+
+/* =========================
+   Select2 (dark mode polish)
+   ========================= */
+
+html[data-bs-theme="dark"] .select2-container--default .select2-selection--single,
+html[data-bs-theme="dark"] .select2-container--default .select2-selection--multiple{
+  background-color: var(--kf-surface-2) !important;
+  border-color: var(--kf-border) !important;
+  color: var(--kf-text) !important;
+}
+
+html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered{
+  color: var(--kf-text) !important;
+}
+
+html[data-bs-theme="dark"] .select2-dropdown{
+  background-color: var(--kf-surface-1) !important;
+  border-color: var(--kf-border) !important;
+}
+
+html[data-bs-theme="dark"] .select2-results__option{
+  color: var(--kf-text) !important;
+}
+
+html[data-bs-theme="dark"] .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{
+  background-color: rgba(255,255,255,.06) !important;
+  color: var(--kf-text) !important;
+}
+
+/* =========================
+   Legacy timeline (keep)
+   ========================= */
+
+.timeline { position: relative; padding-left: 2rem; }
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #0d6efd;
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+.timeline-dot {
+  position: absolute;
+  left: 0.55rem;
+  top: 0.4rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  background-color: #0d6efd;
+  border-radius: 50%;
+}
+.timeline-content { margin-left: 2rem; }
+
+/* =========================
+   Audit dropdown (details/summary) + PO timeline (shared)
+   ========================= */
 
 details.kf-details > summary {
   cursor: pointer;
@@ -141,22 +282,20 @@ details.kf-details > summary::-webkit-details-marker { display: none; }
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  border: 1px solid #dee2e6;
-  background: #fff;
+  border: 1px solid var(--kf-border);
+  background: var(--kf-surface-1);
   font-size: .8rem;
   line-height: 1;
   transition: transform .15s ease;
 }
 details[open] .kf-chevron { transform: rotate(180deg); }
 
-/* ========= Audit timeline look (same as PO detail) ========= */
-
 .po-timeline-card {
   max-height: 360px;
   overflow-y: auto;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--kf-border);
   border-radius: .5rem;
-  background-color: #ffffff;
+  background-color: var(--kf-surface-1);
 }
 
 .po-timeline {
@@ -173,7 +312,7 @@ details[open] .kf-chevron { transform: rotate(180deg); }
   top: 0;
   bottom: 0;
   width: 2px;
-  background-color: #e9ecef;
+  background-color: rgba(148,163,184,.35);
 }
 
 .po-timeline-item { position: relative; margin-bottom: 10px; }
@@ -191,17 +330,17 @@ details[open] .kf-chevron { transform: rotate(180deg); }
 .po-timeline-body {
   padding: .35rem .5rem;
   border-radius: .25rem;
-  background-color: #f8f9fa;
+  background-color: var(--kf-surface-2);
   font-size: .875rem;
 }
 
-.po-timeline-body:hover { background-color: #e9ecef; }
+.po-timeline-body:hover { background-color: rgba(148,163,184,.12); }
 
 .po-timeline-meta {
   display: flex;
   justify-content: space-between;
   font-size: .75rem;
-  color: #6c757d;
+  color: var(--kf-muted);
   margin-bottom: .15rem;
 }
 
@@ -212,24 +351,24 @@ details[open] .kf-chevron { transform: rotate(180deg); }
   font-size: .7rem;
   color: #fff;
 }
-
 .po-badge-requisition { background-color: #0d6efd; }
 .po-badge-po          { background-color: #198754; }
 .po-badge-payment     { background-color: #0dcaf0; color: #000; }
 .po-badge-issuance    { background-color: #ffc107; color: #000; }
 .po-badge-other       { background-color: #6c757d; }
 
-/* Notes widget styling (optional but matches your PO UI) */
+/* Notes widget styling (optional) */
 .kf-notes {
   border-radius: .75rem;
-  border: 1px solid #dee2e6;
-  background: #fbfbfc;
+  border: 1px solid var(--kf-border);
+  background: var(--kf-surface-2);
   padding: .75rem .9rem;
-  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  box-shadow: var(--kf-card-shadow);
   width: 100%;
+  color: var(--kf-text);
 }
 .kf-notes:focus {
-  background: #fff;
+  background: var(--kf-surface-1);
   border-color: rgba(13,110,253,.35);
   box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
   outline: none;

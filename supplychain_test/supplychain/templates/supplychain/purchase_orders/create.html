@@ -60,7 +60,7 @@
         <div class="rq-help">Product is searchable. Unit cost is filled automatically.</div>
       </div>
       <div class="text-muted small kc-mono">
-        Total: <span id="po-grand-total">0.00</span>
+        Total: &#8358;<span id="po-grand-total">0.00</span>
       </div>
     </div>
 
@@ -75,9 +75,9 @@
           <thead>
             <tr>
               <th style="min-width: 320px;">Product</th>
-              <th class="text-end" style="width: 180px;">Quantity</th>
-              <th class="text-end" style="width: 180px;">Unit cost</th>
-              <th class="text-end" style="width: 200px;">Line total</th>
+              <th class="text-end" style="width: 220px;">Quantity</th>
+              <th class="text-end" style="width: 220px;">Unit cost</th>
+              <th class="text-end" style="width: 220px;">Line total</th>
               <th style="width: 60px;"></th>
             </tr>
           </thead>
@@ -91,19 +91,29 @@
                     <div class="text-danger small">{{ f.product.errors }}</div>
                   {% endif %}
                 </td>
+
                 <td class="text-end">
-                  {{ f.quantity }}
+                  <div class="d-flex justify-content-end align-items-center gap-2">
+                    {{ f.quantity }}
+                    <span class="text-muted small uom-span"></span>
+                  </div>
                   {% if f.quantity.errors %}
                     <div class="text-danger small text-start">{{ f.quantity.errors }}</div>
                   {% endif %}
                 </td>
+
                 <td class="text-end">
-                  {{ f.unit_cost }}
+                  <div class="input-group input-group-sm justify-content-end">
+                    <span class="input-group-text">&#8358;</span>
+                    {{ f.unit_cost }}
+                  </div>
                   {% if f.unit_cost.errors %}
                     <div class="text-danger small text-start">{{ f.unit_cost.errors }}</div>
                   {% endif %}
                 </td>
-                <td class="text-end kc-mono line-total-cell">0.00</td>
+
+                <td class="text-end kc-mono line-total-cell">&#8358;0.00</td>
+
                 <td class="text-end">
                   <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
                   {{ f.DELETE }}
@@ -118,9 +128,23 @@
         <tr class="po-item-row">
           {{ item_formset.empty_form.id }}
           <td>{{ item_formset.empty_form.product }}</td>
-          <td class="text-end">{{ item_formset.empty_form.quantity }}</td>
-          <td class="text-end">{{ item_formset.empty_form.unit_cost }}</td>
-          <td class="text-end kc-mono line-total-cell">0.00</td>
+
+          <td class="text-end">
+            <div class="d-flex justify-content-end align-items-center gap-2">
+              {{ item_formset.empty_form.quantity }}
+              <span class="text-muted small uom-span"></span>
+            </div>
+          </td>
+
+          <td class="text-end">
+            <div class="input-group input-group-sm justify-content-end">
+              <span class="input-group-text">&#8358;</span>
+              {{ item_formset.empty_form.unit_cost }}
+            </div>
+          </td>
+
+          <td class="text-end kc-mono line-total-cell">&#8358;0.00</td>
+
           <td class="text-end">
             <button type="button" class="btn btn-sm btn-outline-danger remove-item" title="Remove">&times;</button>
             {{ item_formset.empty_form.DELETE }}
@@ -183,10 +207,12 @@
 
     document.querySelectorAll('.po-item-row').forEach(function(row) {
       if (row.classList.contains('rq-row-hidden')) return;
+
       const cell = row.querySelector('.line-total-cell');
       if (!cell) return;
-      const txt = (cell.textContent || '').split('(')[0].trim();
-      grand += toNumber(txt);
+
+      const clean = (cell.textContent || '').replace(/[^0-9.\-]/g, '');
+      grand += toNumber(clean);
     });
 
     const el = document.getElementById('po-grand-total');
@@ -198,6 +224,7 @@
     const qtyInput = row.querySelector('input[name$="-quantity"]');
     const unitCostInput = row.querySelector('input[name$="-unit_cost"]');
     const lineCell = row.querySelector('.line-total-cell');
+    const uomSpan = row.querySelector('.uom-span');
 
     if (!productSelect || !qtyInput || !unitCostInput || !lineCell) return;
 
@@ -205,12 +232,14 @@
     const meta = PRODUCT_META[productId] || {};
     const unitCost = toNumber(meta.unit_cost || unitCostInput.value || "0");
     const qty = toNumber(qtyInput.value || "0");
-    const uom = meta.uom || "";
+    const uom = (meta.uom || "").trim();
 
     unitCostInput.value = format2(unitCost);
 
+    if (uomSpan) uomSpan.textContent = uom ? uom : "";
+
     const lineTotal = unitCost * qty;
-    lineCell.textContent = format2(lineTotal) + (uom ? " (" + uom + ")" : "");
+    lineCell.textContent = "₦" + format2(lineTotal);
 
     updateGrandTotal();
   }

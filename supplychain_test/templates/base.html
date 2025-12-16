@@ -1,26 +1,38 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    {# Apply theme ASAP to avoid flash #}
+    <script>
+      (function () {
+        const key = "kf-theme";
+        const stored = localStorage.getItem(key);
+        const preferred = stored ? stored : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-bs-theme", preferred);
+      })();
+    </script>
+
     <title>{% block title %}Kingfisher Supplychain{% endblock %}</title>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
 
     {# Select2 CSS for searchable dropdowns #}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-    {# Optional: extra CSS hook for pages #}
     {% block extra_css %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3 kf-navbar">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'supplychain:dashboard' %}">Kingfisher SCM</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNav" aria-controls="topNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="topNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link {% if section == 'dashboard' %}active{% endif %}" href="{% url 'supplychain:dashboard' %}">Dashboard</a></li>
@@ -33,22 +45,33 @@
                         <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
                     {% endif %}
                 </ul>
-                {% if user.is_authenticated %}
-                <span class="navbar-text me-3">Welcome, {{ user.get_full_name|default:user.username }}</span>
-                <form action="{% url 'logout' %}" method="post" class="d-flex">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
-                </form>
-                {% else %}
-                <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm">Log in</a>
-                {% endif %}
+
+                <div class="d-flex align-items-center gap-2">
+                    {# Theme toggle (top-right) #}
+                    <button type="button"
+                            id="kf-theme-toggle"
+                            class="btn btn-outline-light btn-sm"
+                            aria-label="Toggle dark mode">
+                        <span id="kf-theme-icon" aria-hidden="true">🌙</span>
+                    </button>
+
+                    {% if user.is_authenticated %}
+                        <span class="navbar-text me-1">Welcome, {{ user.get_full_name|default:user.username }}</span>
+                        <form action="{% url 'logout' %}" method="post" class="d-flex ms-1">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm">Log in</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </nav>
 
     <div class="container-fluid flex-grow-1">
         <div class="row">
-            <aside class="col-md-2 sidebar">
+            <aside class="col-md-2 sidebar kf-sidebar">
                 <div class="accordion" id="sideMenu">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingReq">
@@ -67,6 +90,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingPO">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePO" aria-expanded="false" aria-controls="collapsePO">
@@ -83,6 +107,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingRec">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRec" aria-expanded="false" aria-controls="collapseRec">
@@ -97,6 +122,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingPay">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePay" aria-expanded="false" aria-controls="collapsePay">
@@ -111,7 +137,8 @@
                             </div>
                         </div>
                     </div>
-                      <div class="accordion-item">
+
+                    <div class="accordion-item">
                         <h2 class="accordion-header" id="headingInv">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInv" aria-expanded="false" aria-controls="collapseInv">
                                 Inventory
@@ -128,6 +155,7 @@
                     </div>
                 </div>
             </aside>
+
             <main class="col-md-10 px-4">
                 {% if messages %}
                     <div class="mb-3">
@@ -141,17 +169,44 @@
         </div>
     </div>
 
-    <footer class="text-center py-3 border-top mt-auto">
+    <footer class="text-center py-3 border-top mt-auto kf-footer">
         <small>&copy; 2025 Kingfisher Supplychain Management</small>
     </footer>
 
-     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
 
-    {# jQuery + Select2 JS (needed for the type-ahead selects) #}
+    {# jQuery + Select2 JS #}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    {# Optional: per-page JS hook (your create/update scripts can go in this block) #}
+    <script>
+      (function () {
+        const key = "kf-theme";
+        const btn = document.getElementById("kf-theme-toggle");
+        const icon = document.getElementById("kf-theme-icon");
+
+        function currentTheme() {
+          return document.documentElement.getAttribute("data-bs-theme") || "light";
+        }
+
+        function setTheme(theme) {
+          document.documentElement.setAttribute("data-bs-theme", theme);
+          localStorage.setItem(key, theme);
+          if (icon) icon.textContent = (theme === "dark") ? "☀️" : "🌙";
+          if (btn) btn.setAttribute("aria-label", (theme === "dark") ? "Switch to light mode" : "Switch to dark mode");
+        }
+
+        // sync icon on load
+        setTheme(localStorage.getItem(key) || currentTheme());
+
+        if (btn) {
+          btn.addEventListener("click", function () {
+            setTheme(currentTheme() === "dark" ? "light" : "dark");
+          });
+        }
+      })();
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

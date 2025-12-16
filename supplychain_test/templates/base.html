@@ -27,8 +27,8 @@
                     <li class="nav-item"><a class="nav-link {% if section == 'requisitions' %}active{% endif %}" href="{% url 'supplychain:requisition-list' %}">Requisitions</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'purchase_orders' %}active{% endif %}" href="{% url 'supplychain:po-list' %}">Purchase Orders</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'receiving' %}active{% endif %}" href="{% url 'supplychain:receiving-list' %}">Receiving</a></li>
-                    <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-levels' %}">Inventory</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'payments' %}active{% endif %}" href="{% url 'supplychain:payments-list' %}">Payments</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-levels' %}">Inventory</a></li>
                     {% if user.is_staff %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
                     {% endif %}
@@ -98,6 +98,20 @@
                         </div>
                     </div>
                     <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingPay">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePay" aria-expanded="false" aria-controls="collapsePay">
+                                Payments
+                            </button>
+                        </h2>
+                        <div id="collapsePay" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
+                            <div class="accordion-body p-0">
+                                <ul class="nav flex-column">
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:payments-list' %}">Pending Payments</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                      <div class="accordion-item">
                         <h2 class="accordion-header" id="headingInv">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInv" aria-expanded="false" aria-controls="collapseInv">
                                 Inventory
@@ -108,20 +122,6 @@
                                 <ul class="nav flex-column">
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-levels' %}">Current Stock Levels</a></li>
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-alerts' %}">Low Stock Alerts</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingPay">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePay" aria-expanded="false" aria-controls="collapsePay">
-                                Payments
-                            </button>
-                        </h2>
-                        <div id="collapsePay" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
-                            <div class="accordion-body p-0">
-                                <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:payments-list' %}">Pending Payments</a></li>
                                 </ul>
                             </div>
                         </div>

@@ -32,7 +32,7 @@
         <label class="form-label">Search</label>
         <div class="rcv-search">
           <span class="rcv-search-icon">⌕</span>
-          <input id="q" type="text" class="form-control" placeholder="Payment #, PO #, supplier, status…">
+          <input id="q" type="text" class="form-control" placeholder="Payment #, PO #, Receiving #, supplier, status…">
         </div>
       </div>
 
@@ -85,10 +85,11 @@
         <table id="pay-table" class="table table-sm table-hover rcv-table mb-0">
           <thead>
             <tr>
-              <th style="width: 120px;">Payment #</th>
+              <th style="width: 110px;">Payment #</th>
               <th style="width: 90px;">PO #</th>
+              <th style="width: 110px;">Receiving #</th>
               <th>Supplier</th>
-              <th style="width: 180px;">Status</th>
+              <th style="width: 160px;">Status</th>
               <th style="width: 120px;" class="text-end">PO Total</th>
               <th style="width: 90px;" class="text-end">Items</th>
               <th style="width: 170px;">Processed at</th>
@@ -100,11 +101,13 @@
               <tr class="pay-row"
                   data-id="{{ p.id }}"
                   data-po="{{ p.purchase_order.id }}"
+                  data-receiving="{% if p.receiving_id %}{{ p.receiving_id }}{% endif %}"
                   data-supplier-key="{{ p.purchase_order.supplier.name|lower }}"
                   data-supplier-display="{{ p.purchase_order.supplier.name }}"
                   data-status="{{ p.status }}">
                 <td class="fw-semibold rcv-mono">{{ p.id }}</td>
                 <td class="rcv-mono">{{ p.purchase_order.id }}</td>
+                <td class="rcv-mono">{% if p.receiving_id %}{{ p.receiving_id }}{% else %}—{% endif %}</td>
                 <td>{{ p.purchase_order.supplier.name }}</td>
                 <td class="fw-semibold">{{ p.get_status_display }}</td>
                 <td class="text-end rcv-mono">{{ p.po_total|floatformat:2 }}</td>
@@ -113,8 +116,8 @@
                   {% if p.processed_at %}{{ p.processed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
                 </td>
                 <td class="text-end">
-                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:po-detail' p.purchase_order.id %}">
-                    View PO
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:payment-detail' p.id %}">
+                    View
                   </a>
                 </td>
               </tr>
@@ -132,7 +135,7 @@
           <ul class="pagination mb-0">
             {% if page_obj.has_previous %}
               <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ active_status }}">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if active_status %}&status={{ active_status }}{% endif %}">
                   Previous
                 </a>
               </li>
@@ -142,7 +145,7 @@
             </li>
             {% if page_obj.has_next %}
               <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ active_status }}">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if active_status %}&status={{ active_status }}{% endif %}">
                   Next
                 </a>
               </li>
@@ -176,6 +179,7 @@
   function rowMatches(row, state) {
     var id = row.dataset.id || '';
     var po = row.dataset.po || '';
+    var receiving = row.dataset.receiving || '';
     var supplierKey = row.dataset.supplierKey || '';
     var supplierDisplay = row.dataset.supplierDisplay || '';
     var status = row.dataset.status || '';
@@ -184,7 +188,7 @@
     if (state.supplier && supplierKey !== state.supplier) return false;
 
     if (state.q) {
-      var hay = norm(id + ' ' + po + ' ' + supplierDisplay + ' ' + status);
+      var hay = norm(id + ' ' + po + ' ' + receiving + ' ' + supplierDisplay + ' ' + status);
       if (hay.indexOf(state.q) === -1) return false;
     }
     return true;
@@ -250,25 +254,26 @@
     var rows = Array.from(document.querySelectorAll('#pay-table tbody tr'))
       .filter(function(r) { return r.style.display !== 'none'; });
 
-    var headers = ['payment_id', 'purchase_order_id', 'supplier', 'status', 'po_total', 'items', 'processed_at'];
+    var headers = ['payment_id', 'purchase_order_id', 'receiving_id', 'supplier', 'status', 'po_total', 'items', 'processed_at'];
     var lines = [headers.join(',')];
 
     rows.forEach(function(r) {
       var pid = r.dataset.id || '';
       var po = r.dataset.po || '';
+      var receiving = r.dataset.receiving || '';
       var supplier = r.dataset.supplierDisplay || '';
       var status = r.dataset.status || '';
 
-      var poTotal = (r.querySelector('td:nth-child(5)') || {}).textContent || '';
+      var poTotal = (r.querySelector('td:nth-child(6)') || {}).textContent || '';
       poTotal = poTotal.trim();
 
-      var items = (r.querySelector('td:nth-child(6)') || {}).textContent || '';
+      var items = (r.querySelector('td:nth-child(7)') || {}).textContent || '';
       items = items.trim();
 
-      var processedAt = (r.querySelector('td:nth-child(7)') || {}).textContent || '';
+      var processedAt = (r.querySelector('td:nth-child(8)') || {}).textContent || '';
       processedAt = processedAt.trim();
 
-      lines.push([pid, po, supplier, status, poTotal, items, processedAt].map(csvEscape).join(','));
+      lines.push([pid, po, receiving, supplier, status, poTotal, items, processedAt].map(csvEscape).join(','));
     });
 
     var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });

@@ -1,41 +1,17 @@
+# supplychain/utils.py  (full file as per what you pasted, with payment timeline fixed)
 
+from decimal import Decimal
+
+from django.db import transaction
 
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
     Receiving,
     ReceivingItem,
+    Payment,
 )
-from django.db import transaction
-from decimal import Decimal
 
-
-# def generate_po_for_requisition(requisition, created_by):
-#     """
-#     Helper to create a PurchaseOrder from an approved Requisition.
-#     """
-#     # If there’s already a PO, do nothing
-#     if hasattr(requisition, 'purchase_order'):
-#         return requisition.purchase_order
-
-#     # Determine supplier (choose first vendor on first item)
-#     first_item = requisition.items.first()
-#     vendor = first_item.product.vendors.first() if first_item else None
-
-#     po = PurchaseOrder.objects.create(
-#         requisition=requisition,
-#         supplier=vendor,
-#         created_by=created_by,
-#         status=PurchaseOrder.PENDING_COO, 
-#     )
-#     for item in requisition.items.all():
-#         PurchaseOrderItem.objects.create(
-#             purchase_order=po,
-#             product=item.product,
-#             quantity=item.quantity,
-#             unit_cost=item.product.unit_cost,
-#         )
-#     return po
 
 def generate_po_for_requisition(requisition, created_by):
     """
@@ -120,6 +96,7 @@ def generate_issuance_for_requisition(requisition, created_by):
         )
     return iss
 
+
 def generate_receiving_for_purchase_order(purchase_order):
     existing = purchase_order.receivings.all()
     if existing.exists():
@@ -141,6 +118,44 @@ def generate_receiving_for_purchase_order(purchase_order):
             )
     return receiving
 
+
+def _payment_timeline_events(payment):
+    """
+    Timeline events for a Payment:
+    - creation (pending)
+    - processed (when processed_at set)
+    """
+    events = []
+
+    # Created / pending
+    created_ts = getattr(payment, "created_at", None)
+    if created_ts:
+        events.append({
+            "timestamp": created_ts,
+            "who": getattr(payment, "created_by", None),
+            "label": f"Payment created ({payment.get_status_display()})",
+            "details": "",
+        })
+
+    # Processed
+    processed_ts = getattr(payment, "processed_at", None)
+    if processed_ts:
+        method = "—"
+        try:
+            method = payment.get_payment_type_display() if getattr(payment, "payment_type", None) else "—"
+        except Exception:
+            method = getattr(payment, "payment_type", None) or "—"
+
+        notes = (getattr(payment, "payment_notes", "") or "").strip()
+
+        events.append({
+            "timestamp": processed_ts,
+            "who": getattr(payment, "processed_by", None),
+            "label": f"Payment processed ({method})",
+            "details": notes,
+        })
+
+    return events
 
 
 def build_workitem_timeline(requisition):
@@ -192,24 +207,7 @@ def build_workitem_timeline(requisition):
 
         payment = getattr(po, "payment", None)
         if payment:
-            # show creation (pending) event
-            events.append({
-                "timestamp": getattr(payment, "created_at", None),
-                "who": getattr(payment, "created_by", None),
-                "label": f"Payment created ({payment.get_status_display()})",
-                "details": "",
-            })
-
-            # show processed event if/when processed
-            if getattr(payment, "processed_at", None):
-                pt = getattr(payment, "payment_type", None) or "—"
-                notes = getattr(payment, "payment_notes", "") or ""
-                events.append({
-                    "timestamp": payment.processed_at,
-                    "who": getattr(payment, "processed_by", None),
-                    "label": f"Payment processed ({pt})",
-                    "details": notes,
-                })
+            events.extend(_payment_timeline_events(payment))
 
         # Optional: include receiving event if you want (safe, minimal)
         rec = po.receivings.order_by("created_at").first()
@@ -226,6 +224,7 @@ def build_workitem_timeline(requisition):
             "details": "",
         })
 
+    events = [e for e in events if e.get("timestamp")]
     events.sort(key=lambda e: e["timestamp"])
     return events
 
@@ -233,7 +232,10 @@ def build_workitem_timeline(requisition):
 def build_workitem_timeline_for_po(po):
     """
     Unified workflow timeline starting from a PurchaseOrder.
-    FIX: include append-only receiving history (not a single mutable status line).
+    Includes:
+      - PO creation + PO approvals
+      - Payment created + Payment processed (if any)
+      - Receiving incremental events
     """
     # If PO is linked to a requisition, reuse the requisition-rooted timeline
     if po.requisition_id:
@@ -256,12 +258,7 @@ def build_workitem_timeline_for_po(po):
 
     payment = getattr(po, "payment", None)
     if payment:
-        events.append({
-            "timestamp": payment.processed_at,
-            "who": getattr(payment, "processed_by", None),
-            "label": f"Payment processed ({payment.payment_type})",
-            "details": payment.payment_notes,
-        })
+        events.extend(_payment_timeline_events(payment))
 
     # Receiving (append-only incremental events)
     rec = po.receivings.order_by("created_at").first()
@@ -271,7 +268,8 @@ def build_workitem_timeline_for_po(po):
     events = [e for e in events if e.get("timestamp")]
     events.sort(key=lambda e: e["timestamp"])
     return events
-    
+
+
 def build_receiving_timeline_events(receiving):
     """
     Incremental (append-only) receiving events based on timestamped audit fields.
@@ -340,7 +338,6 @@ def build_receiving_timeline_events(receiving):
 
     # 4) Sent to COO
     if getattr(receiving, "sent_to_coo_at", None):
-        # Show only the big oversupply reasons (if any)
         oversupply_lines = []
         tol = Decimal("0.50")
         for ri in receiving.items.select_related("po_item__product").all():
@@ -391,7 +388,6 @@ def build_receiving_timeline_events(receiving):
     events.sort(key=lambda e: e["timestamp"])
     return events
 
-  
 
 def _fmt2(d):
     if d is None:
@@ -401,17 +397,16 @@ def _fmt2(d):
     except Exception:
         return str(d)
 
+
 def _receiving_variance_details(receiving, max_lines=6, tol=Decimal("0.50")):
     """
     Returns a concise multi-line string describing what was recorded (and variances).
-    This is a *snapshot* summary and works well for an append-only timeline.
+    This is a snapshot summary and works well for an append-only timeline.
     """
     rows = []
     mismatches = []
 
-    items = list(
-        receiving.items.select_related("po_item__product").all()
-    )
+    items = list(receiving.items.select_related("po_item__product").all())
 
     for ri in items:
         po_qty = (ri.po_item.quantity or Decimal("0"))
@@ -430,7 +425,6 @@ def _receiving_variance_details(receiving, max_lines=6, tol=Decimal("0.50")):
         sign = "+" if diff > 0 else "-"
         abs_diff = abs(diff)
 
-        # classify oversupply > tol, undersupply, slight diffs
         if diff > tol:
             tag = "OVERSUPPLY"
         elif diff < -tol:
@@ -445,7 +439,6 @@ def _receiving_variance_details(receiving, max_lines=6, tol=Decimal("0.50")):
     if not mismatches:
         return "All received quantities match the PO."
 
-    # Limit lines so the timeline stays readable
     shown = mismatches[:max_lines]
     remaining = len(mismatches) - len(shown)
 
@@ -454,6 +447,7 @@ def _receiving_variance_details(receiving, max_lines=6, tol=Decimal("0.50")):
         rows.append(f"+ {remaining} more variance lines")
 
     return "\n".join(rows)
+
 
 def _receiving_queried_lines_details(receiving, max_lines=6):
     qs = (

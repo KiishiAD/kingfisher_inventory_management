@@ -1,0 +1,363 @@
+{# supplychain/templates/supplychain/payments/detail.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment #{{ payment.id }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Audit dropdown chevron (same pattern as PO detail) */
+  details.kf-details > summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  details.kf-details > summary::-webkit-details-marker { display: none; }
+  .kf-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    font-size: .8rem;
+    line-height: 1;
+    transition: transform .15s ease;
+  }
+  details[open] .kf-chevron { transform: rotate(180deg); }
+
+  /* Audit trail look (same pattern as PO detail) */
+  .po-timeline-card {
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    background-color: #ffffff;
+  }
+  .po-timeline {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+  .po-timeline::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #e9ecef;
+  }
+  .po-timeline-item { position: relative; margin-bottom: 10px; }
+  .po-timeline-dot {
+    position: absolute;
+    left: -1px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+  }
+  .po-timeline-body {
+    padding: .35rem .5rem;
+    border-radius: .25rem;
+    background-color: #f8f9fa;
+    font-size: .875rem;
+  }
+  .po-timeline-body:hover { background-color: #e9ecef; }
+  .po-timeline-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+    color: #6c757d;
+    margin-bottom: .15rem;
+  }
+  .po-badge {
+    display: inline-block;
+    padding: .1rem .4rem;
+    border-radius: .5rem;
+    font-size: .7rem;
+    color: #fff;
+  }
+  .po-badge-requisition { background-color: #0d6efd; }
+  .po-badge-po          { background-color: #198754; }
+  .po-badge-payment     { background-color: #0dcaf0; color: #000; }
+  .po-badge-issuance    { background-color: #ffc107; color: #000; }
+  .po-badge-other       { background-color: #6c757d; }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Payment #{{ payment.id }}</h1>
+    <div class="rcv-help">
+      PO #{{ purchase_order.id }} · {{ purchase_order.supplier.name }} · {{ payment.get_status_display }}
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{% url 'supplychain:payments-list' %}" class="btn btn-outline-secondary">Back</a>
+    <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
+    {% if receiving %}
+      <a href="{% url 'supplychain:receiving-detail' receiving.id %}" class="btn btn-outline-primary">View Receiving</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="rcv-card mb-3">
+      <div class="rcv-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">Purchase order lines</div>
+          <div class="rcv-help">Line items and totals used for payment.</div>
+        </div>
+        <div class="text-muted small rcv-mono">Total: {{ po_total|floatformat:2 }}</div>
+      </div>
+
+      <div class="p-3">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover rcv-table mb-0">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-end" style="width: 140px;">Qty</th>
+                <th class="text-end" style="width: 140px;">Unit</th>
+                <th class="text-end" style="width: 160px;">Line total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for it in po_items %}
+                <tr>
+                  <td class="fw-semibold">
+                    {% if it.product and it.product.name %}
+                      {{ it.product.name }}
+                    {% else %}
+                      {{ it.product }}
+                    {% endif %}
+                  </td>
+                  <td class="text-end rcv-mono">{{ it.quantity|floatformat:2 }}</td>
+                  <td class="text-end rcv-mono">{{ it.unit_cost|floatformat:2 }}</td>
+                  <td class="text-end rcv-mono">{{ it.line_total|floatformat:2 }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="3" class="text-end">PO Total</th>
+                <th class="text-end rcv-mono">{{ po_total|floatformat:2 }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# SWITCHED: Process payment moved to the left column (was on right) #}
+    <div class="rcv-card">
+      <div class="rcv-card-header px-3 py-3">
+        <div class="fw-semibold">Process payment</div>
+        <div class="rcv-help">Choose how it was paid and upload proof.</div>
+      </div>
+
+      <div class="p-3">
+        {% if payment.status == payment.PENDING %}
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ form.payment_type.id_for_label }}">Payment method</label>
+              {{ form.payment_type }}
+              {% for e in form.payment_type.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.bank_name.id_for_label }}">Bank name (optional)</label>
+                {{ form.bank_name }}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.transfer_reference.id_for_label }}">Transfer reference (optional)</label>
+                {{ form.transfer_reference }}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.cheque_number.id_for_label }}">Cheque number (optional)</label>
+                {{ form.cheque_number }}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold" for="{{ form.card_last4.id_for_label }}">Card last 4 (optional)</label>
+                {{ form.card_last4 }}
+              </div>
+            </div>
+
+            <div class="form-check mt-3">
+              {{ form.approved_by_coo }}
+              <label class="form-check-label" for="{{ form.approved_by_coo.id_for_label }}">Approved by COO</label>
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label fw-semibold" for="{{ form.payment_proof.id_for_label }}">Proof (optional)</label>
+              {{ form.payment_proof }}
+              {% for e in form.payment_proof.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label fw-semibold" for="{{ form.payment_notes.id_for_label }}">Notes</label>
+              {{ form.payment_notes }}
+              {% for e in form.payment_notes.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mt-3">Mark as Processed</button>
+          </form>
+        {% else %}
+          <div class="mb-2">
+            <div class="text-muted small">Status</div>
+            <div class="fw-semibold">{{ payment.get_status_display }}</div>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-muted small">Method</div>
+            <div class="fw-semibold">{% if payment.payment_type %}{{ payment.get_payment_type_display }}{% else %}—{% endif %}</div>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-muted small">Processed at</div>
+            <div class="fw-semibold rcv-mono">{% if payment.processed_at %}{{ payment.processed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</div>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-muted small">Processed by</div>
+            <div class="fw-semibold">{% if payment.processed_by %}{{ payment.processed_by }}{% else %}—{% endif %}</div>
+          </div>
+
+          <hr>
+
+          <div class="mb-2">
+            <div class="text-muted small">Notes</div>
+            <div>{% if payment.payment_notes %}{{ payment.payment_notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+          </div>
+
+          {% if payment.payment_proof %}
+            <div class="mt-3 d-flex gap-2">
+              <a href="{{ payment.payment_proof.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View proof</a>
+              <a href="{{ payment.payment_proof.url }}" download class="btn btn-sm btn-outline-secondary">Download proof</a>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="rcv-card mb-3">
+      <div class="rcv-card-header px-3 py-3">
+        <div class="fw-semibold">Receiving invoice</div>
+        <div class="rcv-help">Invoice uploaded during receiving.</div>
+      </div>
+
+      <div class="p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="text-muted small">Receiving #</div>
+            <div class="fw-semibold rcv-mono">{% if receiving %}{{ receiving.id }}{% else %}—{% endif %}</div>
+          </div>
+          <div class="text-end">
+            <div class="text-muted small">Receiving status</div>
+            <div class="fw-semibold">{% if receiving %}{{ receiving.get_status_display }}{% else %}—{% endif %}</div>
+          </div>
+        </div>
+
+        <hr>
+
+        {% if receiving and receiving.supplier_invoice %}
+          <div class="fw-semibold">Invoice attached</div>
+          <div class="rcv-help">View/download the supplier invoice.</div>
+          <div class="mt-3 d-flex gap-2">
+            <a href="{{ receiving.supplier_invoice.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+            <a href="{{ receiving.supplier_invoice.url }}" download class="btn btn-sm btn-outline-secondary">Download</a>
+          </div>
+        {% else %}
+          <div class="fw-semibold">No invoice uploaded</div>
+          <div class="rcv-help">Receiving has no invoice attached.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# SWITCHED: Audit trail moved to the right column (was on left), with PO detail dropdown format #}
+    <div class="rcv-card">
+      <div class="rcv-card-header px-3 py-3">
+        <div class="fw-semibold">Audit trail</div>
+        <div class="rcv-help">Workflow timeline for this purchase order.</div>
+      </div>
+
+      <div class="p-3">
+        <details class="kf-details" id="audit-details">
+          <summary class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-semibold">Show audit trail</span>
+              <span class="badge bg-secondary">{{ timeline|length }} events</span>
+            </div>
+            <span class="kf-chevron" aria-hidden="true">▾</span>
+          </summary>
+
+          <div class="mt-3">
+            <div class="po-timeline-card">
+              <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Workflow timeline</span>
+                <span class="badge bg-secondary">{{ timeline|length }} events</span>
+              </div>
+
+              <div class="p-2">
+                {% if timeline %}
+                  <ul class="po-timeline mb-0">
+                    {% for e in timeline %}
+                      <li class="po-timeline-item">
+                        <span class="po-timeline-dot"></span>
+                        <div class="po-timeline-body">
+                          <div class="po-timeline-meta">
+                            <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
+                            {% if "Requisition" in e.label %}
+                              <span class="po-badge po-badge-requisition">REQ</span>
+                            {% elif "PO " in e.label %}
+                              <span class="po-badge po-badge-po">PO</span>
+                            {% elif "Payment" in e.label %}
+                              <span class="po-badge po-badge-payment">PAY</span>
+                            {% elif "Issuance" in e.label %}
+                              <span class="po-badge po-badge-issuance">ISS</span>
+                            {% else %}
+                              <span class="po-badge po-badge-other">EVT</span>
+                            {% endif %}
+                          </div>
+
+                          <div>
+                            {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
+                            {{ e.label }}
+                          </div>
+
+                          {% if e.details %}
+                            <div class="mt-1 text-muted">
+                              {{ e.details|linebreaksbr }}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-muted mb-0 px-1">No actions have been taken yet.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -20,7 +20,7 @@ from .views.receiving_views import (ReceivingListView, ReceivingDetailView
                                     
 )
 from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
-from .views.payments_views import PaymentsListView
+from .views.payments_views import PaymentDetailView, PaymentsListView
 
 app_name = "supplychain"
 
@@ -61,4 +61,5 @@ urlpatterns = [
 
     # Payments
     path('payments/', PaymentsListView.as_view(), name='payments-list'),
+    path("payments/<int:pk>/", PaymentDetailView.as_view(), name="payment-detail")
 ]

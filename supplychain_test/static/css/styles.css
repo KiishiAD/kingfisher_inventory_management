@@ -1,3 +1,5 @@
+/* static/css/styles.css  (FULL FILE — paste/replace) */
+
 body {
     background-color: #f5f7fa;
     font-family: Arial, sans-serif;
@@ -39,6 +41,7 @@ footer {
     background-color: #ffffff;
 }
 
+/* Legacy timeline (keep) */
 .timeline {
     position: relative;
     padding-left: 2rem;
@@ -82,138 +85,47 @@ input[name$='-DELETE'] {
 
 /* Make quantity input narrower than product/supplier */
 .qty-input {
-  max-width: 6rem;   /* ~6 character width */
+  max-width: 6rem;
 }
 
-/* =========================================================
-   Receiving detail page (moved from receiving/detail.html)
-   ========================================================= */
+/* ========= Shared Kingfisher UI (cards, tables, filters) ========= */
 
-/* Cards / base helpers */
-.kf-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
-.kf-card-header { border-bottom: 1px solid #dee2e6; }
-.kf-help { font-size: .875rem; color: #6c757d; }
-.kf-table td, .kf-table th { vertical-align: middle; }
-.kf-mono { font-variant-numeric: tabular-nums; }
-
-.kf-pill {
-  border-radius: 999px;
-  padding: .25rem .6rem;
+.kf-card,
+.rcv-card {
   border: 1px solid #dee2e6;
-  background: #f8f9fa;
-  font-weight: 600;
-  font-size: .8rem;
-}
-
-.kf-filebox {
-  border: 1px dashed #cfd4da;
   border-radius: .75rem;
-  padding: .75rem;
-  background: #fbfbfc;
+  background: #fff;
 }
 
-.kf-input { border-radius: .6rem; }
-.kf-input:focus { box-shadow: 0 0 0 .2rem rgba(13,110,253,.10); }
-
-.kf-variance-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  border-radius: 999px;
-  padding: .35rem .6rem;
-  border: 1px solid transparent;
-  font-weight: 600;
-  font-size: .85rem;
-  white-space: nowrap;
+.kf-card-header,
+.rcv-card-header {
+  border-bottom: 1px solid #dee2e6;
 }
 
-.kf-var-ok {
-  color: #146c43;
-  border-color: rgba(20,108,67,.25);
-  background: rgba(20,108,67,.06);
-}
-
-.kf-var-under {
-  color: #0d6efd;
-  border-color: rgba(13,110,253,.25);
-  background: rgba(13,110,253,.06);
-}
-
-.kf-var-over {
-  color: #b02a37;
-  border-color: rgba(176,42,55,.25);
-  background: rgba(176,42,55,.06);
-}
-
-.kf-var-empty {
-  color: #6c757d;
-  border-color: rgba(108,117,125,.25);
-  background: rgba(108,117,125,.06);
-  font-weight: 500;
-}
-
-.kf-divider { height: 1px; background: #dee2e6; margin: .75rem 0; }
-
-/* Timeline look */
-.po-timeline-card {
-  max-height: 360px;
-  overflow-y: auto;
-  border: 1px solid #dee2e6;
-  border-radius: .5rem;
-  background-color: #ffffff;
-}
-.po-timeline {
-  position: relative;
-  list-style: none;
-  margin: 0;
-  padding-left: 1.5rem;
-}
-.po-timeline::before {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background-color: #e9ecef;
-}
-.po-timeline-item { position: relative; margin-bottom: 10px; }
-.po-timeline-dot {
-  position: absolute;
-  left: -1px;
-  top: 6px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #0d6efd;
-}
-.po-timeline-body {
-  padding: .35rem .5rem;
-  border-radius: .25rem;
-  background-color: #f8f9fa;
+.kf-help,
+.rcv-help {
   font-size: .875rem;
-}
-.po-timeline-body:hover { background-color: #e9ecef; }
-.po-timeline-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: .75rem;
   color: #6c757d;
-  margin-bottom: .15rem;
 }
-.po-badge {
-  display: inline-block;
-  padding: .1rem .4rem;
-  border-radius: .5rem;
-  font-size: .7rem;
-  color: #fff;
+
+.kf-table td, .kf-table th,
+.rcv-table td, .rcv-table th {
+  vertical-align: middle;
 }
-.po-badge-requisition { background-color: #0d6efd; }
-.po-badge-po          { background-color: #198754; }
-.po-badge-receiving   { background-color: #6f42c1; }
-.po-badge-payment     { background-color: #0dcaf0; color: #000; }
-.po-badge-issuance    { background-color: #ffc107; color: #000; }
-.po-badge-other       { background-color: #6c757d; }
+
+.rcv-pill { border-radius: 999px; }
+.rcv-mono { font-variant-numeric: tabular-nums; }
+
+.rcv-search { position: relative; }
+.rcv-search .form-control { padding-left: 2.25rem; }
+.rcv-search .rcv-search-icon {
+  position: absolute; left: .75rem; top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  pointer-events: none;
+}
+
+/* ========= Audit dropdown (details/summary) ========= */
 
 details.kf-details > summary {
   cursor: pointer;
@@ -221,6 +133,7 @@ details.kf-details > summary {
   user-select: none;
 }
 details.kf-details > summary::-webkit-details-marker { display: none; }
+
 .kf-chevron {
   display: inline-flex;
   align-items: center;
@@ -230,34 +143,83 @@ details.kf-details > summary::-webkit-details-marker { display: none; }
   border-radius: 999px;
   border: 1px solid #dee2e6;
   background: #fff;
-  font-size: .85rem;
+  font-size: .8rem;
   line-height: 1;
   transition: transform .15s ease;
 }
 details[open] .kf-chevron { transform: rotate(180deg); }
 
-/* Action buttons (PO-style) */
-.kf-action-bar { display: flex; gap: .5rem; flex-wrap: wrap; }
-.kf-action-btn {
-  border-radius: 999px;
-  padding: .45rem .9rem;
-  font-weight: 600;
-  letter-spacing: .2px;
-  border-width: 1px;
-}
-.kf-approve { color: #146c43; border-color: rgba(20,108,67,.35); background: rgba(20,108,67,.06); }
-.kf-approve:hover { background: rgba(20,108,67,.12); border-color: rgba(20,108,67,.55); }
-.kf-deny { color: #b02a37; border-color: rgba(176,42,55,.35); background: rgba(176,42,55,.06); }
-.kf-deny:hover { background: rgba(176,42,55,.12); border-color: rgba(176,42,55,.55); }
-.kf-send { color: #374151; border-color: rgba(55,65,81,.35); background: rgba(55,65,81,.06); }
-.kf-send:hover { background: rgba(55,65,81,.12); border-color: rgba(55,65,81,.55); }
+/* ========= Audit timeline look (same as PO detail) ========= */
 
-.kf-action-btn.active {
-  background: #111827 !important;
-  border-color: #111827 !important;
-  color: #fff !important;
+.po-timeline-card {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: .5rem;
+  background-color: #ffffff;
 }
 
+.po-timeline {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.po-timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #e9ecef;
+}
+
+.po-timeline-item { position: relative; margin-bottom: 10px; }
+
+.po-timeline-dot {
+  position: absolute;
+  left: -1px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #0d6efd;
+}
+
+.po-timeline-body {
+  padding: .35rem .5rem;
+  border-radius: .25rem;
+  background-color: #f8f9fa;
+  font-size: .875rem;
+}
+
+.po-timeline-body:hover { background-color: #e9ecef; }
+
+.po-timeline-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: .75rem;
+  color: #6c757d;
+  margin-bottom: .15rem;
+}
+
+.po-badge {
+  display: inline-block;
+  padding: .1rem .4rem;
+  border-radius: .5rem;
+  font-size: .7rem;
+  color: #fff;
+}
+
+.po-badge-requisition { background-color: #0d6efd; }
+.po-badge-po          { background-color: #198754; }
+.po-badge-payment     { background-color: #0dcaf0; color: #000; }
+.po-badge-issuance    { background-color: #ffc107; color: #000; }
+.po-badge-other       { background-color: #6c757d; }
+
+/* Notes widget styling (optional but matches your PO UI) */
 .kf-notes {
   border-radius: .75rem;
   border: 1px solid #dee2e6;
@@ -271,51 +233,4 @@ details[open] .kf-chevron { transform: rotate(180deg); }
   border-color: rgba(13,110,253,.35);
   box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
   outline: none;
-}
-
-/* =========================================================
-   Shared list-page styling (PO list, Receiving list, Payments list)
-   ========================================================= */
-
-/* Card containers */
-.po-card, .rcv-card, .pay-card, .kf-card {
-  border: 1px solid #dee2e6;
-  border-radius: .75rem;
-  background: #fff;
-}
-
-.po-card-header, .rcv-card-header, .pay-card-header, .kf-card-header {
-  border-bottom: 1px solid #dee2e6;
-}
-
-/* Helper text */
-.po-help, .rcv-help, .pay-help {
-  font-size: .875rem;
-  color: #6c757d;
-}
-
-/* Tables */
-.po-table td, .po-table th,
-.rcv-table td, .rcv-table th,
-.pay-table td, .pay-table th {
-  vertical-align: middle;
-}
-
-/* Pills + mono numbers */
-.po-pill, .rcv-pill, .pay-pill { border-radius: 999px; }
-.po-mono, .rcv-mono, .pay-mono { font-variant-numeric: tabular-nums; }
-
-/* Search input with icon */
-.po-search, .rcv-search, .pay-search { position: relative; }
-.po-search .form-control, .rcv-search .form-control, .pay-search .form-control { padding-left: 2.25rem; }
-
-.po-search .po-search-icon,
-.rcv-search .rcv-search-icon,
-.pay-search .pay-search-icon {
-  position: absolute;
-  left: .75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6c757d;
-  pointer-events: none;
 }

@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier,Receiving, ReceivingItem
+from .models import Requisition, RequisitionItem, Destination, RequisitionApproval , PurchaseOrderApproval, PurchaseOrder,PurchaseOrderItem,Supplier,Receiving, ReceivingItem,Payment
 from decimal import Decimal
 
 class RequisitionForm(forms.ModelForm):
@@ -356,3 +356,46 @@ class ReceivingAmendmentNotesForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
     )
+
+
+
+
+class PaymentProcessForm(forms.ModelForm):
+    class Meta:
+        model = Payment
+        fields = [
+            "payment_type",
+            "bank_name",
+            "transfer_reference",
+            "cheque_number",
+            "card_last4",
+            "approved_by_coo",
+            "payment_notes",
+            "payment_proof",
+        ]
+        widgets = {
+            "payment_notes": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "payment_type": forms.Select(attrs={"class": "form-select"}),
+            "bank_name": forms.TextInput(attrs={"class": "form-control"}),
+            "transfer_reference": forms.TextInput(attrs={"class": "form-control"}),
+            "cheque_number": forms.TextInput(attrs={"class": "form-control"}),
+            "card_last4": forms.TextInput(attrs={"class": "form-control", "maxlength": "4"}),
+            "approved_by_coo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        payment_type = cleaned.get("payment_type")
+
+        if not payment_type:
+            raise forms.ValidationError("Select a payment method before processing.")
+
+        # Optional: basic field expectations per method (keep lightweight)
+        if payment_type == Payment.CHEQUE and not cleaned.get("cheque_number"):
+            raise forms.ValidationError("Cheque number is required for cheque payments.")
+        if payment_type == Payment.TRANSFER and not cleaned.get("transfer_reference"):
+            raise forms.ValidationError("Transfer reference is required for bank transfers.")
+        if payment_type == Payment.CARD and cleaned.get("card_last4") and len(cleaned["card_last4"]) != 4:
+            raise forms.ValidationError("Card last 4 must be exactly 4 digits.")
+
+        return cleaned

@@ -19,7 +19,7 @@ from .views.purchaseorder_views import (
 from .views.receiving_views import (ReceivingListView, ReceivingDetailView
                                     
 )
-from .views.inventory_views import InventoryLevelsView, InventoryAlertsView
+from .views.inventory_views import InventoryDetailView, InventoryListView, InventoryMovementReportView, LowStockDashboardView
 from .views.payments_views import PaymentDetailView, PaymentsListView
 from .views.product_bulk_upload_views import ProductBulkUploadView
 
@@ -57,8 +57,10 @@ urlpatterns = [
     path('receiving/<int:pk>/', ReceivingDetailView.as_view(), name='receiving-detail'),
 
     # Inventory
-    path('inventory/levels/', InventoryLevelsView.as_view(), name='inventory-levels'),
-    path('inventory/alerts/', InventoryAlertsView.as_view(), name='inventory-alerts'),
+    path("inventory/", InventoryListView.as_view(), name="inventory-list"),
+    path("inventory/low-stock/", LowStockDashboardView.as_view(), name="inventory-low-stock"),
+    path("inventory/movement/", InventoryMovementReportView.as_view(), name="inventory-movement"),
+    path("inventory/<int:pk>/", InventoryDetailView.as_view(), name="inventory-detail"),
 
     # Payments
     path('payments/', PaymentsListView.as_view(), name='payments-list'),

@@ -1,6 +1,9 @@
 # supplychain/utils.py  (full file as per what you pasted, with payment timeline fixed)
 
 from decimal import Decimal
+from collections import defaultdict
+from decimal import Decimal
+from django.db.models import Case, When, F, DecimalField, Sum, Value
 
 from django.db import transaction
 
@@ -10,7 +13,11 @@ from .models import (
     Receiving,
     ReceivingItem,
     Payment,
+    LowStockAlert,
+    StockTransaction,
 )
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 
 def generate_po_for_requisition(requisition, created_by):
@@ -473,3 +480,116 @@ def _receiving_queried_lines_details(receiving, max_lines=6):
         lines.append(f"+ {remaining} more queried lines")
 
     return "Queried lines:\n" + "\n".join(lines)
+
+
+    def on_hand(product_id: int) -> Decimal:
+        signed = Case(
+            When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
+            When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
+            When(transaction_type=StockTransaction.ADJUST, then=F("quantity")),  # assumes ADJUST is already signed/positive-only
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+        agg = StockTransaction.objects.filter(product_id=product_id).aggregate(
+            qty=Coalesce(Sum(signed), Value(0))
+        )
+        return agg["qty"] or Decimal("0")
+
+
+    def evaluate_low_stock(product_id: int) -> None:
+        p = Product.objects.only("id", "low_stock_threshold").get(pk=product_id)
+        threshold = p.low_stock_threshold
+        if threshold is None:
+            return
+
+    qty = on_hand(product_id)
+
+    active = (
+        LowStockAlert.objects
+        .filter(product_id=product_id, resolved_at__isnull=True)
+        .order_by("-triggered_at")
+        .first()
+    )
+
+    if qty < threshold:
+        if not active:
+            LowStockAlert.objects.create(
+                product_id=product_id,
+                threshold=threshold,
+            )
+        else:
+            # keep snapshot aligned if threshold changed while alert is active
+            if active.threshold != threshold:
+                active.threshold = threshold
+                active.save(update_fields=["threshold"])
+    else:
+        if active:
+            active.resolved_at = timezone.now()
+            active.save(update_fields=["resolved_at"])
+
+
+def record_receiving_as_stock(receiving_id: int, actor_id: int | None = None) -> None:
+    receiving = (
+        Receiving.objects
+        .select_related("purchase_order")
+        .prefetch_related("items__po_item__product")
+        .get(pk=receiving_id)
+    )
+
+    # Only count stock when it is cleared for payment (your rule)
+    if receiving.status != Receiving.REVIWED:
+        return
+
+    totals = defaultdict(Decimal)
+    for ri in receiving.items.all():
+        if ri.actual_quantity is None:
+            continue
+        product_id = ri.po_item.product_id
+        totals[product_id] += Decimal(ri.actual_quantity)
+
+    for product_id, qty in totals.items():
+        # one RECEIVE per product per receiving
+        StockTransaction.objects.get_or_create(
+            product_id=product_id,
+            transaction_type=StockTransaction.RECEIVE,
+            source_type=StockTransaction.SRC_RECEIVING,
+            source_id=receiving_id,
+            defaults={
+                "quantity": qty,
+                "created_by_id": actor_id,
+                "note": f"Receiving #{receiving_id} cleared for payment",
+            },
+        )
+        evaluate_low_stock(product_id)
+
+
+def record_store_requisition_issue(requisition_id: int, actor_id: int | None = None) -> None:
+    req = (
+        Requisition.objects
+        .select_related("destination")
+        .prefetch_related("items__product")
+        .get(pk=requisition_id)
+    )
+
+    # Only ISSUE when requisition is approved AND destination is STORE (your rule)
+    if req.status != Requisition.APPROVED:
+        return
+    if req.destination.name != Destination.STORE:
+        return
+
+    totals = defaultdict(Decimal)
+    for item in req.items.all():
+        totals[item.product_id] += Decimal(item.quantity)
+
+    for product_id, qty in totals.items():
+        StockTransaction.objects.get_or_create(
+            product_id=product_id,
+            transaction_type=StockTransaction.ISSUE,
+            source_type=StockTransaction.SRC_REQUISITION,
+            source_id=requisition_id,
+            defaults={
+                "quantity": qty,
+                "created_by_id": actor_id,
+                "note": f"Store requisition #{requisition_id} approved",
+            },
+        )
+        evaluate_low_stock(product_id)

@@ -40,8 +40,8 @@
                     <li class="nav-item"><a class="nav-link {% if section == 'purchase_orders' %}active{% endif %}" href="{% url 'supplychain:po-list' %}">Purchase Orders</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'receiving' %}active{% endif %}" href="{% url 'supplychain:receiving-list' %}">Receiving</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'payments' %}active{% endif %}" href="{% url 'supplychain:payments-list' %}">Payments</a></li>
-                    <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-levels' %}">Inventory</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'operations' %}active{% endif %}" href="{% url 'supplychain:product-bulk-upload' %}">Bulk Product Upload</a></li>
+                    <li class="nav-item"><a class="nav-link {% if section == 'Inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-list' %}">Inventory</a></li>
                     
                     {% if user.is_staff %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
@@ -149,8 +149,7 @@
                         <div id="collapseInv" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
-                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-levels' %}">Current Stock Levels</a></li>
-                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-alerts' %}">Low Stock Alerts</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-list' %}">Current Stock Levels</a></li>
                                 </ul>
                             </div>
                         </div>

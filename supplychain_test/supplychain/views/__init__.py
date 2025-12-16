@@ -11,7 +11,7 @@ from .purchaseorder_views import (
     PurchaseOrderPendingListView,
 )
 from .receiving_views import ReceivingListView, ReceivingDetailView
-from .inventory_views import InventoryLevelsView, InventoryAlertsView
+from .inventory_views import InventoryDetailView, InventoryListView, InventoryMovementReportView, LowStockDashboardView
 from .payments_views import PaymentsListView
 
 __all__ = [

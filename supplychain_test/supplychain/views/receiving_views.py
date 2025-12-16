@@ -17,7 +17,8 @@ from ..forms import (
     ReceivingReviewNotesForm,
 )
 from ..models import Receiving, Payment
-from ..utils import build_workitem_timeline_for_po
+from ..utils import build_workitem_timeline_for_po, record_receiving_as_stock
+
 
 
 class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -37,8 +38,7 @@ class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = (
-            Receiving.objects
-            .select_related(
+            Receiving.objects.select_related(
                 "purchase_order",
                 "purchase_order__supplier",
                 "received_by",
@@ -91,9 +91,7 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 "reviewed_by",
                 "sent_to_coo_by",
                 "coo_decision_by",
-            ).prefetch_related(
-                "items__po_item__product",
-            ),
+            ).prefetch_related("items__po_item__product"),
             pk=pk,
         )
 
@@ -179,7 +177,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 "created_by": actor,
             },
         )
-        # If it existed but created_by was never set, set it once.
         if (not created) and payment.created_by_id is None and actor is not None:
             payment.created_by = actor
             payment.save(update_fields=["created_by"])
@@ -210,7 +207,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             review_form = ReceivingReviewNotesForm(
                 initial={"review_notes": (getattr(receiving, "review_notes", "") or "")}
             )
-
         else:
             receiving_items = self._annotate_variance_list(receiving)
 
@@ -364,8 +360,13 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     receiving.status = Receiving.REVIWED
                     receiving.save()
 
-                    # NEW: auto-create pending payment
+                    # auto-create pending payment
                     self._ensure_pending_payment(po, request.user)
+
+                    # NEW: record stock RECEIPT only when cleared for payment (after commit)
+                    transaction.on_commit(
+                        lambda: record_receiving_as_stock(receiving.pk, request.user.pk)
+                    )
 
                     messages.success(request, "Accounting approved. Cleared for payment.")
 
@@ -400,8 +401,13 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     receiving.status = Receiving.REVIWED
                     receiving.save()
 
-                    # NEW: auto-create pending payment
+                    # auto-create pending payment
                     self._ensure_pending_payment(po, request.user)
+
+                    # NEW: record stock RECEIPT only when cleared for payment (after commit)
+                    transaction.on_commit(
+                        lambda: record_receiving_as_stock(receiving.pk, request.user.pk)
+                    )
 
                     messages.success(request, "COO approved. Cleared for payment.")
                 else:

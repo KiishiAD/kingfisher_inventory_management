@@ -16,7 +16,7 @@ from ..forms import (
     ReceivingAccountingItemFormSet,
     ReceivingReviewNotesForm,
 )
-from ..models import Receiving
+from ..models import Receiving, Payment
 from ..utils import build_workitem_timeline_for_po
 
 
@@ -109,7 +109,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if self._is_pending_coo(receiving) and u.has_perm("supplychain.approve_receiving"):
             return "coo_approval"
 
-        # Accounting can only act while it's UNDER_REVIEW AND not already sent to COO
         if (
             receiving.status == Receiving.UNDER_REVIEW
             and (not self._is_pending_coo(receiving))
@@ -158,10 +157,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return items
 
     def _requires_coo_approval(self, receiving) -> bool:
-        """
-        COO approval required if ANY line is oversupplied by > 0.50.
-        Undersupply or exact match never requires COO approval.
-        """
         tol = Decimal("0.50")
         for ri in receiving.items.select_related("po_item").all():
             if ri.actual_quantity is None:
@@ -171,6 +166,24 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             if diff > tol:
                 return True
         return False
+
+    def _ensure_pending_payment(self, po, actor):
+        """
+        Create a pending Payment when a receiving is cleared for payment.
+        Safe to call multiple times (OneToOne + get_or_create).
+        """
+        payment, created = Payment.objects.get_or_create(
+            purchase_order=po,
+            defaults={
+                "status": Payment.PENDING,
+                "created_by": actor,
+            },
+        )
+        # If it existed but created_by was never set, set it once.
+        if (not created) and payment.created_by_id is None and actor is not None:
+            payment.created_by = actor
+            payment.save(update_fields=["created_by"])
+        return payment
 
     def get(self, request, pk):
         receiving = self.get_object(pk)
@@ -199,7 +212,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             )
 
         else:
-            # COO + readonly both show read-only receiving lines with variance
             receiving_items = self._annotate_variance_list(receiving)
 
         context = {
@@ -214,7 +226,7 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             "receiving_items": receiving_items,
             "requires_coo": requires_coo,
             "is_pending_coo": self._is_pending_coo(receiving),
-            "timeline": build_workitem_timeline_for_po(po),  # single audit trail
+            "timeline": build_workitem_timeline_for_po(po),
         }
         return render(request, "supplychain/receiving/detail.html", context)
 
@@ -223,7 +235,7 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
         po = receiving.purchase_order
         mode = self._get_mode(request, receiving)
 
-        # ENTRY (record_receiving)
+        # ENTRY
         if mode == "entry":
             header_form = ReceivingHeaderForm(request.POST, request.FILES, instance=receiving)
             item_formset = ReceivingItemFormSet(request.POST, instance=receiving)
@@ -258,7 +270,7 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             messages.success(request, "Receiving recorded and sent for accounting review.")
             return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
-        # ACCOUNTING REVIEW (review_receiving)
+        # ACCOUNTING REVIEW
         if mode == "accounting_review":
             accounting_action = (request.POST.get("accounting_action") or "").strip().upper()
             allowed = {"APPROVE", "DENY", "SEND_COO"}
@@ -267,7 +279,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             review_form = ReceivingReviewNotesForm(request.POST)
 
             if accounting_action not in allowed:
-                # render with validation feedback
                 for f in accounting_formset.forms:
                     self._annotate_variance_obj(f.instance)
 
@@ -300,7 +311,6 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     "is_pending_coo": self._is_pending_coo(receiving),
                 })
 
-            # Guard (legacy rows)
             if receiving.items.filter(actual_quantity__isnull=True).exists():
                 for f in accounting_formset.forms:
                     self._annotate_variance_obj(f.instance)
@@ -325,14 +335,12 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 receiving.reviewed_by = request.user
                 receiving.reviewed_at = timezone.now()
 
-                # DENY: immediate final denial
                 if accounting_action == "DENY":
                     receiving.status = getattr(Receiving, "DENIED", "DENIED")
                     receiving.save()
                     messages.error(request, "Accounting denied this receiving.")
                     return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
-                # SEND_COO: manual send, status stays UNDER_REVIEW
                 if accounting_action == "SEND_COO":
                     if self._is_pending_coo(receiving):
                         receiving.save()
@@ -345,9 +353,7 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     messages.warning(request, "Sent to COO for approval/denial (status remains Pending Accounting Review).")
                     return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
-                # APPROVE:
-                # - if oversupply > 0.50 exists => send to COO (status remains UNDER_REVIEW)
-                # - else => clear for payment
+                # APPROVE
                 if self._requires_coo_approval(receiving):
                     if not self._is_pending_coo(receiving):
                         receiving.sent_to_coo_by = request.user
@@ -357,11 +363,15 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 else:
                     receiving.status = Receiving.REVIWED
                     receiving.save()
+
+                    # NEW: auto-create pending payment
+                    self._ensure_pending_payment(po, request.user)
+
                     messages.success(request, "Accounting approved. Cleared for payment.")
 
             return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
-        # COO APPROVAL (approve_receiving) — only when sent_to_coo_at set, status still UNDER_REVIEW
+        # COO APPROVAL
         if mode == "coo_approval":
             coo_action = (request.POST.get("coo_action") or "").strip().upper()
             allowed = {"APPROVE", "DENY"}
@@ -389,6 +399,10 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 if coo_action == "APPROVE":
                     receiving.status = Receiving.REVIWED
                     receiving.save()
+
+                    # NEW: auto-create pending payment
+                    self._ensure_pending_payment(po, request.user)
+
                     messages.success(request, "COO approved. Cleared for payment.")
                 else:
                     receiving.status = getattr(Receiving, "DENIED", "DENIED")

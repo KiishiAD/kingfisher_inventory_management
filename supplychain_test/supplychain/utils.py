@@ -192,12 +192,24 @@ def build_workitem_timeline(requisition):
 
         payment = getattr(po, "payment", None)
         if payment:
+            # show creation (pending) event
             events.append({
-                "timestamp": payment.processed_at,
-                "who": getattr(payment, "processed_by", None),
-                "label": f"Payment processed ({payment.payment_type})",
-                "details": payment.payment_notes,
+                "timestamp": getattr(payment, "created_at", None),
+                "who": getattr(payment, "created_by", None),
+                "label": f"Payment created ({payment.get_status_display()})",
+                "details": "",
             })
+
+            # show processed event if/when processed
+            if getattr(payment, "processed_at", None):
+                pt = getattr(payment, "payment_type", None) or "—"
+                notes = getattr(payment, "payment_notes", "") or ""
+                events.append({
+                    "timestamp": payment.processed_at,
+                    "who": getattr(payment, "processed_by", None),
+                    "label": f"Payment processed ({pt})",
+                    "details": notes,
+                })
 
         # Optional: include receiving event if you want (safe, minimal)
         rec = po.receivings.order_by("created_at").first()

@@ -117,9 +117,12 @@
       <hr>
       <div class="fw-semibold">Errors (showing up to 100)</div>
       <ul class="mb-0">
-        {% for e in result.errors|slice:":100" %}
-          <li class="text-danger">{{ e }}</li>
-        {% endfor %}
+       {% for err in result.errors|slice:":100" %}
+  <li class="text-danger">
+    <div><strong>Row {{ err.row }}</strong> — {{ err.item }}</div>
+    <div>{{ err.message }}</div>
+  </li>
+{% endfor %}
       </ul>
     {% endif %}
   </div>

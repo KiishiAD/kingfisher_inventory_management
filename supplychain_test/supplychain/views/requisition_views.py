@@ -1,15 +1,26 @@
 # supplychain/views/requisition_views.py
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.views.generic import CreateView, ListView, UpdateView
-from django.urls import reverse_lazy
-from django.contrib import messages
-import logging
-from django.views import View
-from django.db import transaction
+from collections import defaultdict
+from decimal import Decimal
 
-from ..models import Requisition, RequisitionApproval, Destination
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.db import transaction
+from django.db.models import Sum, Case, When, F, DecimalField, Value
+from django.db.models.functions import Coalesce
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse_lazy
+from django.views import View
+from django.views.generic import CreateView, ListView, UpdateView
+
+import logging
+
+from ..models import (
+    Requisition,
+    RequisitionApproval,
+    Destination,
+    StockTransaction,   # ✅ needed to check inventory at request time
+)
 from ..forms import (
     RequisitionForm,
     RequisitionItemFormSet,
@@ -18,10 +29,95 @@ from ..forms import (
 )
 from ..utils import generate_po_for_requisition, build_workitem_timeline, record_store_requisition_issue
 
-
-
-
 logger = logging.getLogger(__name__)
+
+DEC_OUT = DecimalField(max_digits=12, decimal_places=2)
+DEC0 = Value(Decimal("0.00"), output_field=DEC_OUT)
+
+
+def _signed_case_for_stock():
+    """
+    Signed quantity mapping:
+      RECEIVE    = +qty
+      ISSUE      = -qty
+      ADJUST_IN  = +qty
+      ADJUST_OUT = -qty
+    """
+    return Case(
+        When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
+        When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
+        When(transaction_type=StockTransaction.ADJUST_IN, then=F("quantity")),
+        When(transaction_type=StockTransaction.ADJUST_OUT, then=-F("quantity")),
+        default=DEC0,
+        output_field=DEC_OUT,
+    )
+
+
+def _on_hand_map(product_ids: list[int]) -> dict[int, Decimal]:
+    """
+    Returns {product_id: on_hand} for the given products.
+    """
+    if not product_ids:
+        return {}
+
+    signed = _signed_case_for_stock()
+    rows = (
+        StockTransaction.objects
+        .filter(product_id__in=product_ids)
+        .values("product_id")
+        .annotate(qty=Coalesce(Sum(signed, output_field=DEC_OUT), DEC0, output_field=DEC_OUT))
+    )
+    out = {r["product_id"]: (r["qty"] or Decimal("0.00")) for r in rows}
+
+    # ensure every id exists in map
+    for pid in product_ids:
+        out.setdefault(pid, Decimal("0.00"))
+    return out
+
+
+def _validate_store_stock(item_formset) -> None:
+    """
+    Adds form errors if destination is STORE and:
+    - a product has 0 on-hand (out of stock), OR
+    - requested quantity exceeds on-hand.
+
+    This is called AFTER item_formset.is_valid() so cleaned_data is available.
+    """
+    requested_totals = defaultdict(Decimal)
+    line_products = []  # keep per-line references for better per-line errors
+
+    for f in item_formset.forms:
+        if not getattr(f, "cleaned_data", None) or f.cleaned_data.get("DELETE"):
+            continue
+        product = f.cleaned_data.get("product")
+        qty = f.cleaned_data.get("quantity")
+
+        if not product or qty is None:
+            continue
+
+        qty = Decimal(qty)
+        requested_totals[product.id] += qty
+        line_products.append((f, product.id, qty, product))
+
+    product_ids = list(requested_totals.keys())
+    stock = _on_hand_map(product_ids)
+
+    # 1) Hard rule: if stock is 0, block requesting it (your requirement)
+    # 2) Also block if requesting more than available (prevents negative stock)
+    for f, pid, line_qty, product in line_products:
+        available = stock.get(pid, Decimal("0.00"))
+
+        if available <= 0:
+            f.add_error("product", f"Out of stock (available: {available}).")
+            continue
+
+        total_requested_for_product = requested_totals[pid]
+        if total_requested_for_product > available:
+            # add the error to the quantity field so it’s obvious what to change
+            f.add_error(
+                "quantity",
+                f"Not enough stock. Available: {available}. Requested (total): {total_requested_for_product}.",
+            )
 
 
 class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -59,8 +155,9 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
         if not item_formset.is_valid():
             return self.render_to_response(context)
 
-        # EXTRA RULE: if destination == STORE, no supplier allowed on any item
         destination = form.cleaned_data.get("destination")
+
+        # RULE 1: if destination == STORE, supplier must be empty on each item
         if destination and destination.name == Destination.STORE:
             for f in item_formset.forms:
                 if not f.cleaned_data or f.cleaned_data.get("DELETE"):
@@ -68,6 +165,10 @@ class RequisitionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
                 supplier = f.cleaned_data.get("supplier")
                 if supplier:
                     f.add_error("supplier", "Supplier must be empty when destination is STORE.")
+
+        # RULE 2 (your request): block STORE requisitions if stock is 0 / insufficient
+        if destination and destination.name == Destination.STORE:
+            _validate_store_stock(item_formset)
 
         if any(f.errors for f in item_formset.forms) or item_formset.non_form_errors():
             return self.render_to_response(self.get_context_data(form=form, item_formset=item_formset))
@@ -129,9 +230,7 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
             else:
                 context["item_formset"] = RequisitionItemFormSet(instance=self.object)
 
-        context["approvals"] = (
-            self.object.approvals.select_related("approver").order_by("timestamp")
-        )
+        context["approvals"] = self.object.approvals.select_related("approver").order_by("timestamp")
         context["timeline"] = build_workitem_timeline(self.object)
         return context
 
@@ -148,8 +247,9 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         if not item_formset.is_valid():
             return self.render_to_response(self.get_context_data(form=form, item_formset=item_formset))
 
-        # EXTRA RULE: if destination == STORE, no supplier allowed on any item
         destination = form.cleaned_data.get("destination")
+
+        # RULE 1: if destination == STORE, supplier must be empty on each item
         if destination and destination.name == Destination.STORE:
             for f in item_formset.forms:
                 if not f.cleaned_data or f.cleaned_data.get("DELETE"):
@@ -157,6 +257,10 @@ class RequisitionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
                 supplier = f.cleaned_data.get("supplier")
                 if supplier:
                     f.add_error("supplier", "Supplier must be empty when destination is STORE.")
+
+        # RULE 2 (your request): block STORE requisitions if stock is 0 / insufficient
+        if destination and destination.name == Destination.STORE:
+            _validate_store_stock(item_formset)
 
         if any(f.errors for f in item_formset.forms) or item_formset.non_form_errors():
             return self.render_to_response(self.get_context_data(form=form, item_formset=item_formset))
@@ -393,21 +497,42 @@ class RequisitionDetailView(LoginRequiredMixin, View):
 
         try:
             with transaction.atomic():
+                # 1) Save the approval + set requisition status (your form.save does this)
                 form.save(requisition=requisition, approver=request.user)
 
-                # If approved, generate PO for PURCHASE
+                # IMPORTANT: refresh local object inside the transaction so status is up-to-date
+                requisition.refresh_from_db(fields=["status", "destination_id"])
+
+                # 2) If approved, enforce the required side-effects
                 if requisition.status == Requisition.APPROVED:
+                    # PURCHASE => must create a PO
                     if requisition.destination.name == Destination.PURCHASE:
                         generate_po_for_requisition(requisition, created_by=request.user)
 
-                    # NEW: issue inventory ONLY for STORE approvals, and only after commit
+                        po_exists = PurchaseOrder.objects.filter(requisition=requisition).exists()
+                        if not po_exists:
+                            raise ValueError(
+                                "Approval failed: a Purchase Order could not be created. Nothing was changed."
+                            )
+
+                    # STORE => must create inventory ISSUE transactions
                     if requisition.destination.name == Destination.STORE:
-                        transaction.on_commit(
-                            lambda: record_store_requisition_issue(requisition.pk, request.user.pk)
-                        )
+                        # run inside the transaction so failures rollback the approval
+                        record_store_requisition_issue(requisition.pk, request.user.pk)
+
+                        issued_exists = StockTransaction.objects.filter(
+                            source_type=StockTransaction.SRC_REQUISITION,
+                            source_id=requisition.pk,
+                            transaction_type=StockTransaction.ISSUE,
+                        ).exists()
+                        if not issued_exists:
+                            raise ValueError(
+                                "Approval failed: stock could not be issued (inventory was not updated). Nothing was changed."
+                            )
 
             messages.success(request, f"Requisition #{requisition.id} marked {requisition.status.lower()}.")
 
+            # Notifications AFTER commit (safe to keep here)
             def _notify():
                 try:
                     if requisition.status == Requisition.APPROVED:

@@ -18,7 +18,7 @@ from ..models import Product, StockTransaction, LowStockAlert, Category
 
 
 # ----------------------------
-# Filters / Forms (optional; you can remove if unused)
+# Filters / Forms
 # ----------------------------
 
 class InventoryFilterForm(forms.Form):
@@ -52,12 +52,17 @@ DEC0 = Value(Decimal("0.00"), output_field=DEC_OUT)
 
 def _signed_qty_expr(prefix: str = "stock_transactions__") -> Case:
     """
-    RECEIVE = +qty, ISSUE = -qty, ADJUST = +qty
+    Signed quantity mapping:
+      RECEIVE    = +qty
+      ISSUE      = -qty
+      ADJUST_IN  = +qty
+      ADJUST_OUT = -qty
     """
     return Case(
         When(**{f"{prefix}transaction_type": StockTransaction.RECEIVE}, then=F(f"{prefix}quantity")),
         When(**{f"{prefix}transaction_type": StockTransaction.ISSUE}, then=-F(f"{prefix}quantity")),
-        When(**{f"{prefix}transaction_type": StockTransaction.ADJUST}, then=F(f"{prefix}quantity")),
+        When(**{f"{prefix}transaction_type": StockTransaction.ADJUST_IN}, then=F(f"{prefix}quantity")),
+        When(**{f"{prefix}transaction_type": StockTransaction.ADJUST_OUT}, then=-F(f"{prefix}quantity")),
         default=DEC0,
         output_field=DEC_OUT,
     )
@@ -78,6 +83,20 @@ def _last_movement_subquery():
         .order_by("-created_at")
         .values("created_at")[:1],
         output_field=DateTimeField(),
+    )
+
+
+def _signed_case_for_txn_queryset() -> Case:
+    """
+    Same mapping as _signed_qty_expr, but for StockTransaction queryset annotations.
+    """
+    return Case(
+        When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
+        When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
+        When(transaction_type=StockTransaction.ADJUST_IN, then=F("quantity")),
+        When(transaction_type=StockTransaction.ADJUST_OUT, then=-F("quantity")),
+        default=DEC0,
+        output_field=DEC_OUT,
     )
 
 
@@ -137,13 +156,8 @@ class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
         )
 
         product_ids = [a.product_id for a in alerts]
-        signed = Case(
-            When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
-            When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
-            When(transaction_type=StockTransaction.ADJUST, then=F("quantity")),
-            default=DEC0,
-            output_field=DEC_OUT,
-        )
+
+        signed = _signed_case_for_txn_queryset()
 
         on_hand_rows = (
             StockTransaction.objects
@@ -174,13 +188,7 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
             pk=pk,
         )
 
-        signed = Case(
-            When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
-            When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
-            When(transaction_type=StockTransaction.ADJUST, then=F("quantity")),
-            default=DEC0,
-            output_field=DEC_OUT,
-        )
+        signed = _signed_case_for_txn_queryset()
 
         on_hand = (
             StockTransaction.objects
@@ -255,6 +263,7 @@ class InventoryMovementReportView(LoginRequiredMixin, PermissionRequiredMixin, V
         if cat_id:
             txns = txns.filter(product__categories__id=cat_id)  # M2M filter
 
+        # received/issued as positive measures
         received_expr = Case(
             When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
             default=DEC0,
@@ -265,10 +274,13 @@ class InventoryMovementReportView(LoginRequiredMixin, PermissionRequiredMixin, V
             default=DEC0,
             output_field=DEC_OUT,
         )
+
+        # net as signed measure
         net_expr = Case(
             When(transaction_type=StockTransaction.RECEIVE, then=F("quantity")),
             When(transaction_type=StockTransaction.ISSUE, then=-F("quantity")),
-            When(transaction_type=StockTransaction.ADJUST, then=F("quantity")),
+            When(transaction_type=StockTransaction.ADJUST_IN, then=F("quantity")),
+            When(transaction_type=StockTransaction.ADJUST_OUT, then=-F("quantity")),
             default=DEC0,
             output_field=DEC_OUT,
         )

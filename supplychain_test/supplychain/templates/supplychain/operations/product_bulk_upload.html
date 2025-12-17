@@ -2,29 +2,116 @@
 {% block title %}Bulk Upload Products{% endblock %}
 
 {% block content %}
-<h1>Bulk Upload Products</h1>
+<h1 class="mb-2">Bulk Upload Products</h1>
+<p class="text-muted mb-3">
+  Upload an Excel file (<code>.xlsx</code>) or <code>.csv</code> to create/update products and set current stock levels.
+</p>
 
-<div class="card p-3 mb-3">
-  <div class="fw-semibold mb-2">Columns</div>
-  <div class="small text-muted">
-    Required: name, unit_cost, uom_code<br>
-    Optional: sku, uom_name, description, categories, vendors, assigned_users
+<div class="card p-3 mb-3 shadow-sm">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="fw-semibold mb-2">Required columns</div>
+      <ul class="mb-0 text-muted">
+        <li><code>name</code></li>
+        <li><code>unit_cost</code></li>
+        <li><code>uom_code</code></li>
+        <li><code>stock_level</code> (use <code>0</code> if none)</li>
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <div class="fw-semibold mb-2">Optional columns</div>
+      <ul class="mb-0 text-muted">
+        <li><code>sku</code> (Automatically generated if not provided)</li>
+        <li><code>uom_name</code></li>
+        <li><code>description</code></li>
+        <li><code>categories</code> (comma-separated)</li>
+        <li><code>vendors</code> (comma-separated)</li>
+        <li><code>assigned_users</code> (comma-separated emails)</li>
+      </ul>
+    </div>
   </div>
+
+  <hr class="my-3">
+
+  <div class="fw-semibold mb-2">Example spreadsheet layout</div>
+  <div class="small text-muted mb-2">
+    Copy these headers into row 1 of your Excel file.
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>sku</th>
+          <th>name</th>
+          <th>unit_cost</th>
+          <th>uom_code</th>
+          <th>uom_name</th>
+          <th>description</th>
+          <th>categories</th>
+          <th>vendors</th>
+          <th>assigned_users</th>
+          <th>stock_level</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td></td>
+          <td>Chicken Thigh Fillet</td>
+          <td>2.50</td>
+          <td>KG</td>
+          <td>Kilogram</td>
+          <td>Frozen, 2kg pack</td>
+          <td>Meat, Frozen</td>
+          <td>Booker</td>
+          <td>buyer@company.com</td>
+          <td>26</td>
+        </tr>
+        <tr>
+          <td>rice-9F8E7D6C</td>
+          <td>Basmati Rice</td>
+          <td>1.20</td>
+          <td>KG</td>
+          <td></td>
+          <td></td>
+          <td>Dry Goods</td>
+          <td>Costco</td>
+          <td></td>
+          <td>140</td>
+        </tr>
+        <tr>
+          <td>coke-1A2B3C4D</td>
+          <td>Coca-Cola (330ml)</td>
+          <td>0.55</td>
+          <td>EA</td>
+          <td>Each</td>
+          <td></td>
+          <td>Drinks</td>
+          <td></td>
+          <td></td>
+          <td>0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="small text-muted mt-2">
-    Use commas for lists (e.g. categories: "Meat, Frozen"; vendors: "Booker, Costco").
+    Tip: for list columns, separate values with commas (e.g. <code>Meat, Frozen</code>).
   </div>
 </div>
 
-<form method="post" enctype="multipart/form-data" class="card p-3">
+<form method="post" enctype="multipart/form-data" class="card p-3 shadow-sm">
   {% csrf_token %}
   {{ form.as_p }}
   <button class="btn btn-primary" type="submit">Upload</button>
 </form>
 
 {% if result %}
-  <div class="card p-3 mt-3">
+  <div class="card p-3 mt-3 shadow-sm">
     <div class="fw-semibold">Result</div>
-    <div>Created: {{ result.created }} | Updated: {{ result.updated }}</div>
+    <div class="text-muted">
+      Created: {{ result.created }} | Updated: {{ result.updated }} | Stock updated: {{ result.inventory_adjusted }}
+    </div>
 
     {% if result.errors %}
       <hr>

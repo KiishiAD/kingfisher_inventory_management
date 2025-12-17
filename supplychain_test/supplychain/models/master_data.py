@@ -4,6 +4,7 @@ from django.utils.text import slugify
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import uuid
+from django.db.models.functions import Lower
 
 
 ### Master Data
@@ -69,6 +70,13 @@ class Product(TimeStampedModel):
     class Meta:
         permissions = [
             ("bulk_upload_products", "Can bulk upload products"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"),
+                "uom",
+                name="uniq_product_sku",
+            )
         ]
 
     # allow blank so the model can generate it; keep unique + non-null in DB

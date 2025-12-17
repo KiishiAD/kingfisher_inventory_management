@@ -20,7 +20,6 @@ from ..models import Receiving, Payment
 from ..utils import build_workitem_timeline_for_po, record_receiving_as_stock
 
 
-
 class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Receiving
     template_name = "supplychain/receiving/list.html"
@@ -71,6 +70,10 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
       - accounting:      status=UNDER_REVIEW, not yet sent_to_coo, and review_receiving
       - coo_approval:    sent_to_coo_at set, coo_decision_at not set, and approve_receiving
       - readonly:        everyone else
+
+    IMPORTANT BUSINESS RULE:
+      - Once cleared for payment (REVIWED) or denied, it is LOCKED forever.
+      - Stock posting must be atomic with the approval that clears it for payment.
     """
     raise_exception = True
 
@@ -229,6 +232,13 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def post(self, request, pk):
         receiving = self.get_object(pk)
         po = receiving.purchase_order
+
+        # HARD LOCK: once cleared for payment or denied or COO decided, it is immutable
+        final_statuses = {Receiving.REVIWED, getattr(Receiving, "DENIED", "DENIED")}
+        if receiving.status in final_statuses or getattr(receiving, "coo_decision_at", None):
+            messages.warning(request, "This receiving is finalised and cannot be edited.")
+            return redirect("supplychain:receiving-detail", pk=receiving.pk)
+
         mode = self._get_mode(request, receiving)
 
         # ENTRY
@@ -363,10 +373,8 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     # auto-create pending payment
                     self._ensure_pending_payment(po, request.user)
 
-                    # NEW: record stock RECEIPT only when cleared for payment (after commit)
-                    transaction.on_commit(
-                        lambda: record_receiving_as_stock(receiving.pk, request.user.pk)
-                    )
+                    # ATOMIC: post stock INSIDE this transaction (no on_commit)
+                    record_receiving_as_stock(receiving.pk, request.user.pk)
 
                     messages.success(request, "Accounting approved. Cleared for payment.")
 
@@ -404,10 +412,8 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     # auto-create pending payment
                     self._ensure_pending_payment(po, request.user)
 
-                    # NEW: record stock RECEIPT only when cleared for payment (after commit)
-                    transaction.on_commit(
-                        lambda: record_receiving_as_stock(receiving.pk, request.user.pk)
-                    )
+                    # ATOMIC: post stock INSIDE this transaction (no on_commit)
+                    record_receiving_as_stock(receiving.pk, request.user.pk)
 
                     messages.success(request, "COO approved. Cleared for payment.")
                 else:

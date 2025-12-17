@@ -1,0 +1,221 @@
+{# supplychain/templates/supplychain/inventory/low_stock.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Low stock alerts{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Low stock alerts</h1>
+    <div class="po-help">
+      Showing active alerts (not acknowledged) with current on-hand.
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-list' %}">Back to inventory</a>
+  </div>
+</div>
+
+<div class="po-card mb-3">
+  <div class="po-card-header px-3 py-3">
+    <div class="fw-semibold">Filters</div>
+    <div class="po-help">Client-side filters (current page).</div>
+  </div>
+
+  <div class="p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Search</label>
+        <div class="po-search">
+          <span class="po-search-icon">⌕</span>
+          <input id="q" type="text" class="form-control" placeholder="Product, category, UoM…">
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label class="form-label">Severity</label>
+        <select id="severity" class="form-select">
+          <option value="">All</option>
+          <option value="OUT">Out of stock</option>
+          <option value="BELOW">Below threshold</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-lg-3 d-flex justify-content-lg-end">
+        <button type="button" id="clear-filters" class="btn btn-outline-secondary w-100 w-lg-auto">
+          Clear filters
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="po-card">
+  <div class="po-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Active alerts</div>
+      <div class="po-help">UoM and categories are shown from Product master data.</div>
+    </div>
+    <div class="text-muted small po-mono">
+      <span id="visible-count">0</span> / <span id="total-count">0</span>
+    </div>
+  </div>
+
+  <div class="p-3">
+    {% if alerts %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover po-table mb-0" id="alerts-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Product ID</th>
+              <th>Product</th>
+              <th style="width: 140px;">UoM</th>
+              <th>Categories</th>
+              <th class="text-end" style="width: 160px;">On hand</th>
+              <th class="text-end" style="width: 160px;">Threshold</th>
+              <th style="width: 160px;">Severity</th>
+              <th style="min-width: 160px;">Triggered</th>
+              <th style="width: 90px;" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in alerts %}
+              {% with p=a.product %}
+              <tr class="alert-row"
+                  data-name="{{ p.name|lower }}"
+                  data-uom="{{ p.uom.code|lower }} {{ p.uom.name|lower }}"
+                  data-categories="{% for c in p.categories.all %}{{ c.name|lower }} {% endfor %}"
+                  data-severity="{% if a.current_on_hand <= 0 %}OUT{% else %}BELOW{% endif %}">
+                <td class="fw-semibold po-mono">{{ p.id }}</td>
+
+                <td class="fw-semibold">
+                  {{ p.name }}
+                </td>
+
+                <td>
+                  <span class="po-mono">{{ p.uom.name }} ({{ p.uom.code }})</span>
+                </td>
+
+                <td>
+                  {% for c in p.categories.all %}
+                    <span class="badge bg-secondary">{{ c.name }}</span>
+                  {% empty %}
+                    —
+                  {% endfor %}
+                </td>
+
+                <td class="text-end">
+                  <span class="po-mono">{{ a.current_on_hand|floatformat:2 }}</span>
+                  <span class="text-muted small">{{ p.uom.code }}</span>
+                </td>
+
+                <td class="text-end">
+                  <span class="po-mono">{{ a.threshold|floatformat:2 }}</span>
+                  <span class="text-muted small">{{ p.uom.code }}</span>
+                </td>
+
+                <td>
+                  {% if a.current_on_hand <= 0 %}
+                    <span class="badge bg-dark">Out of stock</span>
+                  {% else %}
+                    <span class="badge bg-danger">Below threshold</span>
+                  {% endif %}
+                </td>
+
+                <td class="po-mono">
+                  {{ a.triggered_at|date:"Y-m-d H:i" }}
+                </td>
+
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:inventory-detail' p.id %}">
+                    View
+                  </a>
+                </td>
+              </tr>
+              {% endwith %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div id="no-results" class="text-center text-muted py-4 d-none">
+        No alerts match your filters (on this page).
+      </div>
+    {% else %}
+      <p class="mb-0">No active low-stock alerts.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function byId(id) { return document.getElementById(id); }
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+
+  function getState() {
+    return {
+      q: norm(byId('q') ? byId('q').value : ''),
+      severity: (byId('severity') ? (byId('severity').value || '') : '')
+    };
+  }
+
+  function rowMatches(row, state) {
+    if (state.severity && (row.getAttribute('data-severity') || '') !== state.severity) return false;
+
+    if (state.q) {
+      var hay = norm(
+        (row.getAttribute('data-name') || '') + ' ' +
+        (row.getAttribute('data-uom') || '') + ' ' +
+        (row.getAttribute('data-categories') || '') + ' ' +
+        (row.getAttribute('data-severity') || '')
+      );
+      if (hay.indexOf(state.q) === -1) return false;
+    }
+    return true;
+  }
+
+  function applyFilters() {
+    var state = getState();
+    var rows = Array.from(document.querySelectorAll('.alert-row'));
+    var visible = 0;
+
+    rows.forEach(function(row) {
+      var ok = rowMatches(row, state);
+      row.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+
+    if (byId('visible-count')) byId('visible-count').textContent = String(visible);
+    if (byId('total-count')) byId('total-count').textContent = String(rows.length);
+
+    var noResults = byId('no-results');
+    if (noResults) noResults.classList.toggle('d-none', visible !== 0);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var q = byId('q');
+    if (q) {
+      q.addEventListener('input', applyFilters);
+      q.addEventListener('change', applyFilters);
+    }
+
+    var sev = byId('severity');
+    if (sev) sev.addEventListener('change', applyFilters);
+
+    var clearBtn = byId('clear-filters');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function() {
+        if (q) q.value = '';
+        if (sev) sev.value = '';
+        applyFilters();
+      });
+    }
+
+    applyFilters();
+  });
+})();
+</script>
+{% endblock %}

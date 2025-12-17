@@ -145,6 +145,7 @@ class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Active alerts only (acknowledged=False) + current on-hand.
+    Includes product.uom + product.categories for display.
     """
     permission_required = "supplychain.view_inventory"
 
@@ -152,12 +153,12 @@ class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
         alerts = (
             LowStockAlert.objects
             .filter(acknowledged=False)
-            .select_related("product")
+            .select_related("product", "product__uom")    
+            .prefetch_related("product__categories")        
             .order_by("acknowledged", "-triggered_at")
         )
 
         product_ids = [a.product_id for a in alerts]
-
         signed = _signed_case_for_txn_queryset()
 
         on_hand_rows = (

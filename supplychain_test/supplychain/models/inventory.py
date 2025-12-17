@@ -9,20 +9,24 @@ from .master_data import Product, TimeStampedModel
 class StockTransaction(TimeStampedModel):
     RECEIVE = "RECEIVE"
     ISSUE = "ISSUE"
-    ADJUST = "ADJUST"
+    ADJUST_IN = "ADJUST_IN"
+    ADJUST_OUT = "ADJUST_OUT"
     TRANSACTION_CHOICES = [
         (RECEIVE, "Receive"),
         (ISSUE, "Issue"),
-        (ADJUST, "Adjust"),
+        (ADJUST_IN, "Adjust In"),
+        (ADJUST_OUT, "Adjust Out"),
     ]
 
     SRC_REQUISITION = "REQUISITION"
     SRC_RECEIVING = "RECEIVING"
     SRC_STOCKTAKE = "STOCKTAKE"
+    SRC_BULK_UPLOAD = "BULK_UPLOAD"
     SOURCE_CHOICES = [
         (SRC_REQUISITION, "Requisition"),
         (SRC_RECEIVING, "Receiving"),
         (SRC_STOCKTAKE, "Stocktake"),
+        (SRC_BULK_UPLOAD, "Bulk Upload"),
     ]
 
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="stock_transactions")
@@ -77,3 +81,4 @@ class LowStockAlert(TimeStampedModel):
 
     def __str__(self):
         return f"Low stock alert for {self.product} at {self.triggered_at}"
+

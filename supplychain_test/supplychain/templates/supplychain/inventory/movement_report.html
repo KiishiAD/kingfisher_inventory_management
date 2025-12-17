@@ -1,0 +1,341 @@
+{# supplychain/templates/supplychain/inventory/movement_report.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inventory movement report{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <div>
+    <h1 class="mb-1">Inventory movement</h1>
+    <div class="text-muted small">Received / Issued / Net over a date range (grouped by product).</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-list' %}">Back to inventory</a>
+  </div>
+</div>
+
+<div class="po-card mb-3">
+  <div class="po-card-header px-3 py-3">
+    <div class="fw-semibold">Filters</div>
+    <div class="po-help">Apply filters and run the report.</div>
+  </div>
+
+  <div class="p-3">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.start.id_for_label }}">Start date</label>
+        <input
+          type="date"
+          name="{{ form.start.html_name }}"
+          id="{{ form.start.id_for_label }}"
+          value="{{ form.start.value|default_if_none:'' }}"
+          class="form-control"
+        >
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.end.id_for_label }}">End date</label>
+        <input
+          type="date"
+          name="{{ form.end.html_name }}"
+          id="{{ form.end.id_for_label }}"
+          value="{{ form.end.value|default_if_none:'' }}"
+          class="form-control"
+        >
+        {% if form.end.errors %}
+          <div class="text-danger small mt-1">{{ form.end.errors|striptags }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.category.id_for_label }}">Category</label>
+        <select
+          name="{{ form.category.html_name }}"
+          id="{{ form.category.id_for_label }}"
+          class="form-select"
+        >
+          <option value="">All</option>
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if form.category.value|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}>
+              {{ c.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.q.id_for_label }}">Search product</label>
+        <input
+          type="text"
+          name="{{ form.q.html_name }}"
+          id="{{ form.q.id_for_label }}"
+          value="{{ form.q.value|default_if_none:'' }}"
+          class="form-control"
+          placeholder="e.g. Chicken, Rice..."
+        >
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Run report</button>
+        <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-movement' %}">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Top issued (by quantity)</span>
+        <span class="badge bg-secondary">{{ top_issued|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th class="text-end">Issued</th>
+              <th style="width: 90px;" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in top_issued %}
+              <tr>
+                <td class="fw-semibold">{{ r.product__name }}</td>
+                <td class="text-end font-monospace">{{ r.issued|floatformat:2 }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:inventory-detail' r.product_id %}">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="3" class="text-center text-muted py-4">No results.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Summary (current result set)</span>
+        <span class="text-muted small">Received / Issued / Net totals</span>
+      </div>
+      <div class="card-body">
+        {# computed in JS from the per-product table #}
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Total received</div>
+            <div class="h4 mb-0 font-monospace" id="sum-received">0.00</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Total issued</div>
+            <div class="h4 mb-0 font-monospace" id="sum-issued">0.00</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="text-muted small">Total net</div>
+            <div class="h4 mb-0 font-monospace" id="sum-net">0.00</div>
+          </div>
+        </div>
+        <div class="text-muted small mt-3">
+          Totals are summed from the per-product rows shown below (after filters).
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="po-card">
+  <div class="po-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Per-product movement</div>
+      <div class="po-help">Received and Issued are positive measures. Net is signed (Receive +, Issue -).</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted small po-mono">
+        <span id="visible-count">0</span> / <span id="total-count">0</span>
+      </span>
+      <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">Download CSV</button>
+    </div>
+  </div>
+
+  <div class="p-3">
+    <div class="row g-3 align-items-end mb-3">
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Filter results (current page)</label>
+        <div class="po-search">
+          <span class="po-search-icon">⌕</span>
+          <input id="table-q" type="text" class="form-control" placeholder="Filter by product name…">
+        </div>
+      </div>
+      <div class="col-12 col-lg-6 d-flex justify-content-lg-end">
+        <div class="text-muted small" id="active-filter-label">No filters</div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table id="movement-table" class="table table-sm table-hover po-table mb-0">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th class="text-end" style="width: 160px;">Received</th>
+            <th class="text-end" style="width: 160px;">Issued</th>
+            <th class="text-end" style="width: 160px;">Net</th>
+            <th style="width: 90px;" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in per_product %}
+            <tr class="mv-row"
+                data-name="{{ r.product__name|lower }}"
+                data-received="{{ r.received }}"
+                data-issued="{{ r.issued }}"
+                data-net="{{ r.net }}">
+              <td class="fw-semibold">{{ r.product__name }}</td>
+              <td class="text-end font-monospace">{{ r.received|floatformat:2 }}</td>
+              <td class="text-end font-monospace">{{ r.issued|floatformat:2 }}</td>
+              <td class="text-end font-monospace">
+                {% if r.net < 0 %}
+                  <span class="text-danger">{{ r.net|floatformat:2 }}</span>
+                {% else %}
+                  {{ r.net|floatformat:2 }}
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:inventory-detail' r.product_id %}">
+                  View
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">No results.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="no-results" class="text-center text-muted py-4 d-none">
+      No products match your filter (on this page).
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  function byId(id) { return document.getElementById(id); }
+  function norm(s) { return (s || '').toString().trim().toLowerCase(); }
+  function toNum(x) {
+    var n = parseFloat((x || "0").toString());
+    return isNaN(n) ? 0 : n;
+  }
+  function fmt(n) {
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  function updateActiveLabel(q) {
+    byId('active-filter-label').textContent = q ? 'Search' : 'No filters';
+  }
+
+  function applyFilters() {
+    var q = norm(byId('table-q').value);
+    var rows = Array.from(document.querySelectorAll('.mv-row'));
+    var visible = 0;
+
+    rows.forEach(function(row) {
+      var name = (row.getAttribute('data-name') || '').trim();
+      var ok = !q || name.indexOf(q) !== -1;
+      row.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+
+    byId('visible-count').textContent = String(visible);
+    byId('total-count').textContent = String(rows.length);
+
+    var noResults = byId('no-results');
+    if (noResults) noResults.classList.toggle('d-none', visible !== 0);
+
+    updateActiveLabel(q);
+    updateTotalsFromVisible();
+  }
+
+  function updateTotalsFromVisible() {
+    var rows = Array.from(document.querySelectorAll('.mv-row')).filter(function(r) {
+      return r.style.display !== 'none';
+    });
+
+    var rec = 0, iss = 0, net = 0;
+    rows.forEach(function(r) {
+      rec += toNum(r.getAttribute('data-received'));
+      iss += toNum(r.getAttribute('data-issued'));
+      net += toNum(r.getAttribute('data-net'));
+    });
+
+    byId('sum-received').textContent = fmt(rec);
+    byId('sum-issued').textContent = fmt(iss);
+    byId('sum-net').textContent = fmt(net);
+  }
+
+  function downloadCsv(filename, rows) {
+    var processRow = function(row) {
+      return row.map(function(cell) {
+        var s = (cell === null || cell === undefined) ? '' : String(cell);
+        if (s.search(/("|,|\n)/g) >= 0) s = '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }).join(',');
+    };
+
+    var csv = rows.map(processRow).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function wireExport() {
+    var btn = byId('export-csv');
+    if (!btn) return;
+
+    btn.addEventListener('click', function() {
+      var rows = [['Product', 'Received', 'Issued', 'Net']];
+      document.querySelectorAll('.mv-row').forEach(function(r) {
+        if (r.style.display === 'none') return;
+
+        var name = r.querySelector('td') ? r.querySelector('td').innerText.trim() : '';
+        rows.push([
+          name,
+          fmt(toNum(r.getAttribute('data-received'))),
+          fmt(toNum(r.getAttribute('data-issued'))),
+          fmt(toNum(r.getAttribute('data-net')))
+        ]);
+      });
+
+      downloadCsv('inventory_movement.csv', rows);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var q = byId('table-q');
+    if (q) {
+      q.addEventListener('input', applyFilters);
+      q.addEventListener('change', applyFilters);
+    }
+    wireExport();
+    applyFilters();
+  });
+})();
+</script>
+{% endblock %}

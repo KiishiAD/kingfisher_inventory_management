@@ -453,3 +453,27 @@ html[data-bs-theme="dark"] .bg-white,
 html[data-bs-theme="dark"] .bg-light {
   background-color: var(--kf-surface-1) !important;
 }
+/* Mobile global overrides */
+@media (max-width: 767.98px) {
+  /* reduce horizontal padding so pages fit */
+  .container-fluid { padding-left: .5rem; padding-right: .5rem; }
+
+  /* hide long welcome text */
+  .kf-navbar .navbar-text { display: none; }
+
+  /* make buttons easier on mobile */
+  .btn { padding-top: .5rem; padding-bottom: .5rem; }
+
+  /* slightly smaller tables + prevent layout blowups */
+  table.table { font-size: 0.9rem; }
+  th, td { white-space: nowrap; } /* enables horizontal scroll instead of wrapping into 6 lines */
+
+  /* keep your card layouts from feeling cramped */
+  .po-card, .card { border-radius: .75rem; }
+}
+
+/* smoother horizontal scrolling on iOS */
+.table-responsive { -webkit-overflow-scrolling: touch; }
+
+/* offcanvas width tweak (optional) */
+.offcanvas { width: 86vw; max-width: 360px; }

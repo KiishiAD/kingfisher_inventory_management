@@ -120,7 +120,8 @@ class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         qs = (
             Product.objects
             .all()
-            .prefetch_related("categories")  # M2M
+            .select_related("uom")         
+            .prefetch_related("categories") # existing
         )
 
         signed_qty = _signed_qty_expr(prefix="stock_transactions__")
@@ -184,7 +185,9 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
     def get(self, request, pk: int):
         product = get_object_or_404(
-            Product.objects.prefetch_related("categories"),
+            Product.objects
+            .select_related("uom")          # ✅ add this
+            .prefetch_related("categories"),
             pk=pk,
         )
 
@@ -244,7 +247,7 @@ class InventoryMovementReportView(LoginRequiredMixin, PermissionRequiredMixin, V
     permission_required = "supplychain.view_inventory"
 
     def get(self, request):
-        form = InventoryMovementFilterForm(request.GET or None)
+        form = InventoryMovementFilterForm(request.GET)
         form.is_valid()
 
         start = form.cleaned_data.get("start")

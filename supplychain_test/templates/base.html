@@ -41,8 +41,8 @@
                     <li class="nav-item"><a class="nav-link {% if section == 'receiving' %}active{% endif %}" href="{% url 'supplychain:receiving-list' %}">Receiving</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'payments' %}active{% endif %}" href="{% url 'supplychain:payments-list' %}">Payments</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'operations' %}active{% endif %}" href="{% url 'supplychain:product-bulk-upload' %}">Bulk Product Upload</a></li>
-                    <li class="nav-item"><a class="nav-link {% if section == 'Inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-list' %}">Inventory</a></li>
-                    
+                    <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-list' %}">Inventory</a></li>
+
                     {% if user.is_staff %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
                     {% endif %}
@@ -73,7 +73,145 @@
 
     <div class="container-fluid flex-grow-1">
         <div class="row">
-            <aside class="col-md-2 sidebar kf-sidebar">
+
+            {# Mobile: menu button + offcanvas sidebar #}
+            <div class="d-md-none mb-2 px-2">
+                <button class="btn btn-outline-secondary w-100"
+                        type="button"
+                        data-bs-toggle="offcanvas"
+                        data-bs-target="#mobileSidebar"
+                        aria-controls="mobileSidebar">
+                    Menu
+                </button>
+            </div>
+
+            <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="mobileSidebarLabel">Kingfisher SCM</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body p-0">
+                    <div class="kf-sidebar">
+                        <div class="accordion" id="sideMenuMobile">
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingReq">
+                                    <button class="accordion-button {% if section != 'requisitions' %}collapsed{% endif %}" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapseReq"
+                                            aria-expanded="{% if section == 'requisitions' %}true{% else %}false{% endif %}"
+                                            aria-controls="mCollapseReq">
+                                        Requisitions
+                                    </button>
+                                </h2>
+                                <div id="mCollapseReq" class="accordion-collapse collapse {% if section == 'requisitions' %}show{% endif %}" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-create' %}">Submit Requisition</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-list' %}">My Requisitions</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-all' %}">All Requisitions</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:requisition-pending' %}">Pending Requisitions</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingPO">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapsePO"
+                                            aria-expanded="false" aria-controls="mCollapsePO">
+                                        Purchase Orders
+                                    </button>
+                                </h2>
+                                <div id="mCollapsePO" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-list' %}">All POs</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-create' %}">Create PO</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:po-pending' %}">Pending Approvals</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingRec">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapseRec"
+                                            aria-expanded="false" aria-controls="mCollapseRec">
+                                        Receiving
+                                    </button>
+                                </h2>
+                                <div id="mCollapseRec" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:receiving-list' %}">Receivings</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingPay">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapsePay"
+                                            aria-expanded="false" aria-controls="mCollapsePay">
+                                        Payments
+                                    </button>
+                                </h2>
+                                <div id="mCollapsePay" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:payments-list' %}">All Payments</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingInv">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapseInv"
+                                            aria-expanded="false" aria-controls="mCollapseInv">
+                                        Inventory
+                                    </button>
+                                </h2>
+                                <div id="mCollapseInv" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-list' %}">Current Stock Levels</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-movement' %}">Movement Report</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if user.is_staff %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="mHeadingAdmin">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapseAdmin"
+                                            aria-expanded="false" aria-controls="mCollapseAdmin">
+                                        Admin
+                                    </button>
+                                </h2>
+                                <div id="mCollapseAdmin" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                    <div class="accordion-body p-0">
+                                        <ul class="nav flex-column">
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Desktop sidebar #}
+            <aside class="col-md-2 sidebar kf-sidebar d-none d-md-block">
                 <div class="accordion" id="sideMenu">
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="headingReq">
@@ -150,6 +288,7 @@
                             <div class="accordion-body p-0">
                                 <ul class="nav flex-column">
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-list' %}">Current Stock Levels</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-movement' %}">Movement Report</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -157,7 +296,7 @@
                 </div>
             </aside>
 
-            <main class="col-md-10 px-4">
+            <main class="col-12 col-md-10 px-2 px-md-4">
                 {% if messages %}
                     <div class="mb-3">
                         {% for message in messages %}
@@ -205,6 +344,28 @@
             setTheme(currentTheme() === "dark" ? "light" : "dark");
           });
         }
+      })();
+    </script>
+
+    {# Auto-wrap tables on mobile so you don't touch every template #}
+    <script>
+      (function () {
+        function wrapResponsiveTables() {
+          if (!window.matchMedia("(max-width: 768px)").matches) return;
+
+          document.querySelectorAll("main table.table").forEach(function (table) {
+            if (table.closest(".table-responsive")) return;
+
+            var wrap = document.createElement("div");
+            wrap.className = "table-responsive";
+
+            table.parentNode.insertBefore(wrap, table);
+            wrap.appendChild(table);
+          });
+        }
+
+        document.addEventListener("DOMContentLoaded", wrapResponsiveTables);
+        window.addEventListener("resize", wrapResponsiveTables);
       })();
     </script>
 

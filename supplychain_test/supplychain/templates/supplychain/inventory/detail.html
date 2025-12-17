@@ -8,7 +8,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h1 class="h3 mb-1">{{ product.name }}</h1>
-    <div class="text-muted small">Stock ledger and on-hand summary</div>
+    <div class="text-muted small">
+      Stock ledger and on-hand summary · UoM: <span class="po-mono">{{ product.uom.name }} ({{ product.uom.code }})</span>
+    </div>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-list' %}">Back</a>
@@ -21,11 +23,14 @@
     <div class="card">
       <div class="card-body">
         <div class="text-muted small">On hand</div>
-        <div class="display-6 font-monospace">{{ on_hand|floatformat:2 }}</div>
+        <div class="display-6 font-monospace">
+          {{ on_hand|floatformat:2 }}
+          <span class="fs-6 text-muted">{{ product.uom.code }}</span>
+        </div>
         <div class="small text-muted mt-2">
           Last movement:
-          {% if product.last_movement_at %}
-            {{ product.last_movement_at|date:"Y-m-d H:i" }}
+          {% if last_movement_at %}
+            {{ last_movement_at|date:"Y-m-d H:i" }}
           {% else %}
             —
           {% endif %}
@@ -41,6 +46,7 @@
         <div class="display-6 font-monospace">
           {% if product.low_stock_threshold %}
             {{ product.low_stock_threshold|floatformat:2 }}
+            <span class="fs-6 text-muted">{{ product.uom.code }}</span>
           {% else %}
             —
           {% endif %}
@@ -70,7 +76,9 @@
               Triggered: {{ active_alert.triggered_at|date:"Y-m-d H:i" }}
             </div>
             <div class="small text-muted">
-              Threshold at trigger: <span class="font-monospace">{{ active_alert.threshold|floatformat:2 }}</span>
+              Threshold at trigger:
+              <span class="font-monospace">{{ active_alert.threshold|floatformat:2 }}</span>
+              <span class="text-muted">{{ product.uom.code }}</span>
             </div>
             <div class="small text-muted">
               Acknowledged: {% if active_alert.acknowledged %}Yes{% else %}No{% endif %}
@@ -99,7 +107,7 @@
         <tr>
           <th>Date</th>
           <th>Type</th>
-          <th class="text-end">Qty</th>
+          <th class="text-end">Qty ({{ product.uom.code }})</th>
           <th>Source</th>
           <th>By</th>
           <th>Note</th>
@@ -142,40 +150,39 @@
   </div>
 
   <div class="card-body border-top">
-  {% if page_obj and page_obj.paginator.num_pages > 1 %}
-  <nav aria-label="Pagination">
-    <ul class="pagination mb-0">
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <nav aria-label="Pagination">
+        <ul class="pagination mb-0">
 
-      {% if page_obj.has_previous %}
-        <li class="page-item">
-          <a class="page-link"
-             href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">
-            Prev
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">Prev</span></li>
-      {% endif %}
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                Prev
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Prev</span></li>
+          {% endif %}
 
-      <li class="page-item disabled">
-        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-      </li>
+          <li class="page-item disabled">
+            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          </li>
 
-      {% if page_obj.has_next %}
-        <li class="page-item">
-          <a class="page-link"
-             href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">
-            Next
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">Next</span></li>
-      {% endif %}
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">
+                Next
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+          {% endif %}
 
-    </ul>
-  </nav>
-{% endif %}
-
+        </ul>
+      </nav>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

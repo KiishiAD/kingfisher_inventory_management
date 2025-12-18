@@ -1,16 +1,33 @@
+{# templates/registration/login.html #}
 {% extends "base_login.html" %}
-{% load static %}
 {% block title %}Log In{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-6 col-lg-4">
-    <h2 class="mb-4">Log In</h2>
-    <form method="post" action="{% url 'login' %}">
+<div class="container" style="max-width: 440px;">
+  <div class="card shadow-sm border-0 mt-5 rounded-4">
+    <div class="card-body p-4 p-md-5">
+
+      <h1 class="h4 mb-1">Log in</h1>
+      <p class="text-muted mb-4">Enter your credentials to continue.</p>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger mb-3">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}" class="kf-auth-form">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit" class="btn btn-primary">Log In</button>
-    </form>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <a class="small text-decoration-none" href="{% url 'password_reset' %}">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-dark w-100 py-2 rounded-pill">Log in</button>
+      </form>
+
+    </div>
   </div>
 </div>
 {% endblock %}

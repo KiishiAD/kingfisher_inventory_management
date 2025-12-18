@@ -99,3 +99,9 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").rstrip("/")
+
+# 15 minutes
+SESSION_COOKIE_AGE = 15 * 60
+
+# Expire 15 min after last activity (sliding)
+SESSION_SAVE_EVERY_REQUEST = True

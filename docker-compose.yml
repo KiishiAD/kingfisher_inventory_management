@@ -2,5 +2,8 @@ services:
   web:
     build: .
     env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: supplychain_test.settings
+      DJANGO_ENV: production
     ports:
       - "8000:8000"

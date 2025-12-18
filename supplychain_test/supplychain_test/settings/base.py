@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+
 # Shared settings for all environments
 # Ref: https://docs.djangoproject.com/en/stable/topics/settings/
 

@@ -9,6 +9,8 @@ attrs==25.4.0
 babel==2.17.0
 beautifulsoup4==4.14.2
 bleach==6.3.0
+boto3==1.42.12
+botocore==1.42.12
 certifi==2025.10.5
 cffi==2.0.0
 charset-normalizer==3.4.4
@@ -21,6 +23,7 @@ decorator==5.2.1
 defusedxml==0.7.1
 dj-database-url==3.0.0
 Django==5.2.3
+django-storages==1.14.6
 et_xmlfile==2.0.0
 executing==2.2.1
 fastjsonschema==2.21.2
@@ -41,6 +44,7 @@ ipython_pygments_lexers==1.1.1
 isoduration==20.11.0
 jedi==0.19.2
 Jinja2==3.1.6
+jmespath==1.0.1
 joblib==1.5.2
 json5==0.12.1
 jsonpointer==3.0.0
@@ -104,6 +108,7 @@ rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
 rpds-py==0.28.0
+s3transfer==0.16.0
 scikit-learn==1.7.2
 scipy==1.16.3
 seaborn==0.13.2

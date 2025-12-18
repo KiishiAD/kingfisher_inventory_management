@@ -70,7 +70,7 @@ class Requisition(TimeStampedModel):
     )
 
     notes = models.TextField(blank=True)
-    evidence = models.FileField(upload_to='requisition_evidence/', blank=True)
+    evidence = models.FileField(upload_to='requisition_evidence/', blank=False)
     urgent = models.BooleanField(default=False)
 
     def __str__(self):

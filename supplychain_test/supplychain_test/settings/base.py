@@ -12,6 +12,7 @@ INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",
     "supplychain",
     "accounts",
+    "storages",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

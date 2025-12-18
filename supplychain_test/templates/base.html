@@ -40,12 +40,42 @@
                     <li class="nav-item"><a class="nav-link {% if section == 'purchase_orders' %}active{% endif %}" href="{% url 'supplychain:po-list' %}">Purchase Orders</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'receiving' %}active{% endif %}" href="{% url 'supplychain:receiving-list' %}">Receiving</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'payments' %}active{% endif %}" href="{% url 'supplychain:payments-list' %}">Payments</a></li>
-                    <li class="nav-item"><a class="nav-link {% if section == 'operations' %}active{% endif %}" href="{% url 'supplychain:product-bulk-upload' %}">Bulk Product Upload</a></li>
                     <li class="nav-item"><a class="nav-link {% if section == 'inventory' %}active{% endif %}" href="{% url 'supplychain:inventory-list' %}">Inventory</a></li>
 
-                    {% if user.is_staff %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
-                    {% endif %}
+                    {# Utilities dropdown (replaces Bulk Upload + Invite + Admin top-level links) #}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if section == 'utilities' or section == 'users' or section == 'operations' %}active{% endif %}"
+                           href="#"
+                           role="button"
+                           data-bs-toggle="dropdown"
+                           aria-expanded="false">
+                            Utilities
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'supplychain:product-bulk-upload' %}">
+                                    Bulk Product Upload
+                                </a>
+                            </li>
+
+                            {% if user.is_superuser %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'accounts:invite_user' %}">
+                                        Invite Employee
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% if user.is_staff %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'admin:index' %}">
+                                        Admin
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </li>
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
@@ -187,24 +217,31 @@
                                 </div>
                             </div>
 
-                            {% if user.is_staff %}
+                            {# Utilities section in mobile sidebar #}
                             <div class="accordion-item">
-                                <h2 class="accordion-header" id="mHeadingAdmin">
+                                <h2 class="accordion-header" id="mHeadingUtilities">
                                     <button class="accordion-button collapsed" type="button"
-                                            data-bs-toggle="collapse" data-bs-target="#mCollapseAdmin"
-                                            aria-expanded="false" aria-controls="mCollapseAdmin">
-                                        Admin
+                                            data-bs-toggle="collapse" data-bs-target="#mCollapseUtilities"
+                                            aria-expanded="false" aria-controls="mCollapseUtilities">
+                                        Utilities
                                     </button>
                                 </h2>
-                                <div id="mCollapseAdmin" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
+                                <div id="mCollapseUtilities" class="accordion-collapse collapse" data-bs-parent="#sideMenuMobile">
                                     <div class="accordion-body p-0">
                                         <ul class="nav flex-column">
-                                            <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+                                            <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:product-bulk-upload' %}">Bulk Product Upload</a></li>
+
+                                            {% if user.is_superuser %}
+                                                <li class="nav-item"><a class="nav-link" href="{% url 'accounts:invite_user' %}">Invite Employee</a></li>
+                                            {% endif %}
+
+                                            {% if user.is_staff %}
+                                                <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+                                            {% endif %}
                                         </ul>
                                     </div>
                                 </div>
                             </div>
-                            {% endif %}
 
                         </div>
                     </div>
@@ -291,6 +328,32 @@
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-list' %}">Current Stock Levels</a></li>
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-movement' %}">Movement Report</a></li>
                                     <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:inventory-low-stock' %}">Low Stock Alerts</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Utilities section in desktop sidebar #}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingUtilities">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#collapseUtilities"
+                                    aria-expanded="false" aria-controls="collapseUtilities">
+                                Utilities
+                            </button>
+                        </h2>
+                        <div id="collapseUtilities" class="accordion-collapse collapse" data-bs-parent="#sideMenu">
+                            <div class="accordion-body p-0">
+                                <ul class="nav flex-column">
+                                    <li class="nav-item"><a class="nav-link" href="{% url 'supplychain:product-bulk-upload' %}">Bulk Product Upload</a></li>
+
+                                    {% if user.is_superuser %}
+                                        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:invite_user' %}">Invite Employee</a></li>
+                                    {% endif %}
+
+                                    {% if user.is_staff %}
+                                        <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>

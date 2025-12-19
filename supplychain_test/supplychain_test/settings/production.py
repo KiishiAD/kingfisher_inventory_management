@@ -3,6 +3,11 @@ import os
 import dj_database_url
 from storages.backends.s3boto3 import S3Boto3Storage
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is required in production")
+
+
 DEBUG = os.environ.get("DJANGO_DEBUG", "False")
 # --- Hosts / HTTPS ---
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]

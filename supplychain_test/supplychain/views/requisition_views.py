@@ -19,7 +19,8 @@ from ..models import (
     Requisition,
     RequisitionApproval,
     Destination,
-    StockTransaction,   # ✅ needed to check inventory at request time
+    StockTransaction,
+    PurchaseOrder,
 )
 from ..forms import (
     RequisitionForm,

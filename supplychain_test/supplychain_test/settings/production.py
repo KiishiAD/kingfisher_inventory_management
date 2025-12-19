@@ -3,6 +3,8 @@ from .base import *  # noqa
 import os
 import dj_database_url
 
+APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+
 
 def env_bool(name: str, default: bool = False) -> bool:
     v = os.getenv(name)

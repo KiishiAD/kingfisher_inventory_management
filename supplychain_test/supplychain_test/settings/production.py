@@ -3,9 +3,9 @@ import os
 import dj_database_url
 from storages.backends.s3boto3 import S3Boto3Storage
 
-
+DEBUG = os.environ.get("DJANGO_DEBUG", "False")
 # --- Hosts / HTTPS ---
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]

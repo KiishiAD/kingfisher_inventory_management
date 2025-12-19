@@ -17,4 +17,4 @@ COPY . /app
 
 EXPOSE 8000
 
-CMD ["bash", "-lc", "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn supplychain_test.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60"]
+CMD ["bash", "-lc", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn supplychain_test.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - --log-level info"]

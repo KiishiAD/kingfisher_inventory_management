@@ -16,7 +16,7 @@ from ..forms import (
     ReceivingAccountingItemFormSet,
     ReceivingReviewNotesForm,
 )
-from ..models import Receiving, Payment
+from ..models import Receiving, Payment, PurchaseOrder
 from ..utils import build_workitem_timeline_for_po, record_receiving_as_stock
 
 

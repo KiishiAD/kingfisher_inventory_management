@@ -7,3 +7,9 @@ services:
       DJANGO_ENV: production
     ports:
       - "8000:8000"
+
+    command: gunicorn supplychain_test.wsgi:application \
+    --bind 0.0.0.0:8000 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info

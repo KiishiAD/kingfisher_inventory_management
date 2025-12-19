@@ -6,6 +6,21 @@ import dj_database_url
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
 
 
+#To enable tracebacks in production logs
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        # Optional: log your app too
+        "supplychain": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
+
+
 def env_bool(name: str, default: bool = False) -> bool:
     v = os.getenv(name)
     if v is None:

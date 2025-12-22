@@ -115,18 +115,22 @@
     color: #fff !important;
   }
 
+  /* NOTES: black background + white text */
   .kf-notes {
     border-radius: .75rem;
-    border: 1px solid #dee2e6;
-    background: #fbfbfc;
+    border: 1px solid rgba(255,255,255,.14);
+    background: #111827;
+    color: #ffffff;
     padding: .75rem .9rem;
-    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    box-shadow: 0 1px 0 rgba(0,0,0,.04);
     width: 100%;
   }
+  .kf-notes::placeholder { color: rgba(255,255,255,.55); }
   .kf-notes:focus {
-    background: #fff;
-    border-color: rgba(13,110,253,.35);
-    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+    background: #0b1220;
+    color: #ffffff;
+    border-color: rgba(255,255,255,.22);
+    box-shadow: 0 0 0 .2rem rgba(255,255,255,.08);
     outline: none;
   }
 </style>

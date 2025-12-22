@@ -115,18 +115,22 @@
     color: #fff !important;
   }
 
+  /* NOTES: black background + white text */
   .kf-notes {
     border-radius: .75rem;
-    border: 1px solid #dee2e6;
-    background: #fbfbfc;
+    border: 1px solid rgba(255,255,255,.14);
+    background: #111827;
+    color: #ffffff;
     padding: .75rem .9rem;
-    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    box-shadow: 0 1px 0 rgba(0,0,0,.04);
     width: 100%;
   }
+  .kf-notes::placeholder { color: rgba(255,255,255,.55); }
   .kf-notes:focus {
-    background: #fff;
-    border-color: rgba(13,110,253,.35);
-    box-shadow: 0 0 0 .2rem rgba(13,110,253,.10);
+    background: #0b1220;
+    color: #ffffff;
+    border-color: rgba(255,255,255,.22);
+    box-shadow: 0 0 0 .2rem rgba(255,255,255,.08);
     outline: none;
   }
 </style>
@@ -302,7 +306,7 @@
     <div class="kf-card">
       <div class="kf-card-header px-3 py-3">
         <div class="fw-semibold">Audit trail</div>
-        <div class="kf-help">Workflow timeline for this requisition.</div>
+        <div class="kf-help">Workflow timeline for this purchase order.</div>
       </div>
 
       <div class="p-3">
@@ -316,36 +320,39 @@
           </summary>
 
           <div class="mt-3">
-            <div class="rq-timeline-card">
+            <div class="po-timeline-card">
               <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">Workflow timeline</span>
                 <span class="badge bg-secondary">{{ timeline|length }} events</span>
               </div>
+
               <div class="p-2">
                 {% if timeline %}
-                  <ul class="rq-timeline mb-0">
+                  <ul class="po-timeline mb-0">
                     {% for e in timeline %}
-                      <li class="rq-timeline-item">
-                        <span class="rq-timeline-dot"></span>
-                        <div class="rq-timeline-body">
-                          <div class="rq-timeline-meta">
+                      <li class="po-timeline-item">
+                        <span class="po-timeline-dot"></span>
+                        <div class="po-timeline-body">
+                          <div class="po-timeline-meta">
                             <span>{{ e.timestamp|date:"Y-m-d H:i" }}</span>
                             {% if "Requisition" in e.label %}
-                              <span class="rq-badge rq-badge-requisition">REQ</span>
+                              <span class="po-badge po-badge-requisition">REQ</span>
                             {% elif "PO " in e.label %}
-                              <span class="rq-badge rq-badge-po">PO</span>
+                              <span class="po-badge po-badge-po">PO</span>
                             {% elif "Payment" in e.label %}
-                              <span class="rq-badge rq-badge-payment">PAY</span>
+                              <span class="po-badge po-badge-payment">PAY</span>
                             {% elif "Issuance" in e.label %}
-                              <span class="rq-badge rq-badge-issuance">ISS</span>
+                              <span class="po-badge po-badge-issuance">ISS</span>
                             {% else %}
-                              <span class="rq-badge rq-badge-other">EVT</span>
+                              <span class="po-badge po-badge-other">EVT</span>
                             {% endif %}
                           </div>
+
                           <div>
                             {% if e.who %}<strong>{{ e.who }}</strong> – {% endif %}
                             {{ e.label }}
                           </div>
+
                           {% if e.details %}
                             <div class="mt-1 text-muted">
                               {{ e.details|linebreaksbr }}

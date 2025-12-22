@@ -30,6 +30,8 @@ ALLOWED_HOSTS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ideal-tribble-rxjvjr4xggx2x4wg.github.dev",
+    "https://localhost:8000",
+
 ]
 
 

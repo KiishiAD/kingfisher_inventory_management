@@ -7,6 +7,8 @@ services:
       DJANGO_ENV: production
     expose:
       - "8000"
+    volumes:
+      - static_volume:/vol/web/static
 
   caddy:
     image: caddy:2.8.4
@@ -14,8 +16,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
+      - static_volume:/srv/static:ro
       - caddy_config:/config
     depends_on:
       - web
@@ -23,4 +26,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  static_volume:
   

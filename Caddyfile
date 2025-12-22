@@ -1,7 +1,13 @@
 kingfisher-intelligence.com {
+  @static path /static/*
 
-reverse_proxy web:8000
+  handle @static {
+    root * /srv/static
+    file_server
+    header Cache-Control "public, max-age=31536000, immutable"
+  }
 
+  handle {
+    reverse_proxy web:8000
+  }
 }
-
-

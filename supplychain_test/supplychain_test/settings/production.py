@@ -75,7 +75,8 @@ DATABASES = {
 # Static (on droplet via WhiteNoise)
 # --------------------
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = "/vol/static"
+
 
 # Django 5+ preferred storage config
 STORAGES = {

@@ -31,6 +31,9 @@
   <div>
     <h1 class="mb-1">Dashboard</h1>
     <div class="kf-help">Quick access to your workflow queues and alerts.</div>
+    {% if organization %}
+      <div class="text-muted small mt-1">Organization: <strong>{{ organization.name }}</strong></div>
+    {% endif %}
   </div>
 </div>
 

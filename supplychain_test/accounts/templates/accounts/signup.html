@@ -1,0 +1,21 @@
+{% extends "base_login.html" %}
+{% block title %}Create Organization Account{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 560px;">
+  <div class="card shadow-sm border-0 mt-5 rounded-4">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h4 mb-2">Create your business account</h1>
+      <p class="text-muted mb-4">Set up your organization and become the owner.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-dark w-100 py-2 rounded-pill">Create account</button>
+      </form>
+
+      <p class="mt-3 mb-0 text-center">Already have an account? <a href="{% url 'login' %}">Sign in</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

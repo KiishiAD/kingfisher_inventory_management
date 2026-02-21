@@ -24,8 +24,8 @@ class AccountOnboardingTests(TestCase):
             {
                 "organization_name": "Acme Inc",
                 "email": "owner@acme.com",
-                "password1": "StrongPass123!",
-                "password2": "StrongPass123!",
+                "password": "StrongPass123!",
+                "confirm_password": "StrongPass123!",
             },
         )
 

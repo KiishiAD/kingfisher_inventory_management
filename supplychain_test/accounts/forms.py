@@ -20,8 +20,8 @@ class InviteUserForm(forms.Form):
 class OrganizationSignupForm(forms.Form):
     organization_name = forms.CharField(max_length=255)
     email = forms.EmailField()
-    password1 = forms.CharField(widget=forms.PasswordInput)
-    password2 = forms.CharField(widget=forms.PasswordInput)
+    password = forms.CharField(widget=forms.PasswordInput, label="Password")
+    confirm_password = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
@@ -37,14 +37,14 @@ class OrganizationSignupForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        password1 = cleaned_data.get("password1")
-        password2 = cleaned_data.get("password2")
+        password = cleaned_data.get("password")
+        confirm_password = cleaned_data.get("confirm_password")
 
-        if password1 and password2 and password1 != password2:
+        if password and confirm_password and password != confirm_password:
             raise forms.ValidationError("Passwords do not match.")
 
-        if password1:
-            validate_password(password1)
+        if password:
+            validate_password(password)
 
         return cleaned_data
 

@@ -74,7 +74,7 @@ def signup(request):
         user = User.objects.create_user(
             username=form.cleaned_data["email"],
             email=form.cleaned_data["email"],
-            password=form.cleaned_data["password1"],
+            password=form.cleaned_data["password"],
         )
         organization = Organization.objects.create(name=form.cleaned_data["organization_name"])
         OrganizationMembership.objects.create(

@@ -1,0 +1,19 @@
+{% extends "base_login.html" %}
+{% block title %}Finish Organization Setup{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 560px;">
+  <div class="card shadow-sm border-0 mt-5 rounded-4">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h4 mb-2">Finish setup</h1>
+      <p class="text-muted mb-4">Create your organization to access the dashboard.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-dark w-100 py-2 rounded-pill">Create organization</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

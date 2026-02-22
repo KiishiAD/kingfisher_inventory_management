@@ -55,6 +55,9 @@ class StockTransaction(TimeStampedModel):
             )
         ]
 
+    def __str__(self):
+        return f"{self.transaction_type} {self.quantity:.2f} of {self.product}"
+
 class LowStockAlert(TimeStampedModel):
     class Meta:
         permissions = [("acknowledge_lowstock", "Can acknowledge low-stock alerts")]

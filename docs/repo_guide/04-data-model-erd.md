@@ -1,56 +1,92 @@
 # 04 — Data Model ERD
 
+This section gives you two views:
+1. A **Mermaid ERD** (for tools that support it).
+2. A **plain-English relationship map** (for first-glance understanding).
+
+---
+
+## ERD (Mermaid)
+
 ```mermaid
 erDiagram
-  Organization ||--o{ OrganizationMembership : has
-  User ||--o{ OrganizationMembership : joins
+  ORG ||--o{ ORG_MEMBERSHIP : has
+  USER ||--o{ ORG_MEMBERSHIP : belongs_to
 
-  UnitOfMeasure ||--o{ Product : used_by
-  Product }o--o{ Category : categorized_as
-  Product }o--o{ Supplier : vendor_links
-  Product }o--o{ User : assigned_users
+  UOM ||--o{ PRODUCT : unit_for
+  PRODUCT }o--o{ CATEGORY : tagged_with
+  PRODUCT }o--o{ SUPPLIER : vendor_link
+  PRODUCT }o--o{ USER : assigned_to
 
-  Destination ||--o{ Requisition : routes
-  Supplier ||--o{ Requisition : requested_from
-  Supplier_destination_sub_category ||--o{ Requisition : optional_subtype
-  User ||--o{ Requisition : requester
-  Requisition ||--o{ RequisitionItem : has
-  Product ||--o{ RequisitionItem : requested_product
-  Requisition ||--o{ RequisitionApproval : approval_log
-  User ||--o{ RequisitionApproval : approver
+  DESTINATION ||--o{ REQUISITION : routes
+  SUPPLIER ||--o{ REQUISITION : optional_supplier
+  SUPPLIER_SUBCATEGORY ||--o{ REQUISITION : optional_subcategory
+  USER ||--o{ REQUISITION : requester
+  REQUISITION ||--o{ REQUISITION_ITEM : has
+  PRODUCT ||--o{ REQUISITION_ITEM : requested
+  REQUISITION ||--o{ REQUISITION_APPROVAL : audited_by
+  USER ||--o{ REQUISITION_APPROVAL : actor
 
-  Requisition o|--|| PurchaseOrder : may_create
-  Supplier ||--o{ PurchaseOrder : ordered_from
-  User ||--o{ PurchaseOrder : created_by
-  PurchaseOrder ||--o{ PurchaseOrderItem : has
-  Product ||--o{ PurchaseOrderItem : ordered_product
-  PurchaseOrder ||--o{ PurchaseOrderApproval : approval_log
-  User ||--o{ PurchaseOrderApproval : approver
+  REQUISITION o|--|| PURCHASE_ORDER : may_create
+  SUPPLIER ||--o{ PURCHASE_ORDER : supplier
+  USER ||--o{ PURCHASE_ORDER : created_by
+  PURCHASE_ORDER ||--o{ PURCHASE_ORDER_ITEM : has
+  PRODUCT ||--o{ PURCHASE_ORDER_ITEM : ordered
+  PURCHASE_ORDER ||--o{ PURCHASE_ORDER_APPROVAL : audited_by
+  USER ||--o{ PURCHASE_ORDER_APPROVAL : actor
 
-  PurchaseOrder ||--o{ Receiving : receives
-  User ||--o{ Receiving : received_by
-  User ||--o{ Receiving : reviewed_by
-  User ||--o{ Receiving : sent_to_coo_by
-  User ||--o{ Receiving : coo_decision_by
-  Receiving ||--o{ ReceivingItem : has
-  PurchaseOrderItem ||--o{ ReceivingItem : actuals_for
-  ReceivingItem ||--o{ InvoiceLineApproval : line_decisions
-  User ||--o{ InvoiceLineApproval : accountant
+  PURCHASE_ORDER ||--o{ RECEIVING : has
+  RECEIVING ||--o{ RECEIVING_ITEM : has
+  PURCHASE_ORDER_ITEM ||--o{ RECEIVING_ITEM : references
+  RECEIVING_ITEM ||--o{ INVOICE_LINE_APPROVAL : has
+  USER ||--o{ INVOICE_LINE_APPROVAL : accountant
 
-  PurchaseOrder ||--|| Payment : one_payment
-  User ||--o{ Payment : created_by
-  User ||--o{ Payment : processed_by
+  PURCHASE_ORDER ||--|| PAYMENT : one_to_one
+  USER ||--o{ PAYMENT : created_by
+  USER ||--o{ PAYMENT : processed_by
 
-  Product ||--o{ StockTransaction : movement
-  User ||--o{ StockTransaction : actor
-  Product ||--o{ LowStockAlert : alerts
-  User ||--o{ LowStockAlert : acknowledged_by
-  User ||--|| Profile : phone_profile
+  PRODUCT ||--o{ STOCK_TXN : movements
+  USER ||--o{ STOCK_TXN : created_by
+  PRODUCT ||--o{ LOW_STOCK_ALERT : triggers
+  USER ||--o{ LOW_STOCK_ALERT : acknowledged_by
+
+  USER ||--|| PROFILE : has
 ```
 
-## Constraints and indexes highlights
-- Unique membership: `(user, organization)`.
-- Product uniqueness: `(Lower(name), uom)` via `uniq_product_sku` constraint name.
-- RequisitionItem uniqueness: `(requisition, product)`.
-- One payment per PO and one receiving per PO unique constraints.
-- Stock idempotency: unique `(transaction_type, source_type, source_id, product)`.
+---
+
+## Relationship map (quick human read)
+
+```text
+Organization
+  └─< OrganizationMembership >─ User
+
+Product master data
+  UOM ──< Product >── Category
+                 └── Supplier (vendors)
+                 └── User (assigned users)
+
+Procurement chain
+  Requisition ──< RequisitionItem
+      └──< RequisitionApproval
+      └──(0..1) PurchaseOrder ──< PurchaseOrderItem
+                                 └──< PurchaseOrderApproval
+                                 └──(1) Payment
+                                 └──(1) Receiving ──< ReceivingItem
+                                                     └──< InvoiceLineApproval
+
+Inventory chain
+  Product ──< StockTransaction
+  Product ──< LowStockAlert
+```
+
+---
+
+## Constraint highlights
+- Unique membership per user/org.
+- Unique requisition line per product per requisition.
+- Unique payment per PO.
+- Unique receiving per PO.
+- Unique stock transaction per `(type, source_type, source_id, product)` for idempotency.
+
+> Gotcha: Mermaid ER rendering can vary by Markdown engine. If your preview breaks, rely on the relationship map above (same logic, no parser dependency).

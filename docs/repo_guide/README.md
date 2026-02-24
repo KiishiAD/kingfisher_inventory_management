@@ -26,6 +26,11 @@ Welcome! This guide explains the whole Django codebase from “what is this app?
 - [14-troubleshooting.md](14-troubleshooting.md)
 - [15-glossary.md](15-glossary.md)
 
+## Reading mode (important)
+- Each visual chapter includes:
+  - Mermaid diagram
+  - Plain ASCII fallback (in case your markdown renderer does not support Mermaid)
+
 ## Coverage checklist
 - ✅ All Django apps documented.
 - ✅ All models and relationships mapped (including constraints).

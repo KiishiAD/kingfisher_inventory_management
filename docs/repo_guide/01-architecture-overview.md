@@ -1,33 +1,77 @@
 # 01 — Architecture Overview
 
-## High-level architecture
+Let’s start with the 10-second mental model:
+
+> A user clicks in the browser → Django view validates input → models/services update data → Django renders HTML back.
+
+---
+
+## Architecture map (Mermaid)
+
 ```mermaid
-flowchart LR
-  Browser --> Django["Django app
-(supplychain_test)"]
-  Django --> Views["Class/Function Views"]
-  Views --> Forms["Django Forms/Formsets"]
-  Views --> Utils["utils.py + services/*"]
-  Forms --> Models["accounts + supplychain models"]
-  Utils --> Models
-  Models --> DB[(SQLite dev / Postgres prod)]
-  Django --> Templates["Django templates"]
-  Django --> Static["WhiteNoise static files"]
-  Django --> Email["SMTP"]
-  Django --> SMS["Textbelt API"]
-  Django --> S3["S3 media in production"]
+flowchart TD
+    BROWSER[Browser]
+    URLS[Project URLs]
+    VIEWS[Views]
+    FORMS[Forms and Formsets]
+    SERVICES[Utils and Services]
+    MODELS[Models]
+    DB[(Database)]
+    TEMPLATES[Templates]
+    STATIC[Static files]
+    EMAIL[SMTP]
+    SMS[Textbelt]
+    S3[S3 Media in prod]
+
+    BROWSER --> URLS
+    URLS --> VIEWS
+    VIEWS --> FORMS
+    VIEWS --> SERVICES
+    FORMS --> MODELS
+    SERVICES --> MODELS
+    MODELS --> DB
+    VIEWS --> TEMPLATES
+    BROWSER --> STATIC
+    VIEWS --> EMAIL
+    VIEWS --> SMS
+    MODELS --> S3
 ```
 
+## Same diagram (ASCII fallback)
+
+```text
+[Browser]
+   |
+   v
+[urls.py router] ---> [Views] ---> [Templates] ---> HTML response
+                        |  \
+                        |   +--> [Utils/Services] --> [Models] --> [DB]
+                        |
+                        +--> [Forms/Formsets] -----> [Models] --> [DB]
+
+External integrations:
+- Email notifications -> SMTP
+- SMS notifications   -> Textbelt
+- Uploaded media      -> local media (dev) / S3 (prod)
+```
+
+> Tip: If Mermaid does not render in your previewer, use the ASCII fallback blocks throughout this guide.
+
+---
+
 ## Main packages
-- `accounts`: organization onboarding, invite flow, optional Google OAuth.
-- `supplychain`: procurement/inventory/payment domain.
-- `supplychain_test/settings`: env-specific settings split.
+- `accounts`: onboarding, org membership, invitations, Google OAuth hooks.
+- `supplychain`: requisitions, purchase orders, receiving, payments, inventory.
+- `supplychain_test/settings`: environment-specific configuration.
 
-## Request path pattern
-`urls.py` → view class/function → form/formset validation → model write/read → template render.
+## Request path pattern (real code shape)
+1. URL pattern resolves to a view class/function.
+2. View checks authentication/permissions.
+3. View validates a form/formset.
+4. View writes/reads models (sometimes via `utils.py` or `services/*`).
+5. View renders template with context.
 
-## Notable design traits
-- Most workflows are server-rendered pages (no DRF API layer).
-- Workflow state is represented in model `status` fields.
-- Timeline/event rendering is centralized in `supplychain/utils.py`.
-- Inventory stock is event-sourced from `StockTransaction` rows (signed quantities).
+## Why this architecture is nice
+- Simple server-rendered Django flow (great for maintainability).
+- State transitions are explicit in `status` fields.
+- Inventory is transaction-based (`StockTransaction`) instead of a fragile mutable single counter.

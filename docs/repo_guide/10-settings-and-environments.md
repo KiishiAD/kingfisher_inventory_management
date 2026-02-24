@@ -1,20 +1,26 @@
 # 10 — Settings and Environments
 
-## Settings split
-- `settings/base.py` — shared app config, middleware, templates, static/media defaults.
-- `settings/development.py` — DEBUG=True, SQLite, dev email creds.
-- `settings/production.py` — strict env checks, Postgres URL parsing, WhiteNoise + S3 media.
-- `settings/__init__.py` chooses by `DJANGO_ENV`.
+## How settings are split
+First, Django loads `settings/__init__.py`.
+Then that module chooses `development.py` or `production.py` by `DJANGO_ENV`.
+Because production is strict, missing required env vars raise runtime errors early.
 
-## Security-ish defaults
-- Session age 15 minutes, sliding expiry.
-- `SECRET_KEY` mandatory in prod.
-- `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` environment-driven in prod.
+## Environment files
+- `base.py`: shared config
+- `development.py`: local defaults (SQLite, debug, SMTP env usage)
+- `production.py`: Postgres, WhiteNoise static root, S3 media, stricter validation
 
-## Storage
-- Static: WhiteNoise manifest storage + `STATIC_ROOT=/vol/web/static` in prod.
-- Media: forced S3 in prod (`USE_S3_MEDIA` validation).
+## Key configuration topics
+- Security: secret key, hosts, CSRF origins
+- Sessions: short sliding session timeout
+- Static/media: local in dev, S3 media in prod
+- Email: SMTP settings
+- OAuth: optional Google credentials
+- Logging: production logger config
 
-## Email + OAuth
-- SMTP settings expected from env vars.
-- Google OAuth client id/secret optional; if absent, flow warns and falls back.
+## Where in code
+- Loader: `supplychain_test/supplychain_test/settings/__init__.py::env`
+- Shared settings: `supplychain_test/supplychain_test/settings/base.py::MIDDLEWARE`
+- Dev database/email: `supplychain_test/supplychain_test/settings/development.py::DATABASES`, `supplychain_test/supplychain_test/settings/development.py::EMAIL_HOST_USER`
+- Prod env checks: `supplychain_test/supplychain_test/settings/production.py::SECRET_KEY`, `supplychain_test/supplychain_test/settings/production.py::DATABASES`
+- S3 media setup: `supplychain_test/supplychain_test/settings/production.py::MediaStorage`

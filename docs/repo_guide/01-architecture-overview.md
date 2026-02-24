@@ -75,3 +75,10 @@ External integrations:
 - Simple server-rendered Django flow (great for maintainability).
 - State transitions are explicit in `status` fields.
 - Inventory is transaction-based (`StockTransaction`) instead of a fragile mutable single counter.
+
+
+## Where in code
+- Installed apps + middleware: `supplychain_test/supplychain_test/settings/base.py::INSTALLED_APPS`, `supplychain_test/supplychain_test/settings/base.py::MIDDLEWARE`
+- Template engine setup: `supplychain_test/supplychain_test/settings/base.py::TEMPLATES`
+- Root routes: `supplychain_test/supplychain_test/urls.py::urlpatterns`
+- Core service orchestration: `supplychain_test/supplychain/utils.py::build_workitem_timeline`

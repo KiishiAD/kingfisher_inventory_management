@@ -1,17 +1,20 @@
 # 15 — Glossary
 
-- **Requisition**: Internal request for goods/services.
-- **Destination**: Requisition target (`PURCHASE` external supplier, `STORE` internal issue).
-- **PO (Purchase Order)**: Formal supplier order generated from approved requisition.
-- **Receiving**: Goods receipt record tied to PO.
-- **Three-way match (loosely)**: PO lines vs received quantities vs invoice evidence.
-- **COO approval**: Executive step for PO decisions and receiving exceptions.
-- **StockTransaction**: Atomic inventory movement event.
-- **LowStockAlert**: Trigger when on-hand < product threshold.
-- **OrganizationMembership role**: owner/admin/member authorization within org context.
+- **Requisition**: Internal request for goods/services before procurement action.
+- **Destination**: Whether requisition is for external purchase or internal store issue.
+- **Purchase Order (PO)**: Supplier-facing order document linked to requisition context.
+- **Receiving**: Recorded evidence of what was physically delivered for a PO.
+- **Payment**: Finance record that a PO has been processed/settled.
+- **StockTransaction**: Atomic event that changes stock up/down.
+- **LowStockAlert**: Warning record when computed on-hand drops below threshold.
+- **OrganizationMembership**: User role assignment inside an organization.
 
-## What’s next for a beginner
-1. Run local app and create one requisition end-to-end.
-2. Inspect generated DB rows in admin.
-3. Read `supplychain/views/*` side-by-side with templates.
-4. Add one tiny test to understand app conventions.
+## What’s next for beginners
+1. Run the app locally and create one requisition.
+2. Follow it through approval to PO, receiving, and payment pages.
+3. Inspect created rows in Django admin.
+4. Read the related view and model classes side-by-side.
+
+## Where in code
+- Domain object exports: `supplychain_test/supplychain/models/__init__.py::__all__`
+- Timeline building helpers: `supplychain_test/supplychain/utils.py::build_workitem_timeline_for_po`

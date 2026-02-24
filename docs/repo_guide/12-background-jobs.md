@@ -1,11 +1,19 @@
 # 12 — Background Jobs
 
-## Findings
-No Celery/RQ/cron worker framework is configured in this repository.
+## Finding
+No Celery worker, RQ worker, or cron scheduler integration is configured in this repository.
 
-## What exists instead
-- Synchronous notification sends (email/SMS) from request flow.
-- `transaction.on_commit` used in requisition approval to delay notification until DB commit.
+## Evidence
+- No Celery/RQ app in installed apps or settings modules.
+- No worker service in `docker-compose.yml`.
+- Workflow side effects run inline inside view/service code.
 
-## Recommendation
-If traffic grows, move notification calls to async workers to avoid user-facing request latency.
+## What runs instead
+- Email and SMS notifications run synchronously.
+- Requisition notification dispatch is deferred until commit with `transaction.on_commit`.
+
+## Where in code
+- Notification calls from requisition approval: `supplychain_test/supplychain/views/requisition_views.py::RequisitionDetailView`
+- Email notifier: `supplychain_test/supplychain/services/notifications/email_notifications.py::notify_requisition_approved_to_all`
+- SMS notifier: `supplychain_test/supplychain/services/notifications/sms_notifications.py::notify_requisition_approved_to_all`
+- Deferred callback primitive: `supplychain_test/supplychain/views/requisition_views.py::transaction.on_commit`

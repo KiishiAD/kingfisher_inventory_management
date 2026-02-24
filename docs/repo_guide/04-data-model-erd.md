@@ -1,74 +1,106 @@
-# 04 — Data Model Relationship Guide (No-render friendly)
+# 04 — Data Model ERD
 
-If your Markdown preview does not render Mermaid, this page is the source of truth.
+This chapter shows **all models** and how they connect. Read the text fallback first; use Mermaid as reinforcement.
 
-## Core relationship story (in plain English)
-
-1. Organizations have users through memberships.
-2. Products belong to a master catalog (UOM, categories, vendors, assigned users).
-3. Requisitions contain line items and approval history.
-4. A requisition may become one purchase order.
-5. A purchase order has lines, approvals, one receiving lifecycle, and one payment lifecycle.
-6. Receiving lines compare expected vs actual quantities.
-7. Inventory moves through stock transactions.
-8. Low stock alerts are generated from computed on-hand vs threshold.
-
----
-
-## Text ER map
-
-```text
-Organization
-  └─< OrganizationMembership >─ User
-
-Product master data
-  UnitOfMeasure ──< Product >── Category
-                         └────── Supplier (vendors)
-                         └────── User (assigned users)
-
-Procurement pipeline
-  Destination ──< Requisition >── Supplier(optional)
-                     └── SupplierSubCategory(optional)
-                     └──< RequisitionItem >── Product
-                     └──< RequisitionApproval >── User
-                     └──(0..1) PurchaseOrder >── Supplier
-                                        └──< PurchaseOrderItem >── Product
-                                        └──< PurchaseOrderApproval >── User
-                                        └──(1) Receiving
-                                        |      └──< ReceivingItem >── PurchaseOrderItem
-                                        |              └──< InvoiceLineApproval >── User
-                                        └──(1) Payment >── User(created_by/processed_by)
-
-Inventory + alerts
-  Product ──< StockTransaction >── User(created_by)
-  Product ──< LowStockAlert >── User(acknowledged_by)
-  User ──|| Profile
-```
-
----
-
-## Mermaid version (optional)
+## ERD (Mermaid)
 
 ```mermaid
 erDiagram
   ORG ||--o{ ORG_MEMBERSHIP : has
   USER ||--o{ ORG_MEMBERSHIP : belongs_to
+
+  USER ||--|| PROFILE : has
+
   UOM ||--o{ PRODUCT : unit_for
   PRODUCT }o--o{ CATEGORY : tagged_with
   PRODUCT }o--o{ SUPPLIER : vendor_link
+  PRODUCT }o--o{ USER : assigned_to
+
   DESTINATION ||--o{ REQUISITION : routes
+  SUPPLIER ||--o{ REQUISITION : optional_supplier
+  SUPPLIER_SUBCATEGORY ||--o{ REQUISITION : optional_subcategory
+  USER ||--o{ REQUISITION : requested_by
+
+  REQUISITION ||--o{ REQUISITION_ITEM : has
+  PRODUCT ||--o{ REQUISITION_ITEM : requested_product
+  REQUISITION ||--o{ REQUISITION_APPROVAL : has
+  USER ||--o{ REQUISITION_APPROVAL : acted_by
+
   REQUISITION o|--|| PURCHASE_ORDER : may_create
-  PURCHASE_ORDER ||--o{ RECEIVING : has
-  PURCHASE_ORDER ||--|| PAYMENT : one_to_one
-  PRODUCT ||--o{ STOCK_TXN : movements
+  SUPPLIER ||--o{ PURCHASE_ORDER : supplied_by
+  USER ||--o{ PURCHASE_ORDER : created_by
+  PURCHASE_ORDER ||--o{ PURCHASE_ORDER_ITEM : has
+  PRODUCT ||--o{ PURCHASE_ORDER_ITEM : ordered_product
+  PURCHASE_ORDER ||--o{ PURCHASE_ORDER_APPROVAL : has
+  USER ||--o{ PURCHASE_ORDER_APPROVAL : acted_by
+
+  PURCHASE_ORDER ||--|| RECEIVING : has
+  USER ||--o{ RECEIVING : received_by
+  USER ||--o{ RECEIVING : reviewed_by
+  USER ||--o{ RECEIVING : sent_to_coo_by
+  USER ||--o{ RECEIVING : coo_decision_by
+
+  RECEIVING ||--o{ RECEIVING_ITEM : has
+  PURCHASE_ORDER_ITEM ||--o{ RECEIVING_ITEM : references_po_item
+  RECEIVING_ITEM ||--o{ INVOICE_LINE_APPROVAL : has
+  USER ||--o{ INVOICE_LINE_APPROVAL : accounted_by
+
+  PURCHASE_ORDER ||--|| PAYMENT : has
+  USER ||--o{ PAYMENT : created_by
+  USER ||--o{ PAYMENT : processed_by
+
+  PRODUCT ||--o{ STOCK_TRANSACTION : moves
+  USER ||--o{ STOCK_TRANSACTION : created_by
   PRODUCT ||--o{ LOW_STOCK_ALERT : triggers
+  USER ||--o{ LOW_STOCK_ALERT : acknowledged_by
 ```
 
----
+## Text fallback (same diagram in plain text)
 
-## High-impact constraints to know
-- One membership row per user-org pair.
-- One payment per PO.
-- One receiving per PO.
-- One requisition line per product per requisition.
-- One stock posting per `(type, source_type, source_id, product)`.
+```text
+Organization and users
+  ORG --< ORG_MEMBERSHIP >-- USER
+  USER --1 PROFILE
+
+Product catalog
+  UOM --< PRODUCT >-- CATEGORY
+  PRODUCT --<-> SUPPLIER (vendors M2M)
+  PRODUCT --<-> USER (assigned_users M2M)
+
+Requisition domain
+  DESTINATION --< REQUISITION >-- SUPPLIER (optional)
+  SUPPLIER_SUBCATEGORY --< REQUISITION (optional)
+  USER --< REQUISITION (requester)
+  REQUISITION --< REQUISITION_ITEM >-- PRODUCT
+  REQUISITION --< REQUISITION_APPROVAL >-- USER
+
+Purchase domain
+  REQUISITION --0..1 PURCHASE_ORDER
+  PURCHASE_ORDER --< PURCHASE_ORDER_ITEM >-- PRODUCT
+  PURCHASE_ORDER --< PURCHASE_ORDER_APPROVAL >-- USER
+
+Receiving domain
+  PURCHASE_ORDER --1 RECEIVING
+  RECEIVING --< RECEIVING_ITEM >-- PURCHASE_ORDER_ITEM
+  RECEIVING_ITEM --< INVOICE_LINE_APPROVAL >-- USER
+  RECEIVING also tracks users: received_by, reviewed_by, sent_to_coo_by, coo_decision_by
+
+Payment and inventory
+  PURCHASE_ORDER --1 PAYMENT
+  PAYMENT links USER as created_by and processed_by
+  PRODUCT --< STOCK_TRANSACTION >-- USER
+  PRODUCT --< LOW_STOCK_ALERT >-- USER
+```
+
+## Why these relationships exist
+- Approval tables (`*_APPROVAL`) keep an immutable decision history.
+- `STOCK_TRANSACTION` is append-only so stock can be recalculated and audited.
+- One receiving and one payment per PO make finance workflow deterministic.
+
+## Where in code
+- Accounts models: `supplychain_test/accounts/models.py::OrganizationMembership`
+- Product/master data: `supplychain_test/supplychain/models/master_data.py::Product`
+- Requisition domain: `supplychain_test/supplychain/models/requisition.py::RequisitionApproval`
+- Purchase domain: `supplychain_test/supplychain/models/purchase.py::PurchaseOrderApproval`
+- Receiving domain: `supplychain_test/supplychain/models/receiving.py::InvoiceLineApproval`
+- Payment/inventory: `supplychain_test/supplychain/models/payment.py::Payment`, `supplychain_test/supplychain/models/inventory.py::StockTransaction`

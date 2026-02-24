@@ -1,21 +1,49 @@
 # 11 — Deployment and Infrastructure
 
-## Docker runtime
-- `Dockerfile` installs prod requirements and runs:
-  1) migrations
-  2) collectstatic
-  3) gunicorn on `0.0.0.0:8000`
+## Local vs production
+Local development usually uses `runserver` and SQLite.
+Production deployment in this repository uses Docker, gunicorn, and Caddy.
 
-## Compose topology
-- `web`: Django/gunicorn container.
-- `caddy`: reverse proxy + TLS + static serving from mounted volume.
-- shared `static_volume` for collected static files.
+## Production runtime flow
+1. Container starts.
+2. Migrations run.
+3. Static files are collected.
+4. Gunicorn serves Django app.
+5. Caddy handles public HTTP/HTTPS and proxies to Django container.
 
-## Proxy routing
-`Caddyfile` routes `/static/*` from filesystem and proxies everything else to `web:8000`.
+## Mermaid
+```mermaid
+flowchart TD
+  INTERNET[Internet]
+  CADDY[Caddy]
+  DJANGO[Django gunicorn]
+  DB[Database]
+  STATIC[Static volume]
+
+  INTERNET --> CADDY
+  CADDY --> DJANGO
+  DJANGO --> DB
+  CADDY --> STATIC
+```
+
+## Text fallback
+```text
+Internet traffic
+  -> Caddy reverse proxy
+  -> Django gunicorn container
+  -> database
+Caddy also serves collected static files from shared volume.
+```
 
 ## Production checklist
-- Set required env vars (`SECRET_KEY`, `DATABASE_URL`, AWS keys/bucket, hosts/origins).
-- Ensure SMTP works for invite/reset/notifications.
-- Verify S3 write permissions for uploads.
-- Run migrations before traffic cutover.
+- Set required environment variables.
+- Confirm DB connectivity.
+- Confirm S3 credentials and bucket permissions.
+- Confirm SMTP works.
+- Run migrations safely before cutover.
+
+## Where in code
+- Container startup command: `Dockerfile::CMD`
+- Service topology: `docker-compose.yml::services`
+- Reverse proxy rules: `Caddyfile`
+- Production settings: `supplychain_test/supplychain_test/settings/production.py::DATABASES`

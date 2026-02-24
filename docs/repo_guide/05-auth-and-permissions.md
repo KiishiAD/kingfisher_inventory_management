@@ -63,3 +63,11 @@ Google login:
 - Session expiry is short and sliding (15 minutes with refresh on activity).
 
 > Tip: When debugging access issues, check both Django permissions **and** organization membership role.
+
+
+## Where in code
+- Login and signup: `supplychain_test/accounts/views.py::auth_landing`, `supplychain_test/accounts/views.py::signup`
+- OAuth flow: `supplychain_test/accounts/views.py::google_start`, `supplychain_test/accounts/views.py::google_callback`
+- Invite permissions: `supplychain_test/accounts/views.py::_user_can_invite`
+- Session redirects: `supplychain_test/supplychain_test/settings/base.py::LOGIN_REDIRECT_URL`
+- Permission checks in views: `supplychain_test/supplychain/views/requisition_views.py::RequisitionCreateView`, `supplychain_test/supplychain/views/payments_views.py::PaymentDetailView`

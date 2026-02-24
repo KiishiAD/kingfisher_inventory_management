@@ -1,20 +1,36 @@
 # 14 — Troubleshooting
 
-## Common issues
+## 1) Login/invite links are wrong
+**Symptom:** invite/reset emails point to wrong host.
 
-### 1) Invite emails contain bad links
-- Ensure `APP_BASE_URL` is set (required by `_send_set_password_email`).
+**Fix:** set `APP_BASE_URL` correctly for your environment.
 
-### 2) Google login returns to error
-- Check OAuth client id/secret and callback URL alignment.
+**Where in code:** `supplychain_test/accounts/views.py::_send_set_password_email`
 
-### 3) Production startup crash
-- `production.py` intentionally fails fast when missing `SECRET_KEY`, `DATABASE_URL`, or S3 config.
+## 2) Google login fails
+**Symptom:** redirect or token exchange errors.
 
-### 4) Receiving cannot be edited
-- Final statuses (`REVIWED` typo constant value, DENIED) and COO decisions hard-lock records.
+**Fix:** verify client id/secret and callback URL match configured provider values.
 
-### 5) Inventory numbers look off
-- Verify signed transaction logic: RECEIVE/ADJUST_IN positive, ISSUE/ADJUST_OUT negative.
+**Where in code:** `supplychain_test/accounts/views.py::google_start`, `supplychain_test/accounts/views.py::google_callback`
 
-> Gotcha: `REVIWED` is a constant typo in code but is the canonical value used in workflow logic.
+## 3) Production start crashes early
+**Symptom:** runtime errors during boot.
+
+**Fix:** provide required `SECRET_KEY`, `DATABASE_URL`, and S3 variables.
+
+**Where in code:** `supplychain_test/supplychain_test/settings/production.py::SECRET_KEY`, `supplychain_test/supplychain_test/settings/production.py::DATABASE_URL`
+
+## 4) Receiving looks locked
+**Symptom:** cannot edit a receiving record.
+
+**Fix:** check status and COO decision fields; finalized records are intentionally immutable.
+
+**Where in code:** `supplychain_test/supplychain/views/receiving_views.py::ReceivingDetailView`
+
+## 5) Inventory totals seem wrong
+**Symptom:** on-hand does not match expectation.
+
+**Fix:** verify stock movement signs and source postings.
+
+**Where in code:** `supplychain_test/supplychain/views/inventory_views.py::_signed_case_for_txn_queryset`, `supplychain_test/supplychain/services/inventory.py::record_receiving_as_stock`

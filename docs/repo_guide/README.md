@@ -25,11 +25,18 @@ Welcome! This guide explains the whole Django codebase from “what is this app?
 - [13-testing-and-quality.md](13-testing-and-quality.md)
 - [14-troubleshooting.md](14-troubleshooting.md)
 - [15-glossary.md](15-glossary.md)
+- [mermaid-and-preview.md](mermaid-and-preview.md)
 
 ## Reading mode (important)
 - Most key chapters now include plain-English, step-by-step explanations first.
 - Visuals are included as text diagrams, with Mermaid only as optional extra where useful.
 - If your previewer cannot render Mermaid, you will still get complete explanations.
+
+## Where this guide is grounded in code
+- Project entry and URL routing: `supplychain_test/manage.py::main`, `supplychain_test/supplychain_test/urls.py::urlpatterns`.
+- Auth + organization flows: `supplychain_test/accounts/views.py::auth_landing`, `supplychain_test/accounts/views.py::invite_user`.
+- Procurement/inventory flows: `supplychain_test/supplychain/views/requisition_views.py::RequisitionDetailView`, `supplychain_test/supplychain/views/receiving_views.py::ReceivingDetailView`.
+- Data model exports: `supplychain_test/supplychain/models/__init__.py::__all__`.
 
 ## Coverage checklist
 - ✅ All Django apps documented.

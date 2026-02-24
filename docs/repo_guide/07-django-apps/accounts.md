@@ -1,9 +1,22 @@
 # Accounts App
 
-## Purpose
-Handles account onboarding, organization ownership/membership, and invite-based user creation.
+## What this app is for
+The `accounts` app handles who can log in, how organizations are created, and who is allowed to invite teammates.
 
-## URLs (`accounts/urls.py`)
+## When users touch this app
+- New company signup
+- Login/logout and password reset routes
+- Google sign-in
+- Organization setup for first-time SSO users
+- Team invite flow
+
+## Step-by-step flow
+First, user signs up or signs in.
+Then the app ensures the user belongs to an organization.
+Then session stores an active organization id.
+Because invites are organization-scoped, only owner/admin can invite users.
+
+## URLs
 - `/accounts/signup/`
 - `/accounts/google/start/`
 - `/accounts/google/callback/`
@@ -11,28 +24,20 @@ Handles account onboarding, organization ownership/membership, and invite-based 
 - `/accounts/invite/`
 - `/accounts/invite/done/`
 
-## Models
-- `Organization`: unique organization name.
-- `OrganizationMembership`: FK user + FK organization + role + uniqueness constraint.
+## Core models
+- `Organization`
+- `OrganizationMembership`
 
-## Forms
-- `OrganizationSignupForm`: org + owner account creation (with password validation).
-- `OrganizationSetupForm`: SSO-first users create org after first login.
-- `InviteUserForm`: invite email + optional group assignment.
-
-## View behavior highlights
-- `auth_landing`: wraps `AuthenticationForm` on custom login template.
-- `signup`: creates user + org + OWNER membership and logs user in.
-- `google_start/google_callback`: full OAuth code flow with CSRF-like `state`.
-- `organization_setup`: enforced for users without org memberships.
-- `invite_user`: OWNER/ADMIN-only invite path, creates membership and set-password mail.
-
-## Templates
+## Templates used
 - `accounts/signup.html`
 - `accounts/organization_setup.html`
 - `accounts/invite_user.html`
 - `accounts/invite_done.html`
 
-## How it interacts with supplychain
-- Supplychain dashboard scopes requisition counters by active organization membership.
-- Session key `active_organization_id` is set in accounts flows and reused downstream.
+## Where in code
+- URL map: `supplychain_test/accounts/urls.py::urlpatterns`
+- Organization helper: `supplychain_test/accounts/views.py::_active_organization`
+- Invite authorization: `supplychain_test/accounts/views.py::_user_can_invite`
+- Signup flow: `supplychain_test/accounts/views.py::signup`
+- Google OAuth flow: `supplychain_test/accounts/views.py::google_start`, `supplychain_test/accounts/views.py::google_callback`
+- Models: `supplychain_test/accounts/models.py::OrganizationMembership`

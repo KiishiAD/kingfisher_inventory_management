@@ -169,3 +169,12 @@ Constraint: unique per `(transaction_type, source_type, source_id, product)`.
 - StockTransaction = real inventory truth; on-hand is computed from these rows.
 
 > Think of workflow models as the “business story”, and transaction/audit models as the “evidence trail”.
+
+
+## Where in code
+- Organization + membership: `supplychain_test/accounts/models.py::Organization`, `supplychain_test/accounts/models.py::OrganizationMembership`
+- Master data models: `supplychain_test/supplychain/models/master_data.py::Product`, `supplychain_test/supplychain/models/master_data.py::Destination`
+- Requisition models: `supplychain_test/supplychain/models/requisition.py::Requisition`, `supplychain_test/supplychain/models/requisition.py::RequisitionItem`
+- Purchase models: `supplychain_test/supplychain/models/purchase.py::PurchaseOrder`, `supplychain_test/supplychain/models/purchase.py::PurchaseOrderItem`
+- Receiving models: `supplychain_test/supplychain/models/receiving.py::Receiving`, `supplychain_test/supplychain/models/receiving.py::ReceivingItem`
+- Payment and inventory: `supplychain_test/supplychain/models/payment.py::Payment`, `supplychain_test/supplychain/models/inventory.py::StockTransaction`, `supplychain_test/supplychain/models/inventory.py::LowStockAlert`

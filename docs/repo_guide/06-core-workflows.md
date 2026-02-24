@@ -1,89 +1,141 @@
 # 06 — Core Workflows (Step-by-step)
 
-This chapter explains how data actually moves through the system, like an instructor walking a whiteboard.
+This chapter follows one request from creation to payment and inventory effects.
 
----
+## Workflow 1: Requisition lifecycle
 
-## Workflow 1: Requisition approval flow
+### Plain-English walkthrough
+First, a requester creates a requisition with line items.
+Then the requisition waits in `PENDING`.
+Then an approver chooses approved, queried, or denied.
+Because destination controls downstream behavior, approved requisitions split:
+- `PURCHASE` creates a purchase order.
+- `STORE` posts stock issue transactions.
 
-## Human explanation
-1. Requester creates requisition + line items.
-2. Requisition starts as `PENDING`.
-3. Approver chooses `APPROVED`, `QUERIED`, or `DENIED`.
-4. If approved:
-   - For `PURCHASE` destination: system generates a PO.
-   - For `STORE` destination: system posts `ISSUE` stock transactions.
-5. If queried: requester edits and resubmits back to pending.
+### Mermaid
+```mermaid
+flowchart TD
+  CREATE[Requester submits requisition]
+  PENDING[Status pending]
+  DECIDE{Approver decision}
+  APPROVE_PURCHASE[Approved purchase]
+  APPROVE_STORE[Approved store]
+  QUERY[Queried]
+  DENY[Denied]
+  CREATE_PO[Generate purchase order]
+  ISSUE_STOCK[Create issue stock transactions]
+  RESUBMIT[Requester updates and resubmits]
 
-## Quick visual
-```text
-Create requisition -> PENDING -> Approver decision
-    APPROVED + PURCHASE -> create PO
-    APPROVED + STORE    -> issue stock
-    QUERIED             -> requester edits -> PENDING again
-    DENIED              -> closed
+  CREATE --> PENDING --> DECIDE
+  DECIDE --> APPROVE_PURCHASE --> CREATE_PO
+  DECIDE --> APPROVE_STORE --> ISSUE_STOCK
+  DECIDE --> QUERY --> RESUBMIT --> PENDING
+  DECIDE --> DENY
 ```
 
-## Where in code
-- URLs: `supplychain/urls.py`
-- Views: `RequisitionCreateView`, `RequisitionDetailView`, `RequisitionUpdateView`
-- Helpers: `generate_po_for_requisition`, `record_store_requisition_issue`
-
----
-
-## Workflow 2: Purchase order to receiving to payment
-
-## Human explanation
-1. Procurement creates PO (or PO comes from approved requisition).
-2. COO approves PO.
-3. System ensures a receiving record exists for that PO.
-4. Store user records actual delivered quantities.
-5. Accounting reviews lines; may deny, approve, or escalate to COO.
-6. If cleared for payment:
-   - pending payment row is created (if missing)
-   - stock is posted as `RECEIVE` transactions
-7. Finance processes payment and uploads proof.
-
-## Quick visual
+### Text fallback
 ```text
-PO approved
-  -> Receiving exists
-  -> Actual quantities entered
-  -> Accounting/COO decision
-  -> If approved: create/keep pending payment + post RECEIVE stock
-  -> Finance marks payment PROCESSED
+Requester submits requisition
+  -> status becomes pending
+  -> approver decides:
+     - approved + purchase: create purchase order
+     - approved + store: post issue stock transactions
+     - queried: requester edits and resubmits to pending
+     - denied: workflow ends
 ```
 
-## Where in code
-- PO: `PurchaseOrderDetailView`, `generate_receiving_for_purchase_order`
-- Receiving: `ReceivingDetailView`
-- Inventory posting: `record_receiving_as_stock`
-- Payment processing: `PaymentDetailView`
+### Where in code
+- URL routes: `supplychain_test/supplychain/urls.py::urlpatterns`
+- Create/update/detail views: `supplychain_test/supplychain/views/requisition_views.py::RequisitionCreateView`, `supplychain_test/supplychain/views/requisition_views.py::RequisitionUpdateView`, `supplychain_test/supplychain/views/requisition_views.py::RequisitionDetailView`
+- Side effects: `supplychain_test/supplychain/utils.py::generate_po_for_requisition`, `supplychain_test/supplychain/services/inventory.py::record_store_requisition_issue`
 
 ---
 
-## Workflow 3: Bulk product upload
+## Workflow 2: PO to receiving to payment (flowchart)
 
-## Human explanation
-1. User uploads CSV/XLSX from operations page.
-2. System validates required columns and row data.
-3. Product is created/updated.
-4. System computes current stock and difference to target stock.
-5. System posts `ADJUST_IN` or `ADJUST_OUT` transaction.
-6. Row-level errors are returned without stopping the whole file.
+### Plain-English walkthrough
+First, procurement creates or receives a PO from approved requisition.
+Then COO approves the PO.
+Then the system ensures receiving lines exist.
+Then receiving is recorded and reviewed.
+If the review clears payment, stock is posted as receive movements and a pending payment record exists.
+Finally finance processes the payment.
 
-## Quick visual
-```text
-Upload file -> validate rows -> upsert product -> compute stock diff -> post adjust txn
+### Mermaid
+```mermaid
+flowchart TD
+  PO_CREATED[PO created]
+  COO_APPROVAL[COO approves PO]
+  RECEIVING_READY[Receiving record exists]
+  ENTRY[Store records actual quantities]
+  REVIEW[Accounting review]
+  COO_REVIEW[COO exception decision if needed]
+  CLEAR[Cleared for payment]
+  STOCK_POST[Post receive stock transactions]
+  PAYMENT_PENDING[Ensure pending payment]
+  PAYMENT_DONE[Finance processes payment]
+
+  PO_CREATED --> COO_APPROVAL --> RECEIVING_READY --> ENTRY --> REVIEW
+  REVIEW --> COO_REVIEW --> CLEAR
+  REVIEW --> CLEAR
+  CLEAR --> STOCK_POST
+  CLEAR --> PAYMENT_PENDING --> PAYMENT_DONE
 ```
 
-## Where in code
-- View: `ProductBulkUploadView`
-- Service: `import_products_df`
+### Text fallback
+```text
+PO created -> COO approval -> receiving exists
+-> store entry -> accounting review
+-> optional COO exception decision
+-> if cleared: post receive stock + ensure pending payment
+-> finance processes payment
+```
+
+### Where in code
+- PO decision: `supplychain_test/supplychain/views/purchaseorder_views.py::PurchaseOrderDetailView`
+- Receiving orchestration: `supplychain_test/supplychain/views/receiving_views.py::ReceivingDetailView`
+- Receiving generation: `supplychain_test/supplychain/utils.py::generate_receiving_for_purchase_order`
+- Stock posting: `supplychain_test/supplychain/services/inventory.py::record_receiving_as_stock`
+- Payment processing: `supplychain_test/supplychain/views/payments_views.py::PaymentDetailView`
 
 ---
 
-## Common debugging questions
-- “Why no PO created?” → check requisition destination/status.
-- “Why no stock change?” → check approval path and transaction uniqueness keys.
-- “Why no payment row?” → check receiving reached cleared-for-payment state.
+## Workflow 3: PO to receiving to payment (sequence)
+
+### Mermaid
+```mermaid
+sequenceDiagram
+  participant PROC as Procurement user
+  participant PVIEW as Purchase order view
+  participant RVIEW as Receiving view
+  participant INV as Inventory service
+  participant PAY as Payment view
+
+  PROC->>PVIEW: Approve purchase order path completes
+  PVIEW->>RVIEW: Ensure receiving record exists
+  PROC->>RVIEW: Enter actual quantities and invoice
+  RVIEW->>INV: Post receive stock when cleared
+  RVIEW->>PAY: Ensure pending payment
+  PROC->>PAY: Process payment with proof
+```
+
+### Text fallback
+```text
+Procurement/approver action
+  -> receiving screen has lines to fill
+  -> receiving review clears payment
+  -> inventory receive transactions are posted
+  -> payment is processed
+```
+
+## Workflow 4: Bulk product upload
+
+### Plain-English walkthrough
+First, user uploads CSV/XLSX.
+Then each row is validated.
+Then product records are created/updated.
+Because stock is event-based, the importer computes difference from current stock and writes adjustment transactions.
+
+### Where in code
+- Upload endpoint: `supplychain_test/supplychain/views/product_bulk_upload_views.py::ProductBulkUploadView`
+- Import service: `supplychain_test/supplychain/services/uploads/product_bulk_upload.py::import_products_df`

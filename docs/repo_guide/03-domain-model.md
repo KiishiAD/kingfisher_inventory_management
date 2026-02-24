@@ -1,32 +1,59 @@
-# 03 — Domain Model
+# 03 — Domain Model (Instructor Version)
 
-This section is the “what exists in the database and why” map.
+If one line in this guide should stick in your head, it is this:
 
-## End-to-end business chain
+> The app tracks a request from “we need something” all the way to “it was bought, received, paid, and inventory was updated.”
 
-`Organization/User` → `Requisition` → `PurchaseOrder` → `Receiving` → `Payment` + `StockTransaction`/`LowStockAlert`
+## That vague chain, translated into normal English
+
+Old short form:
+`Organization/User → Requisition → PurchaseOrder → Receiving → Payment + StockTransaction/LowStockAlert`
+
+Plain-English version:
+1. A **user** belongs to an **organization**.
+2. That user creates a **requisition** (a request for goods/services).
+3. If approved for supplier purchase, the system creates a **purchase order (PO)**.
+4. When goods arrive, staff record a **receiving** entry (what actually arrived).
+5. Finance processes a **payment** for the PO.
+6. Inventory movement is written as **stock transactions** (receive/issue/adjust).
+7. If stock drops too low, a **low stock alert** is created.
 
 ---
+
+## Quick role of each core model
+
+| Model | What it represents | Why it exists |
+|---|---|---|
+| `Organization` | Business account/tenant | Groups users and activity by business |
+| `OrganizationMembership` | User↔organization link + role | Controls owner/admin/member org permissions |
+| `Requisition` | Internal request | Entry point for procurement/store workflows |
+| `PurchaseOrder` | Formal order to supplier | Tracks procurement approval and spending |
+| `Receiving` | What was physically received | Verifies PO vs delivered quantities |
+| `Payment` | Finance settlement of PO | Tracks method/status/proof of payment |
+| `StockTransaction` | Inventory event row | Source of truth for on-hand stock |
+| `LowStockAlert` | Threshold breach event | Signals replenishment needs |
+
+---
+
+## Model details (by module)
 
 ## Accounts models
 
 ### `accounts/models.py::Organization`
-- `name` (CharField, unique)
-- `created_at` (auto add)
-
-**Meaning:** top-level business entity users belong to.
+- `name` (unique)
+- `created_at`
 
 ### `accounts/models.py::OrganizationMembership`
-- `user` (FK → `AUTH_USER_MODEL`, CASCADE, related `organization_memberships`)
-- `organization` (FK → `Organization`, CASCADE, related `memberships`)
+- `user` (FK user)
+- `organization` (FK organization)
 - `role` (`owner|admin|member`)
 - `created_at`
 
-**Constraint:** unique `(user, organization)` via `uniq_user_organization_membership`.
+Constraint: unique `(user, organization)`.
 
 ---
 
-## Master data models (`supplychain/models/master_data.py`)
+## Master data (`supplychain/models/master_data.py`)
 
 ### `TimeStampedModel` (abstract)
 - `created_at`, `updated_at`
@@ -39,145 +66,106 @@ This section is the “what exists in the database and why” map.
 - `name` unique
 
 ### `Supplier`
-- `name`
-- `contact_email`, `phone_number`, `address` optional
+- `name`, optional contact fields
 
 ### `Supplier_destination_sub_category`
-- `name` choice (`CONSUMABLES`, `SERVICES`), unique, nullable
+- optional enum-like subcategory (`CONSUMABLES`, `SERVICES`)
 
 ### `Product`
-- `sku` unique (auto-generated if blank)
+- `sku` unique, auto-generated if blank
 - `name`, `description`, `unit_cost`
-- `uom` (FK → `UnitOfMeasure`, PROTECT, related `products`)
-- `categories` (M2M → `Category`)
-- `vendors` (M2M → `Supplier`)
-- `assigned_users` (M2M → user, related `managed_products`)
-- `low_stock_threshold` optional decimal, min 0 validator
+- `uom` FK
+- M2M: `categories`, `vendors`, `assigned_users`
+- `low_stock_threshold` optional
 
-**Constraint:** unique on `Lower(name)` + `uom` (`uniq_product_sku`).
+Constraint: unique on `Lower(name)` + `uom`.
 
 ### `Destination`
-- `name` unique choice (`PURCHASE`, `STORE`)
+- choice: `PURCHASE` or `STORE` (unique)
 
 ### `Profile`
-- `user` (OneToOne → user, related `profile`)
-- `phone_number`
+- one-to-one user profile (phone number)
 
 ---
 
 ## Requisition models (`supplychain/models/requisition.py`)
 
 ### `Requisition`
-- `requester` (FK user)
-- `supplier` (FK Supplier, optional)
-- `Supplier_destination_sub_category` (FK optional)
-- `status` (`PENDING|APPROVED|DENIED|QUERIED`)
-- `destination` (FK Destination)
-- `notes`, `evidence` (required file), `urgent`
-- timestamp fields from abstract base
+- who requested (`requester`)
+- optional supplier/subcategory
+- status: `PENDING|APPROVED|DENIED|QUERIED`
+- destination (`PURCHASE` vs `STORE`)
+- notes/evidence/urgent
 
 ### `RequisitionItem`
-- `requisition` (FK Requisition, related `items`)
-- `product` (FK Product, PROTECT)
-- `quantity`
-
-**Constraint:** unique `(requisition, product)` (`uniq_requisition_product`).
+- line item: requisition + product + quantity
+- unique `(requisition, product)`
 
 ### `RequisitionApproval`
-- `requisition` (FK, related `approvals`)
-- `approver` (FK user, nullable SET_NULL)
-- `action` (same choices as requisition status)
-- `notes`, `timestamp`
+- audit trail of approval decisions and notes
 
 ---
 
 ## Purchase models (`supplychain/models/purchase.py`)
 
 ### `PurchaseOrder`
-- `requisition` (OneToOne → Requisition, nullable, related `purchase_order`)
-- `supplier` (FK Supplier)
-- `created_by` (FK user)
-- `status` (`PENDING_COO|APPROVED|DENIED|QUERIED`)
-- `sent_at`
+- optional one-to-one link to requisition
+- supplier, creator, status
+- status: `PENDING_COO|APPROVED|DENIED|QUERIED`
 
-**Business validation (`clean`)**: PO supplier must match linked requisition supplier.
+Business rule: supplier must match requisition supplier when linked.
 
 ### `PurchaseOrderItem`
-- `purchase_order` (FK, related `items`)
-- `product` (FK Product)
-- `quantity`, `unit_cost`
-- computed `line_total`
+- product, quantity, unit_cost, computed line total
 
 ### `PurchaseOrderApproval`
-- `purchase_order` (FK, related `approvals`)
-- `approver` (FK user)
-- `action` (PO status choice)
-- `notes`, `timestamp`
+- approval audit rows for PO decisions
 
 ---
 
 ## Receiving models (`supplychain/models/receiving.py`)
 
 ### `Receiving`
-- `purchase_order` (FK PurchaseOrder, related `receivings`)
-- `status` (`PENDING|UNDER_REVIEW|PENDING_COO|REVIWED|DENIED`)
-- `received_by`, `received_at`
-- `supplier_invoice` file optional
-- accounting/COO audit fields (`review_notes`, `reviewed_by`, `reviewed_at`, `sent_to_coo_*`, `coo_decision_*`)
+- linked to PO
+- lifecycle status (`PENDING`, `UNDER_REVIEW`, `PENDING_COO`, `REVIWED`, `DENIED`)
+- entry/review/COO audit fields
+- optional supplier invoice upload
 
-**Constraint:** unique `purchase_order` (`unique_receiving_per_purchase_order`).
+Constraint: one receiving per PO.
 
 ### `ReceivingItem`
-- `receiving` (FK, related `items`)
-- `po_item` (FK PurchaseOrderItem)
-- `actual_quantity` nullable
-- `accounting_queried`, `accounting_notes`
-- `flagged_for` JSON
+- per-PO-line actual quantity + accounting flags/notes
 
 ### `InvoiceLineApproval`
-- `receiving_item` (FK, related `invoice_approvals`)
-- `accountant` (FK user)
-- `approved` nullable bool (`None` means queried)
-- `notes`, `timestamp`
+- optional line-level accounting decision trail
 
 ---
 
 ## Payment + inventory models
 
-### `supplychain/models/payment.py::Payment`
-- `purchase_order` (OneToOne → PO, related `payment`)
-- `status` (`PENDING|PROCESSED|CANCELLED`)
-- `created_by`, `processed_by`, `processed_at`
-- `approved_by_coo` bool
-- payment method fields (`payment_type`, `bank_name`, `transfer_reference`, etc.)
-- `payment_notes`, `payment_proof`
+### `Payment`
+- one-to-one with PO
+- status: `PENDING|PROCESSED|CANCELLED`
+- method fields, notes, proof, actor timestamps
 
-**Constraint:** unique payment per PO (`unique_payment_per_purchase_order`).
+Constraint: one payment per PO.
 
-### `supplychain/models/inventory.py::StockTransaction`
-- `product` (FK Product, PROTECT)
-- `transaction_type` (`RECEIVE|ISSUE|ADJUST_IN|ADJUST_OUT`)
-- `quantity` (min 0)
-- `source_type` (`REQUISITION|RECEIVING|STOCKTAKE|BULK_UPLOAD`)
-- `source_id` (integer correlation id)
-- `created_by`, `note`
+### `StockTransaction`
+- signed inventory movement events (`RECEIVE/ISSUE/ADJUST_IN/ADJUST_OUT`)
+- tracks source type + source id for idempotent posting
 
-**Constraint:** unique `(transaction_type, source_type, source_id, product)` to ensure idempotent posting.
+Constraint: unique per `(transaction_type, source_type, source_id, product)`.
 
 ### `LowStockAlert`
-- `product` FK
-- `threshold` snapshot
-- `triggered_at`, `resolved_at`
-- `acknowledged`, `acknowledged_by`, `acknowledged_at`
+- alert snapshot with threshold + acknowledgment/resolution state
 
 ---
 
-## Relationship direction and workflow meaning
-- One org has many memberships; one user can belong to many orgs.
-- One requisition has many requisition items and approvals.
-- A requisition can have at most one PO (model OneToOne), though utility code still contains legacy multi-supplier grouping logic.
-- One PO has many PO items and approvals.
-- One PO has one receiving lifecycle record and one payment record (enforced by unique constraints/OneToOne payment).
-- Inventory is not stored as a mutable stock field; current stock is computed from transaction sums.
+## Relationship meaning (what to remember)
+- Requisition = demand request.
+- PurchaseOrder = external buy action for approved purchase demand.
+- Receiving = what actually arrived, reviewed before payment.
+- Payment = finance completion step.
+- StockTransaction = real inventory truth; on-hand is computed from these rows.
 
-> Tip: Think of this project as **workflow-state models + append-only audit/event rows**.
+> Think of workflow models as the “business story”, and transaction/audit models as the “evidence trail”.

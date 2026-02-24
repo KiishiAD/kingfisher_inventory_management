@@ -27,9 +27,9 @@ Welcome! This guide explains the whole Django codebase from “what is this app?
 - [15-glossary.md](15-glossary.md)
 
 ## Reading mode (important)
-- Each visual chapter includes:
-  - Mermaid diagram
-  - Plain ASCII fallback (in case your markdown renderer does not support Mermaid)
+- Most key chapters now include plain-English, step-by-step explanations first.
+- Visuals are included as text diagrams, with Mermaid only as optional extra where useful.
+- If your previewer cannot render Mermaid, you will still get complete explanations.
 
 ## Coverage checklist
 - ✅ All Django apps documented.

@@ -1,103 +1,89 @@
-# 06 — Core Workflows
+# 06 — Core Workflows (Step-by-step)
 
-This is the “follow the ball” chapter.
+This chapter explains how data actually moves through the system, like an instructor walking a whiteboard.
 
 ---
 
-## Workflow A: Requisition lifecycle
+## Workflow 1: Requisition approval flow
 
-### Mermaid
-```mermaid
-flowchart TD
-    A[Requester submits requisition]
-    B[Status PENDING]
-    C{Approver decision}
-    D[APPROVED PURCHASE]
-    E[APPROVED STORE]
-    F[QUERIED]
-    G[DENIED]
-    H[Generate Purchase Order]
-    I[Create ISSUE stock transactions]
-    J[Requester updates and resubmits]
+## Human explanation
+1. Requester creates requisition + line items.
+2. Requisition starts as `PENDING`.
+3. Approver chooses `APPROVED`, `QUERIED`, or `DENIED`.
+4. If approved:
+   - For `PURCHASE` destination: system generates a PO.
+   - For `STORE` destination: system posts `ISSUE` stock transactions.
+5. If queried: requester edits and resubmits back to pending.
 
-    A --> B
-    B --> C
-    C --> D --> H
-    C --> E --> I
-    C --> F --> J --> B
-    C --> G
-```
-
-### ASCII fallback
+## Quick visual
 ```text
-Requester -> PENDING -> Approver decides
-   |- APPROVED + PURCHASE -> create PO
-   |- APPROVED + STORE    -> issue stock
-   |- QUERIED             -> requester edits -> back to PENDING
-   |- DENIED              -> stop
+Create requisition -> PENDING -> Approver decision
+    APPROVED + PURCHASE -> create PO
+    APPROVED + STORE    -> issue stock
+    QUERIED             -> requester edits -> PENDING again
+    DENIED              -> closed
 ```
 
-### What this means in practice
-1. User submits requisition and line items.
-2. Approver action writes `RequisitionApproval` history.
-3. If approved:
-   - `PURCHASE` destination triggers PO generation.
-   - `STORE` destination triggers inventory issue transactions.
+## Where in code
+- URLs: `supplychain/urls.py`
+- Views: `RequisitionCreateView`, `RequisitionDetailView`, `RequisitionUpdateView`
+- Helpers: `generate_po_for_requisition`, `record_store_requisition_issue`
 
 ---
 
-## Workflow B: Purchase Order to Receiving to Payment
+## Workflow 2: Purchase order to receiving to payment
 
-### Mermaid
-```mermaid
-sequenceDiagram
-    participant COO as COO Approver
-    participant POV as PurchaseOrderDetailView
-    participant UTIL as Utils
-    participant RV as ReceivingDetailView
-    participant INV as InventoryService
-    participant PAY as Payment
+## Human explanation
+1. Procurement creates PO (or PO comes from approved requisition).
+2. COO approves PO.
+3. System ensures a receiving record exists for that PO.
+4. Store user records actual delivered quantities.
+5. Accounting reviews lines; may deny, approve, or escalate to COO.
+6. If cleared for payment:
+   - pending payment row is created (if missing)
+   - stock is posted as `RECEIVE` transactions
+7. Finance processes payment and uploads proof.
 
-    COO->>POV: Approve PO
-    POV->>UTIL: generate_receiving_for_purchase_order
-    RV->>RV: Store records actual received quantities
-    RV->>RV: Accounting reviews and decides
-    alt cleared for payment
-      RV->>PAY: get_or_create pending payment
-      RV->>INV: record_receiving_as_stock
-    end
-```
-
-### ASCII fallback
+## Quick visual
 ```text
-COO approves PO
-   -> receiving record exists
-   -> store enters actual quantities
-   -> accounting/COO decision
-   -> if approved: payment becomes actionable + stock RECEIVE posted
+PO approved
+  -> Receiving exists
+  -> Actual quantities entered
+  -> Accounting/COO decision
+  -> If approved: create/keep pending payment + post RECEIVE stock
+  -> Finance marks payment PROCESSED
 ```
+
+## Where in code
+- PO: `PurchaseOrderDetailView`, `generate_receiving_for_purchase_order`
+- Receiving: `ReceivingDetailView`
+- Inventory posting: `record_receiving_as_stock`
+- Payment processing: `PaymentDetailView`
 
 ---
 
-## Workflow C: Bulk product upload
+## Workflow 3: Bulk product upload
 
-### Mermaid
-```mermaid
-flowchart LR
-    FILE[CSV or XLSX] --> VIEW[ProductBulkUploadView]
-    VIEW --> IMPORT[import_products_df]
-    IMPORT --> PROD[Create or update products]
-    IMPORT --> TXN[Create ADJUST_IN or ADJUST_OUT transactions]
-    TXN --> STOCK[Updated computed stock]
+## Human explanation
+1. User uploads CSV/XLSX from operations page.
+2. System validates required columns and row data.
+3. Product is created/updated.
+4. System computes current stock and difference to target stock.
+5. System posts `ADJUST_IN` or `ADJUST_OUT` transaction.
+6. Row-level errors are returned without stopping the whole file.
+
+## Quick visual
+```text
+Upload file -> validate rows -> upsert product -> compute stock diff -> post adjust txn
 ```
 
-### Quick notes
-- Upload uses one `upload_id` batch reference.
-- Each row is validated and errors are reported per row.
-- Stock is set by **difference** from current on-hand.
+## Where in code
+- View: `ProductBulkUploadView`
+- Service: `import_products_df`
 
 ---
 
-## Why these diagrams matter
-- They mirror where status transitions and side-effects happen.
-- They make it easy to debug “why wasn’t stock/payment created?”.
+## Common debugging questions
+- “Why no PO created?” → check requisition destination/status.
+- “Why no stock change?” → check approval path and transaction uniqueness keys.
+- “Why no payment row?” → check receiving reached cleared-for-payment state.

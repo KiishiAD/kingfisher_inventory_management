@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db import transaction
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
@@ -27,7 +28,15 @@ class PaymentsListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         qs = (
             Payment.objects
             .select_related("purchase_order", "purchase_order__supplier", "processed_by")
-            .prefetch_related("purchase_order__items", "purchase_order__items__product")
+            .prefetch_related(
+                "purchase_order__items",
+                "purchase_order__items__product",
+                Prefetch(
+                    "purchase_order__receivings",
+                    queryset=Receiving.objects.only("id", "purchase_order_id", "supplier_invoice"),
+                    to_attr="prefetched_receivings",
+                ),
+            )
             .order_by("-created_at")
         )
 
@@ -50,12 +59,8 @@ class PaymentsListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             p.item_count = len(items)
             p.po_total = sum((i.line_total for i in items), Decimal("0"))
 
-            receiving = (
-                Receiving.objects
-                .filter(purchase_order=po)
-                .only("id", "supplier_invoice")
-                .first()
-            )
+            receivings = getattr(po, "prefetched_receivings", [])
+            receiving = receivings[0] if receivings else None
             p.receiving_id = receiving.id if receiving else None
 
         return context

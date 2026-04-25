@@ -198,6 +198,11 @@ class PurchaseReceivingDashboardViewCoverageTests(ViewCoverageBase):
     def test_dashboard_counts_with_and_without_approval_permission(self):
         Requisition.objects.create(requester=self.user, destination=Destination.objects.get_or_create(name=Destination.PURCHASE)[0], supplier=self.supplier, status=Requisition.PENDING)
         LowStockAlert.objects.create(product=self.product, threshold=Decimal("3.00"))
+        LowStockAlert.objects.create(
+            product=self.product,
+            threshold=Decimal("3.00"),
+            resolved_at=timezone.now(),
+        )
         view = DashboardView(); view.request = self.request("get")
         ctx = view.get_context_data()
         self.assertEqual(ctx["section"], "dashboard")

@@ -26,6 +26,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         else:
             context["pending_reqs_count"] = 0
         context["low_stock_count"] = LowStockAlert.objects.filter(
-            acknowledged=False
+            acknowledged=False,
+            resolved_at__isnull=True,
         ).count()
         return context

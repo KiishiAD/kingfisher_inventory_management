@@ -225,6 +225,27 @@ class PurchaseOrderForm(forms.ModelForm):
         model = PurchaseOrder
         fields = ['requisition', 'supplier']  # 'requisition' optional
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['requisition'].queryset = (
+            Requisition.objects
+            .filter(status=Requisition.APPROVED, purchase_order__isnull=True)
+            .select_related('requester', 'destination', 'supplier')
+            .order_by('-created_at')
+        )
+        self.fields['requisition'].help_text = "Optional. Only approved requisitions without an existing PO are shown."
+
+    def clean_requisition(self):
+        requisition = self.cleaned_data.get('requisition')
+        if requisition is None:
+            return requisition
+
+        if requisition.status != Requisition.APPROVED:
+            raise forms.ValidationError("Only approved requisitions can be converted to purchase orders.")
+        if hasattr(requisition, 'purchase_order'):
+            raise forms.ValidationError("This requisition already has a purchase order.")
+        return requisition
+
 PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,

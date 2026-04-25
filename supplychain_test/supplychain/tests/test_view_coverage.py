@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from model_bakery import baker
 
+from supplychain.forms import PurchaseOrderForm
 from supplychain.models import (
     Category,
     Destination,
@@ -202,6 +203,40 @@ class PurchaseReceivingDashboardViewCoverageTests(ViewCoverageBase):
         self.assertEqual(ctx["pending_accounting_count"], 0)
         self.assertEqual(ctx["pending_payment_count"], 0)
         self.assertEqual(ctx["low_stock_count"], 1)
+
+    def test_purchase_order_form_only_lists_approved_unconverted_requisitions(self):
+        purchase_destination = Destination.objects.get_or_create(name=Destination.PURCHASE)[0]
+        approved = Requisition.objects.create(
+            requester=self.user,
+            destination=purchase_destination,
+            supplier=self.supplier,
+            status=Requisition.APPROVED,
+        )
+        pending = Requisition.objects.create(
+            requester=self.user,
+            destination=purchase_destination,
+            supplier=self.supplier,
+            status=Requisition.PENDING,
+        )
+        used = Requisition.objects.create(
+            requester=self.user,
+            destination=purchase_destination,
+            supplier=self.supplier,
+            status=Requisition.APPROVED,
+        )
+        baker.make(PurchaseOrder, requisition=used, supplier=self.supplier, created_by=self.user)
+
+        form = PurchaseOrderForm()
+        self.assertIn(approved, form.fields["requisition"].queryset)
+        self.assertNotIn(pending, form.fields["requisition"].queryset)
+        self.assertNotIn(used, form.fields["requisition"].queryset)
+
+        valid_form = PurchaseOrderForm(data={"requisition": approved.pk, "supplier": self.supplier.pk})
+        self.assertTrue(valid_form.is_valid())
+
+        invalid_form = PurchaseOrderForm(data={"requisition": pending.pk, "supplier": self.supplier.pk})
+        self.assertFalse(invalid_form.is_valid())
+
 
     def test_purchase_order_list_pending_detail_get_and_posts(self):
         req = self.request("get", f"/po/?supplier={self.supplier.pk}&status={PurchaseOrder.PENDING_COO}")

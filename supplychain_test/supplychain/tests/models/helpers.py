@@ -43,8 +43,6 @@ from supplychain.models import (
     ReceivingItem,
     InvoiceLineApproval,
     Payment,
-    IssuanceRequest,
-    IssuanceItem,
     StockTransaction,
     LowStockAlert,
     Profile,

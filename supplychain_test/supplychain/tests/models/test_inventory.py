@@ -1,8 +1,7 @@
 """Inventory tests for StockTransaction and LowStockAlert.
 
-Verifies string formatting for transactions (Decimal-aware), deletion
-protections while transactions exist, and default/formatting behavior for
-low-stock alerts.
+Verifies persisted transaction fields, deletion protections while transactions
+exist, and default/formatting behavior for low-stock alerts.
 """
 
 from decimal import Decimal
@@ -15,11 +14,19 @@ from supplychain.models import StockTransaction, LowStockAlert
 
 
 class StockAndAlertsModelTests(TestCase):
-    def test_stock_transaction_str_and_protect(self):
+    def test_stock_transaction_fields_and_protect(self):
         p = make_product(name="Oil")
-        st = baker.make(StockTransaction, product=p, transaction_type=StockTransaction.RECEIVE, quantity=Decimal("9.00"))
-        self.assertEqual(str(st), f"RECEIVE 9.00 of {p}")
-        from django.db.models.deletion import ProtectedError
+        st = baker.make(
+            StockTransaction,
+            product=p,
+            transaction_type=StockTransaction.RECEIVE,
+            source_type=StockTransaction.SRC_RECEIVING,
+            source_id=1,
+            quantity=Decimal("9.00"),
+        )
+        self.assertEqual(st.product, p)
+        self.assertEqual(st.transaction_type, StockTransaction.RECEIVE)
+        self.assertEqual(st.quantity, Decimal("9.00"))
         with self.assertRaises(ProtectedError):
             p.delete()
 

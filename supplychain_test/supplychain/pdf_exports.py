@@ -86,13 +86,21 @@ def render_table_pdf(
         bottomMargin=12 * mm,
     )
     styles = getSampleStyleSheet()
-    normal = styles["BodyText"]
-    normal.fontSize = 7
-    normal.leading = 8
-    header_style = styles["BodyText"]
-    header_style.fontSize = 7
-    header_style.leading = 8
-    header_style.textColor = colors.white
+    normal = ParagraphStyle(
+        "ListExportBody",
+        parent=styles["BodyText"],
+        fontSize=7,
+        leading=8,
+        textColor=colors.HexColor("#111827"),
+    )
+    header_style = ParagraphStyle(
+        "ListExportHeader",
+        parent=styles["BodyText"],
+        fontSize=7,
+        leading=8,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
 
     story = [Paragraph(clean_text(title), styles["Title"])]
     generated = timezone.localtime(timezone.now()).strftime("Generated %Y-%m-%d %H:%M")

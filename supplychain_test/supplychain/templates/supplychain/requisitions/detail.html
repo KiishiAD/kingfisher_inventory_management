@@ -142,6 +142,7 @@
   </div>
   <div class="d-flex gap-2 align-items-center">
     <a href="{% url 'supplychain:record-pdf-export' 'requisition' requisition.id %}" class="btn btn-outline-danger">Download PDF</a>
+    <a href="{% url 'supplychain:record-csv-export' 'requisition' requisition.id %}" class="btn btn-outline-primary">Download CSV</a>
     <a href="{% url 'supplychain:requisition-list' %}" class="btn btn-outline-secondary">Back</a>
     {% if request.user == requisition.requester and requisition.status == 'QUERIED' %}
       <a href="{% url 'supplychain:requisition-update' requisition.id %}" class="btn btn-outline-primary">

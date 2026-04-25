@@ -22,7 +22,7 @@ from .views.receiving_views import (ReceivingListView, ReceivingDetailView
 from .views.inventory_views import InventoryDetailView, InventoryListView, InventoryMovementReportView, LowStockDashboardView
 from .views.payments_views import PaymentDetailView, PaymentsListView
 from .views.product_bulk_upload_views import ProductBulkUploadView
-from .views.pdf_views import RecordPdfExportView, VisibleTablePdfExportView
+from .views.pdf_views import RecordCsvExportView, RecordPdfExportView, VisibleTablePdfExportView
 
 app_name = "supplychain"
 
@@ -70,6 +70,7 @@ urlpatterns = [
     # PDF Exports
     path("exports/table-pdf/", VisibleTablePdfExportView.as_view(), name="table-pdf-export"),
     path("exports/<slug:kind>/<int:pk>.pdf", RecordPdfExportView.as_view(), name="record-pdf-export"),
+    path("exports/<slug:kind>/<int:pk>.csv", RecordCsvExportView.as_view(), name="record-csv-export"),
 
     #Bulk Product Upload
     path("operations/products/bulk-upload/", ProductBulkUploadView.as_view(), name="product-bulk-upload"),

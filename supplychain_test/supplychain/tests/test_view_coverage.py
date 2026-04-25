@@ -475,3 +475,31 @@ class PdfExportViewCoverageTests(ViewCoverageBase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn("inventory-", response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
+
+class RecordCsvExportViewCoverageTests(ViewCoverageBase):
+    def test_purchase_order_record_csv_export_includes_line_data(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("supplychain:record-csv-export", args=["purchase-order", self.po.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("purchase-order-", response["Content-Disposition"])
+        body = response.content.decode("utf-8")
+        self.assertIn("Purchase Order", body)
+        self.assertIn("View Supplier", body)
+        self.assertIn("View Product", body)
+        self.assertIn("Line Total", body)
+
+    def test_purchase_order_record_pdf_contains_line_data_text(self):
+        from pypdf import PdfReader
+        from io import BytesIO
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("supplychain:record-pdf-export", args=["purchase-order", self.po.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+        self.assertIn("Purchase Order", text)
+        self.assertIn("View Supplier", text)
+        self.assertIn("View Product", text)
+        self.assertIn("Line Total", text)

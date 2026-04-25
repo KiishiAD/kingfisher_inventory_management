@@ -28,6 +28,7 @@
 
     <div class="d-flex gap-2">
       <a href="{% url 'supplychain:record-pdf-export' 'receiving' receiving.id %}" class="btn btn-outline-danger">Download PDF</a>
+      <a href="{% url 'supplychain:record-csv-export' 'receiving' receiving.id %}" class="btn btn-outline-primary">Download CSV</a>
       <a href="{% url 'supplychain:receiving-list' %}" class="btn btn-outline-secondary">Back</a>
       <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
 

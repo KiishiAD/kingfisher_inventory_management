@@ -17,6 +17,27 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
+def _table_col_widths(headers: list[str], available_width: float) -> list[float]:
+    """Allocate stable column widths so export data is visible instead of squeezed/clipped."""
+    count = max(len(headers), 1)
+    if count == 1:
+        return [available_width]
+
+    lowered = [str(h).lower() for h in headers]
+    weights = []
+    for h in lowered:
+        if any(key in h for key in ("product", "notes", "details", "event", "description")):
+            weights.append(2.4)
+        elif any(key in h for key in ("when", "created", "updated", "processed", "received")):
+            weights.append(1.7)
+        elif any(key in h for key in ("sku", "supplier", "requester", "approver", "created by")):
+            weights.append(1.5)
+        else:
+            weights.append(1.0)
+    total = sum(weights) or count
+    return [available_width * (w / total) for w in weights]
+
+
 _EMPTY = "—"
 
 
@@ -90,7 +111,8 @@ def render_table_pdf(
     data = [[_paragraph(h, header_style) for h in header_values]]
     data.extend([[_paragraph(cell, normal) for cell in row] for row in row_values])
 
-    table = Table(data, repeatRows=1)
+    available_width = page_size[0] - doc.leftMargin - doc.rightMargin
+    table = Table(data, repeatRows=1, colWidths=_table_col_widths(header_values, available_width))
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e79")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -116,14 +138,16 @@ def render_key_value_pdf(
     filename: str | None = None,
 ) -> HttpResponse:
     buffer = BytesIO()
+    page_size = landscape(A4)
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
-        leftMargin=14 * mm,
-        rightMargin=14 * mm,
-        topMargin=14 * mm,
-        bottomMargin=14 * mm,
+        pagesize=page_size,
+        leftMargin=12 * mm,
+        rightMargin=12 * mm,
+        topMargin=12 * mm,
+        bottomMargin=12 * mm,
     )
+    available_width = page_size[0] - doc.leftMargin - doc.rightMargin
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "ExportTitle",
@@ -167,7 +191,7 @@ def render_key_value_pdf(
     generated = timezone.localtime(timezone.now()).strftime("Generated %Y-%m-%d %H:%M")
     title_block = Table(
         [[Paragraph(clean_text(title), title_style)], [Paragraph(generated, generated_style)]],
-        colWidths=[182 * mm],
+        colWidths=[available_width],
     )
     title_block.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111827")),
@@ -182,7 +206,7 @@ def render_key_value_pdf(
     for heading, values in sections:
         story.append(Paragraph(clean_text(heading), section_style))
         data = [[_paragraph(label, label_style), _paragraph(value, normal)] for label, value in values]
-        table = Table(data, colWidths=[45 * mm, 130 * mm])
+        table = Table(data, colWidths=[48 * mm, available_width - (48 * mm)])
         table.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#d1d5db")),
             ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eef2f7")),
@@ -199,10 +223,10 @@ def render_key_value_pdf(
         if rows:
             data = [[_paragraph(h, header_style) for h in headers]]
             data.extend([[_paragraph(cell, normal) for cell in row] for row in rows])
-            table = Table(data, repeatRows=1)
+            table = Table(data, repeatRows=1, colWidths=_table_col_widths(headers, available_width))
         else:
             data = [[_paragraph("No records for this section.", normal)]]
-            table = Table(data, colWidths=[182 * mm])
+            table = Table(data, colWidths=[available_width])
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e79")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),

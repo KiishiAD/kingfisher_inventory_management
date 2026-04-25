@@ -14,6 +14,7 @@
   </div>
   <div class="d-flex gap-2">
     <a href="{% url 'supplychain:record-pdf-export' 'inventory' product.id %}" class="btn btn-outline-danger">Download PDF</a>
+    <a href="{% url 'supplychain:record-csv-export' 'inventory' product.id %}" class="btn btn-outline-primary">Download CSV</a>
     <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-list' %}">Back</a>
     <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-movement' %}?q={{ product.name|urlencode }}">Movement report</a>
   </div>

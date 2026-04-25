@@ -137,7 +137,10 @@ class InventoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["section"] = "inventory"
         ctx["categories"] = Category.objects.all().order_by("name")
-        ctx["active_low_stock_count"] = LowStockAlert.objects.filter(acknowledged=False).count()
+        ctx["active_low_stock_count"] = LowStockAlert.objects.filter(
+            acknowledged=False,
+            resolved_at__isnull=True,
+        ).count()
         ctx["filter_form"] = InventoryFilterForm(self.request.GET or None)
         return ctx
 
@@ -152,7 +155,7 @@ class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def get(self, request):
         alerts = (
             LowStockAlert.objects
-            .filter(acknowledged=False)
+            .filter(acknowledged=False, resolved_at__isnull=True)
             .select_related("product", "product__uom")    
             .prefetch_related("product__categories")        
             .order_by("acknowledged", "-triggered_at")
@@ -219,7 +222,7 @@ class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
         active_alert = (
             product.low_stock_alerts
-            .filter(acknowledged=False)
+            .filter(acknowledged=False, resolved_at__isnull=True)
             .order_by("-triggered_at")
             .first()
         )

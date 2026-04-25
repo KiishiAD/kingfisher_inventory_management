@@ -99,6 +99,11 @@ class InventoryViewsCoverageTests(ViewCoverageBase):
         StockTransaction.objects.create(product=self.product, transaction_type=StockTransaction.RECEIVE, quantity=Decimal("5.00"), source_type="X", source_id=1)
         StockTransaction.objects.create(product=self.product, transaction_type=StockTransaction.ISSUE, quantity=Decimal("2.00"), source_type="Y", source_id=2)
         LowStockAlert.objects.create(product=self.product, threshold=Decimal("3.00"))
+        LowStockAlert.objects.create(
+            product=self.product,
+            threshold=Decimal("3.00"),
+            resolved_at=timezone.now(),
+        )
 
         list_view = InventoryListView(); list_view.request = self.request("get", "/inventory/"); list_view.kwargs = {}
         qs = list_view.get_queryset()
@@ -111,6 +116,7 @@ class InventoryViewsCoverageTests(ViewCoverageBase):
         with self.capture_render("supplychain.views.inventory_views") as mocked_render:
             LowStockDashboardView().get(self.request("get"), )
             low_ctx = mocked_render.call_args.args[2]
+            self.assertEqual(len(low_ctx["alerts"]), 1)
             self.assertEqual(low_ctx["alerts"][0].current_on_hand, Decimal("3"))
 
         with self.capture_render("supplychain.views.inventory_views") as mocked_render:

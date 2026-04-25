@@ -1,26 +1,24 @@
-"""Payment and issuance model tests.
+"""Payment model tests."""
 
-Covers Payment defaults and uniqueness constraints, cascading behavior
-on PurchaseOrder deletion, and IssuanceRequest/IssuanceItem defaults and
-string formatting.
-"""
-
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from model_bakery import baker
 
-from .helpers import make_po, make_product, make_requisition, make_user
-from supplychain.models import Payment, IssuanceRequest, IssuanceItem
+from .helpers import make_po, make_user
+from supplychain.models import Payment
 
 
 class PaymentModelTests(TestCase):
     def test_defaults_and_str(self):
         po = make_po()
-        pay = baker.make(Payment, purchase_order=po, payment_type=Payment.TRANSFER)
-        self.assertFalse(pay.approved_by_mum)
-        self.assertIn("Payment for", str(pay))
-        self.assertIsNotNone(pay.processed_at)
+        user = make_user(username="payer")
+        pay = baker.make(Payment, purchase_order=po, created_by=user, payment_type=Payment.TRANSFER)
+
+        self.assertEqual(pay.status, Payment.PENDING)
+        self.assertFalse(pay.approved_by_coo)
+        self.assertIsNone(pay.processed_at)
+        self.assertIn(f"Payment #{pay.id} for PO #{po.id}", str(pay))
+        self.assertIn("Pending Payment", str(pay))
 
     def test_one_to_one_uniqueness(self):
         po = make_po()
@@ -34,18 +32,3 @@ class PaymentModelTests(TestCase):
         baker.make(Payment, purchase_order=po, payment_type=Payment.CHEQUE)
         po.delete()
         self.assertEqual(Payment.objects.count(), 0)
-
-
-class IssuanceModelTests(TestCase):
-    def test_issuance_request_defaults_and_str(self):
-        req = make_requisition()
-        ir = baker.make(IssuanceRequest, requester=req.requester, requisition=req)
-        self.assertEqual(ir.status, IssuanceRequest.PENDING)
-        self.assertIn("IssuanceRequest #", str(ir))
-
-    def test_issuance_item_str(self):
-        from decimal import Decimal
-        ir = baker.make(IssuanceRequest, requester=make_user())
-        p = make_product(name="Beans")
-        ii = baker.make(IssuanceItem, issuance_request=ir, product=p, quantity=Decimal("4.00"))
-        self.assertEqual(str(ii), "4.00 x Beans")

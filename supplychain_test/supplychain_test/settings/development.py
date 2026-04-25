@@ -48,8 +48,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
-EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
-EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "dev@example.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 SERVER_EMAIL = EMAIL_HOST_USER
-APP_BASE_URL = "https://ideal-tribble-rxjvjr4xggx2x4wg-8000.app.github.dev/"
+APP_BASE_URL = os.environ.get("APP_BASE_URL", APP_BASE_URL).rstrip("/")

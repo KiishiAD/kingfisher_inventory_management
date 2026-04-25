@@ -56,9 +56,10 @@ class RecordPdfExportView(LoginRequiredMixin, View):
         if not (request.user == requisition.requester or request.user.has_perm("supplychain.approve_requisition")):
             raise PermissionDenied
 
-        items = requisition.items.select_related("product").all()
+        items = requisition.items.select_related("product", "product__uom").all()
         approvals = requisition.approvals.select_related("approver").order_by("timestamp")
         timeline = build_workitem_timeline(requisition)
+        linked_pos = PurchaseOrder.objects.filter(requisition=requisition).select_related("supplier", "created_by")
 
         return render_key_value_pdf(
             title=f"Requisition #{requisition.id}",
@@ -72,13 +73,31 @@ class RecordPdfExportView(LoginRequiredMixin, View):
                     ("Supplier Sub-Category", requisition.Supplier_destination_sub_category),
                     ("Urgent", "Yes" if requisition.urgent else "No"),
                     ("Created", requisition.created_at),
+                    ("Updated", requisition.updated_at),
+                    ("Evidence", getattr(requisition.evidence, "name", "")),
                     ("Notes", requisition.notes),
                 ]),
             ],
             tables=[
-                ("Items", ["Product", "Quantity"], [[i.product, i.quantity] for i in items]),
+                (
+                    "Requested Items",
+                    ["Product", "SKU", "Quantity", "UOM", "Unit Cost", "Line Estimate"],
+                    [[
+                        i.product,
+                        getattr(i.product, "sku", ""),
+                        i.quantity,
+                        getattr(i.product, "uom", ""),
+                        getattr(i.product, "unit_cost", ""),
+                        (i.quantity or Decimal("0")) * (getattr(i.product, "unit_cost", Decimal("0")) or Decimal("0")),
+                    ] for i in items],
+                ),
+                (
+                    "Linked Purchase Orders",
+                    ["PO", "Supplier", "Created By", "Status", "Created"],
+                    [[f"#{po.id}", po.supplier, po.created_by, po.get_status_display(), po.created_at] for po in linked_pos],
+                ),
                 ("Approvals", ["When", "Approver", "Action", "Notes"], [[a.timestamp, a.approver, a.get_action_display(), a.notes] for a in approvals]),
-                ("Timeline", ["When", "Event"], [[t.get("timestamp", ""), t.get("label", t)] for t in timeline]),
+                ("Timeline", ["When", "Event", "Details"], [[t.get("timestamp", ""), t.get("label", t), t.get("details", "")] for t in timeline]),
             ],
         )
 

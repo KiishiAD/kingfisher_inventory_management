@@ -13,9 +13,7 @@
     </div>
   </div>
   <div class="d-flex gap-2">
-    <form method="get" action="{% url 'supplychain:record-pdf-export' 'inventory' product.id %}" class="d-inline">
-      <button type="submit" class="btn btn-outline-danger">Download PDF</button>
-    </form>
+    <a href="{% url 'supplychain:record-pdf-export' 'inventory' product.id %}" class="btn btn-outline-danger">Download PDF</a>
     <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-list' %}">Back</a>
     <a class="btn btn-outline-secondary" href="{% url 'supplychain:inventory-movement' %}?q={{ product.name|urlencode }}">Movement report</a>
   </div>

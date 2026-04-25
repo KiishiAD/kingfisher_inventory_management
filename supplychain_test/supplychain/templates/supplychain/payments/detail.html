@@ -98,9 +98,7 @@
   </div>
 
   <div class="d-flex gap-2">
-    <form method="get" action="{% url 'supplychain:record-pdf-export' 'payment' payment.id %}" class="d-inline">
-      <button type="submit" class="btn btn-outline-danger">Download PDF</button>
-    </form>
+    <a href="{% url 'supplychain:record-pdf-export' 'payment' payment.id %}" class="btn btn-outline-danger">Download PDF</a>
     <a href="{% url 'supplychain:payments-list' %}" class="btn btn-outline-secondary">Back</a>
     <a href="{% url 'supplychain:po-detail' purchase_order.id %}" class="btn btn-outline-primary">View PO</a>
     {% if receiving %}

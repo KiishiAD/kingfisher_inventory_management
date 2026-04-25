@@ -18,3 +18,6 @@ app_env/
 backup.json
 *.sqlite3
 db.sqlite3
+
+# Local/test uploads
+supplychain_test/media/

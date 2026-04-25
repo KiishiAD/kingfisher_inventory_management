@@ -20,6 +20,11 @@
     <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">
       Download CSV
     </button>
+    <button type="button"
+            class="btn btn-outline-danger btn-sm js-export-pdf"
+            data-export-url="{% url supplychain:table-pdf-export %}">
+      Download PDF
+    </button>
   </div>
 </div>
 

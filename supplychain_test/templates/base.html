@@ -446,6 +446,16 @@
           return (el.textContent || "").replace(/\s+/g, " ").trim();
         }
 
+        function isVisible(el) {
+          if (!el) return false;
+          if (el.hidden) return false;
+          var style = window.getComputedStyle(el);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          if (el.getClientRects && el.getClientRects().length === 0) return false;
+          if (el.parentElement && el.parentElement !== document.body) return isVisible(el.parentElement);
+          return true;
+        }
+
         function collectVisibleTable(button) {
           var scope = button.closest("main") || document;
           var table = scope.querySelector(button.dataset.tableSelector || "table");
@@ -460,9 +470,7 @@
           }).filter(function (_, index) { return actionIndexes.indexOf(index) === -1; });
 
           var rows = Array.from(table.querySelectorAll("tbody tr"))
-            .filter(function (tr) {
-              return tr.offsetParent !== null && getComputedStyle(tr).display !== "none";
-            })
+            .filter(isVisible)
             .map(function (tr) {
               return Array.from(tr.children)
                 .filter(function (_, index) { return actionIndexes.indexOf(index) === -1; })
@@ -502,7 +510,7 @@
 
           document.body.appendChild(form);
           form.submit();
-          form.remove();
+          window.setTimeout(function () { form.remove(); }, 30000);
         }
 
         document.addEventListener("click", function (event) {

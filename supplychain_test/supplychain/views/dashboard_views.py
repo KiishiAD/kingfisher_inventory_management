@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.views import View
 from django.db import transaction
 from ..utils import *
-from ..models import Requisition, LowStockAlert
+from ..models import Requisition, PurchaseOrder, Receiving, Payment, LowStockAlert
 from ..forms import *
 
 
@@ -25,6 +25,26 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ).count()
         else:
             context["pending_reqs_count"] = 0
+        context["pending_po_count"] = (
+            PurchaseOrder.objects.filter(status=PurchaseOrder.PENDING_COO).count()
+            if self.request.user.has_perm("supplychain.approve_purchaseorder")
+            else 0
+        )
+        context["pending_receiving_count"] = (
+            Receiving.objects.filter(status=Receiving.PENDING).count()
+            if self.request.user.has_perm("supplychain.record_receiving")
+            else 0
+        )
+        context["pending_accounting_count"] = (
+            Receiving.objects.filter(status=Receiving.UNDER_REVIEW).count()
+            if self.request.user.has_perm("supplychain.review_receiving")
+            else 0
+        )
+        context["pending_payment_count"] = (
+            Payment.objects.filter(status=Payment.PENDING).count()
+            if self.request.user.has_perm("supplychain.process_payment")
+            else 0
+        )
         context["low_stock_count"] = LowStockAlert.objects.filter(
             acknowledged=False
         ).count()

@@ -197,6 +197,10 @@ class PurchaseReceivingDashboardViewCoverageTests(ViewCoverageBase):
         self.assertEqual(ctx["section"], "dashboard")
         self.assertEqual(ctx["user_reqs_count"], 1)
         self.assertEqual(ctx["pending_reqs_count"], 1)
+        self.assertEqual(ctx["pending_po_count"], 1)
+        self.assertEqual(ctx["pending_receiving_count"], 1)
+        self.assertEqual(ctx["pending_accounting_count"], 0)
+        self.assertEqual(ctx["pending_payment_count"], 0)
         self.assertEqual(ctx["low_stock_count"], 1)
 
     def test_purchase_order_list_pending_detail_get_and_posts(self):

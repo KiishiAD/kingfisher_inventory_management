@@ -6,9 +6,13 @@
 
 {% block content %}
 <style>
-  .kf-card { border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; }
-  .kf-card-header { border-bottom: 1px solid #dee2e6; }
-  .kf-help { font-size: .875rem; color: #6c757d; }
+  .kf-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    background: var(--bs-body-bg);
+  }
+  .kf-card-header { border-bottom: 1px solid var(--bs-border-color); }
+  .kf-help { font-size: .875rem; color: var(--bs-secondary-color); }
   .kf-mono { font-variant-numeric: tabular-nums; }
 
   .kf-stat {
@@ -25,28 +29,39 @@
     letter-spacing: .2px;
     border-width: 1px;
   }
+
+  .kf-priority {
+    border-left: .35rem solid var(--bs-primary);
+  }
+
+  .kf-priority-danger { border-left-color: var(--bs-danger); }
+  .kf-priority-warning { border-left-color: var(--bs-warning); }
+  .kf-priority-success { border-left-color: var(--bs-success); }
 </style>
 
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
   <div>
     <h1 class="mb-1">Dashboard</h1>
-    <div class="kf-help">Quick access to your workflow queues and alerts.</div>
+    <div class="kf-help">Start with the queues that can block procurement, receiving, stock, or payment.</div>
   </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-3 mb-3">
   <div class="col-12 col-lg-4">
-    <div class="kf-card h-100">
+    <div class="kf-card kf-priority h-100">
       <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
         <div class="fw-semibold">My requisitions</div>
         <span class="text-muted small kf-mono">{{ user_reqs_count }}</span>
       </div>
       <div class="p-3">
         <div class="kf-stat kf-mono">{{ user_reqs_count }}</div>
-        <div class="kf-help mt-1">Total requisitions submitted by you.</div>
+        <div class="kf-help mt-1">Requests you have submitted.</div>
         <div class="mt-3">
           <a class="btn btn-outline-primary kf-action" href="{% url 'supplychain:requisition-list' %}">
             View
+          </a>
+          <a class="btn btn-success kf-action ms-1" href="{% url 'supplychain:requisition-create' %}">
+            New requisition
           </a>
         </div>
       </div>
@@ -55,7 +70,7 @@
 
   {% if perms.supplychain.approve_requisition %}
     <div class="col-12 col-lg-4">
-      <div class="kf-card h-100">
+      <div class="kf-card kf-priority kf-priority-warning h-100">
         <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
           <div class="fw-semibold">Pending requisitions</div>
           <span class="text-muted small kf-mono">{{ pending_reqs_count }}</span>
@@ -73,4 +88,72 @@
     </div>
   {% endif %}
 
+  <div class="col-12 col-lg-4">
+    <div class="kf-card kf-priority kf-priority-danger h-100">
+      <div class="kf-card-header px-3 py-3 d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Low-stock alerts</div>
+        <span class="text-muted small kf-mono">{{ low_stock_count }}</span>
+      </div>
+      <div class="p-3">
+        <div class="kf-stat kf-mono">{{ low_stock_count }}</div>
+        <div class="kf-help mt-1">Active alerts that still need acknowledgment or replenishment.</div>
+        <div class="mt-3">
+          <a class="btn btn-outline-primary kf-action" href="{% url 'supplychain:inventory-low-stock' %}">
+            Triage stock
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kf-card">
+  <div class="kf-card-header px-3 py-3">
+    <div class="fw-semibold">Operations snapshot</div>
+    <div class="kf-help">Role-aware work queues across the rest of the supply-chain flow.</div>
+  </div>
+  <div class="p-3">
+    <div class="row g-3">
+      {% if perms.supplychain.approve_purchaseorder %}
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="kf-help">POs awaiting COO</div>
+            <div class="h3 kf-mono mb-2">{{ pending_po_count }}</div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:po-pending' %}">Review POs</a>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if perms.supplychain.record_receiving %}
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="kf-help">Receipts to record</div>
+            <div class="h3 kf-mono mb-2">{{ pending_receiving_count }}</div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:receiving-list' %}">Open receiving</a>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if perms.supplychain.review_receiving %}
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="kf-help">Accounting reviews</div>
+            <div class="h3 kf-mono mb-2">{{ pending_accounting_count }}</div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:receiving-list' %}">Review receiving</a>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if perms.supplychain.process_payment %}
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="border rounded-3 p-3 h-100">
+            <div class="kf-help">Payments pending</div>
+            <div class="h3 kf-mono mb-2">{{ pending_payment_count }}</div>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:payments-list' %}">Process payments</a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

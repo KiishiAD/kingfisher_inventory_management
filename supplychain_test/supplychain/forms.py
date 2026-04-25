@@ -246,6 +246,24 @@ class PurchaseOrderForm(forms.ModelForm):
             raise forms.ValidationError("This requisition already has a purchase order.")
         return requisition
 
+    def clean(self):
+        cleaned_data = super().clean()
+        requisition = cleaned_data.get('requisition')
+        supplier = cleaned_data.get('supplier')
+
+        if (
+            requisition is not None
+            and supplier is not None
+            and requisition.supplier_id
+            and requisition.supplier_id != supplier.id
+        ):
+            self.add_error(
+                'supplier',
+                "Supplier must match the supplier selected on the linked requisition.",
+            )
+
+        return cleaned_data
+
 PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,

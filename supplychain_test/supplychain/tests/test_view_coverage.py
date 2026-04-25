@@ -237,6 +237,13 @@ class PurchaseReceivingDashboardViewCoverageTests(ViewCoverageBase):
         invalid_form = PurchaseOrderForm(data={"requisition": pending.pk, "supplier": self.supplier.pk})
         self.assertFalse(invalid_form.is_valid())
 
+        other_supplier = baker.make(Supplier, name="Other Supplier")
+        mismatched_supplier_form = PurchaseOrderForm(
+            data={"requisition": approved.pk, "supplier": other_supplier.pk}
+        )
+        self.assertFalse(mismatched_supplier_form.is_valid())
+        self.assertIn("supplier", mismatched_supplier_form.errors)
+
 
     def test_purchase_order_list_pending_detail_get_and_posts(self):
         req = self.request("get", f"/po/?supplier={self.supplier.pk}&status={PurchaseOrder.PENDING_COO}")

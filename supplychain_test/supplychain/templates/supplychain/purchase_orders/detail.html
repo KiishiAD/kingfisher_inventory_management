@@ -141,7 +141,9 @@
     <div class="kf-help mt-1">Review order lines and process COO decision.</div>
   </div>
   <div class="d-flex gap-2 align-items-center">
-    <a href="{% url 'supplychain:record-pdf-export' 'purchase-order' purchase_order.id %}" class="btn btn-outline-danger">Download PDF</a>
+    <form method="get" action="{% url 'supplychain:record-pdf-export' 'purchase-order' purchase_order.id %}" class="d-inline">
+      <button type="submit" class="btn btn-outline-danger">Download PDF</button>
+    </form>
     <a href="{% url 'supplychain:po-list' %}" class="btn btn-outline-secondary">Back</a>
     {% if request.user == purchase_order.created_by and purchase_order.status == 'QUERIED' %}
       <a href="{% url 'supplychain:po-update' purchase_order.id %}" class="btn btn-outline-primary">Update PO</a>

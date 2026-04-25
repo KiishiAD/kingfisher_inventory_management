@@ -112,6 +112,11 @@ class InventoryViewsCoverageTests(ViewCoverageBase):
             LowStockDashboardView().get(self.request("get"), )
             low_ctx = mocked_render.call_args.args[2]
             self.assertEqual(low_ctx["alerts"][0].current_on_hand, Decimal("3"))
+            self.assertEqual(low_ctx["alerts"][0].reorder_gap, Decimal("0.00"))
+            self.assertEqual(low_ctx["total_alerts"], 1)
+            self.assertEqual(low_ctx["below_threshold_count"], 1)
+            self.assertEqual(low_ctx["out_of_stock_count"], 0)
+            self.assertTrue(low_ctx["can_acknowledge_lowstock"])
 
         with self.capture_render("supplychain.views.inventory_views") as mocked_render:
             InventoryDetailView().get(self.request("get", f"/inventory/{self.product.pk}/?page=1"), self.product.pk)
@@ -125,6 +130,20 @@ class InventoryViewsCoverageTests(ViewCoverageBase):
             self.assertEqual(report_ctx["section"], "inventory")
             self.assertTrue(list(report_ctx["per_product"]))
             self.assertTrue(list(report_ctx["top_issued"]))
+
+    def test_low_stock_alert_can_be_acknowledged(self):
+        StockTransaction.objects.create(product=self.product, transaction_type=StockTransaction.ISSUE, quantity=Decimal("2.00"), source_type="Y", source_id=20)
+        alert = LowStockAlert.objects.create(product=self.product, threshold=Decimal("3.00"))
+
+        with patch("supplychain.views.inventory_views.messages"):
+            response = LowStockDashboardView().post(self.request("post", data={"alert_id": alert.pk}))
+
+        self.assertEqual(response.status_code, 302)
+        alert.refresh_from_db()
+        self.assertTrue(alert.acknowledged)
+        self.assertEqual(alert.acknowledged_by, self.user)
+        self.assertIsNotNone(alert.acknowledged_at)
+
 
 
 class PaymentAndBulkUploadViewsCoverageTests(ViewCoverageBase):

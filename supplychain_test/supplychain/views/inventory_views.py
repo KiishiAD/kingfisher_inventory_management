@@ -3,14 +3,17 @@
 from decimal import Decimal
 
 from django import forms
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import (
     Sum, Case, When, F, DecimalField, Value,
     OuterRef, Subquery, DateTimeField
 )
 from django.db.models.functions import Coalesce
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 
@@ -149,12 +152,12 @@ class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     permission_required = "supplychain.view_inventory"
 
-    def get(self, request):
-        alerts = (
+    def _active_alerts_with_quantities(self):
+        alerts = list(
             LowStockAlert.objects
             .filter(acknowledged=False)
-            .select_related("product", "product__uom")    
-            .prefetch_related("product__categories")        
+            .select_related("product", "product__uom")
+            .prefetch_related("product__categories", "product__vendors")
             .order_by("acknowledged", "-triggered_at")
         )
 
@@ -169,13 +172,45 @@ class LowStockDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
         )
         on_hand_map = {row["product_id"]: row["qty"] for row in on_hand_rows}
 
-        for a in alerts:
-            a.current_on_hand = on_hand_map.get(a.product_id, Decimal("0.00"))
+        for alert in alerts:
+            current = on_hand_map.get(alert.product_id, Decimal("0.00"))
+            alert.current_on_hand = current
+            alert.reorder_gap = max(alert.threshold - current, Decimal("0.00"))
+            alert.reorder_value = alert.reorder_gap * alert.product.unit_cost
+
+        return alerts
+
+    def get(self, request):
+        alerts = self._active_alerts_with_quantities()
+        out_of_stock_count = sum(1 for alert in alerts if alert.current_on_hand <= 0)
+        below_threshold_count = len(alerts) - out_of_stock_count
+        estimated_reorder_value = sum((alert.reorder_value for alert in alerts), Decimal("0.00"))
 
         return render(request, "supplychain/inventory/low_stock.html", {
             "section": "inventory",
             "alerts": alerts,
+            "total_alerts": len(alerts),
+            "out_of_stock_count": out_of_stock_count,
+            "below_threshold_count": below_threshold_count,
+            "estimated_reorder_value": estimated_reorder_value,
+            "can_acknowledge_lowstock": request.user.has_perm("supplychain.acknowledge_lowstock"),
         })
+
+    def post(self, request):
+        if not request.user.has_perm("supplychain.acknowledge_lowstock"):
+            raise PermissionDenied
+
+        alert = get_object_or_404(
+            LowStockAlert.objects.select_related("product"),
+            pk=request.POST.get("alert_id"),
+            acknowledged=False,
+        )
+        alert.acknowledged = True
+        alert.acknowledged_by = request.user
+        alert.acknowledged_at = timezone.now()
+        alert.save(update_fields=["acknowledged", "acknowledged_by", "acknowledged_at", "updated_at"])
+        messages.success(request, f"Acknowledged low-stock alert for {alert.product.name}.")
+        return redirect("supplychain:inventory-low-stock")
 
 
 class InventoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):

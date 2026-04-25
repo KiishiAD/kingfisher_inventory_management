@@ -51,6 +51,33 @@
   </div>
 </div>
 
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-3">
+    <div class="po-card h-100 p-3">
+      <div class="po-help">Active alerts</div>
+      <div class="display-6 fw-semibold po-mono">{{ total_alerts }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="po-card h-100 p-3">
+      <div class="po-help">Out of stock</div>
+      <div class="display-6 fw-semibold po-mono text-danger">{{ out_of_stock_count }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="po-card h-100 p-3">
+      <div class="po-help">Below threshold</div>
+      <div class="display-6 fw-semibold po-mono text-warning">{{ below_threshold_count }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="po-card h-100 p-3">
+      <div class="po-help">Estimated reorder gap value</div>
+      <div class="display-6 fw-semibold po-mono">{{ estimated_reorder_value|floatformat:2 }}</div>
+    </div>
+  </div>
+</div>
+
 <div class="po-card">
   <div class="po-card-header px-3 py-3 d-flex justify-content-between align-items-center">
     <div>
@@ -74,9 +101,10 @@
               <th>Categories</th>
               <th class="text-end" style="width: 160px;">On hand</th>
               <th class="text-end" style="width: 160px;">Threshold</th>
+              <th class="text-end" style="width: 160px;">Reorder gap</th>
               <th style="width: 160px;">Severity</th>
               <th style="min-width: 160px;">Triggered</th>
-              <th style="width: 90px;" class="text-end">Action</th>
+              <th style="width: 180px;" class="text-end">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -115,6 +143,11 @@
                   <span class="text-muted small">{{ p.uom.code }}</span>
                 </td>
 
+                <td class="text-end">
+                  <span class="po-mono">{{ a.reorder_gap|floatformat:2 }}</span>
+                  <span class="text-muted small">{{ p.uom.code }}</span>
+                </td>
+
                 <td>
                   {% if a.current_on_hand <= 0 %}
                     <span class="badge bg-dark">Out of stock</span>
@@ -128,9 +161,20 @@
                 </td>
 
                 <td class="text-end">
-                  <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:inventory-detail' p.id %}">
-                    View
-                  </a>
+                  <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'supplychain:inventory-detail' p.id %}">
+                      View
+                    </a>
+                    {% if can_acknowledge_lowstock %}
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="alert_id" value="{{ a.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                          Ack
+                        </button>
+                      </form>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% endwith %}
@@ -143,7 +187,11 @@
         No alerts match your filters (on this page).
       </div>
     {% else %}
-      <p class="mb-0">No active low-stock alerts.</p>
+      <div class="text-center py-5">
+        <div class="display-6 mb-2">✓</div>
+        <h2 class="h5">No active low-stock alerts</h2>
+        <p class="text-muted mb-0">Everything with a configured threshold is currently at or above its reorder level.</p>
+      </div>
     {% endif %}
   </div>
 </div>

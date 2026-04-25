@@ -434,6 +434,94 @@
       })();
     </script>
 
+    {# Generic visible-table PDF export for list/search/filter pages. #}
+    <script>
+      (function () {
+        function csrfToken() {
+          var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+          return match ? decodeURIComponent(match[1]) : "";
+        }
+
+        function textOf(el) {
+          return (el.textContent || "").replace(/\s+/g, " ").trim();
+        }
+
+        function isVisible(el) {
+          if (!el) return false;
+          if (el.hidden) return false;
+          var style = window.getComputedStyle(el);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          if (el.getClientRects && el.getClientRects().length === 0) return false;
+          if (el.parentElement && el.parentElement !== document.body) return isVisible(el.parentElement);
+          return true;
+        }
+
+        function collectVisibleTable(button) {
+          var scope = button.closest("main") || document;
+          var table = scope.querySelector(button.dataset.tableSelector || "table");
+          if (!table) return null;
+
+          var headerCells = Array.from(table.querySelectorAll("thead th"));
+          var actionIndexes = [];
+          var headers = headerCells.map(function (th, index) {
+            var value = textOf(th);
+            if (/^actions?$/i.test(value)) actionIndexes.push(index);
+            return value;
+          }).filter(function (_, index) { return actionIndexes.indexOf(index) === -1; });
+
+          var rows = Array.from(table.querySelectorAll("tbody tr"))
+            .filter(isVisible)
+            .map(function (tr) {
+              return Array.from(tr.children)
+                .filter(function (_, index) { return actionIndexes.indexOf(index) === -1; })
+                .map(textOf);
+            })
+            .filter(function (row) { return row.some(Boolean); });
+
+          return { headers: headers, rows: rows };
+        }
+
+        function submitPdf(button) {
+          var payload = collectVisibleTable(button);
+          if (!payload) return;
+
+          var titleNode = document.querySelector("main h1, main h2, main h3");
+          var filterNode = document.getElementById("active-filter-label");
+          var form = document.createElement("form");
+          form.method = "post";
+          form.action = button.dataset.exportUrl;
+          form.style.display = "none";
+
+          var fields = {
+            csrfmiddlewaretoken: csrfToken(),
+            title: button.dataset.title || (titleNode ? textOf(titleNode) : "List export"),
+            subtitle: button.dataset.subtitle || (filterNode ? textOf(filterNode) : "Current visible rows"),
+            headers: JSON.stringify(payload.headers),
+            rows: JSON.stringify(payload.rows)
+          };
+
+          Object.keys(fields).forEach(function (name) {
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = fields[name];
+            form.appendChild(input);
+          });
+
+          document.body.appendChild(form);
+          form.submit();
+          window.setTimeout(function () { form.remove(); }, 30000);
+        }
+
+        document.addEventListener("click", function (event) {
+          var button = event.target.closest(".js-export-pdf");
+          if (!button) return;
+          event.preventDefault();
+          submitPdf(button);
+        });
+      })();
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

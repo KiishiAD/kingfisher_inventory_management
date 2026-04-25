@@ -163,6 +163,12 @@
         <span id="visible-count">0</span> / <span id="total-count">0</span>
       </span>
       <button type="button" id="export-csv" class="btn btn-outline-primary btn-sm">Download CSV</button>
+      <button type="button"
+              class="btn btn-outline-danger btn-sm js-export-pdf"
+              data-export-url="{% url 'supplychain:table-pdf-export' %}"
+              data-table-selector="#movement-table">
+        Download PDF
+      </button>
     </div>
   </div>
 

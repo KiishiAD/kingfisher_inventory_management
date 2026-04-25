@@ -441,3 +441,84 @@ class RequisitionViewsAdditionalCoverageTests(ViewCoverageBase):
         with patch("supplychain.views.requisition_views.messages"):
             response = view.post(no_perm, store_req.pk)
             self.assertEqual(response.status_code, 302)
+
+
+class PdfExportViewCoverageTests(ViewCoverageBase):
+    def test_visible_table_pdf_export_returns_download(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("supplychain:table-pdf-export"), {
+            "title": "Filtered Inventory",
+            "subtitle": "Search: View Product",
+            "headers": '["Product", "Qty"]',
+            "rows": '[["View Product", "3.00"]]',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_inventory_record_pdf_export_returns_download(self):
+        StockTransaction.objects.create(
+            product=self.product,
+            transaction_type=StockTransaction.RECEIVE,
+            quantity=Decimal("5.00"),
+            source_type=StockTransaction.SRC_BULK_UPLOAD,
+            source_id=1,
+            created_by=self.user,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("supplychain:record-pdf-export", args=["inventory", self.product.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("inventory-", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_visible_table_pdf_export_contains_visible_table_data(self):
+        from io import BytesIO
+        from pypdf import PdfReader
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("supplychain:table-pdf-export"), {
+            "title": "Purchase Orders",
+            "subtitle": "No filters",
+            "headers": '["#", "Req", "Supplier", "Purchaser", "Created", "Status"]',
+            "rows": '[["42", "7", "View Supplier", "viewer", "2026-04-25 23:14", "Approved"]]',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+        self.assertIn("Purchase Orders", text)
+        self.assertIn("View Supplier", text)
+        self.assertIn("Approved", text)
+        self.assertIn("42", text)
+
+class RecordCsvExportViewCoverageTests(ViewCoverageBase):
+    def test_purchase_order_record_csv_export_includes_line_data(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("supplychain:record-csv-export", args=["purchase-order", self.po.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("purchase-order-", response["Content-Disposition"])
+        body = response.content.decode("utf-8")
+        self.assertIn("Purchase Order", body)
+        self.assertIn("View Supplier", body)
+        self.assertIn("View Product", body)
+        self.assertIn("Line Total", body)
+
+    def test_purchase_order_record_pdf_contains_line_data_text(self):
+        from pypdf import PdfReader
+        from io import BytesIO
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("supplychain:record-pdf-export", args=["purchase-order", self.po.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+        self.assertIn("Purchase Order", text)
+        self.assertIn("View Supplier", text)
+        self.assertIn("View Product", text)
+        self.assertIn("Line Total", text)

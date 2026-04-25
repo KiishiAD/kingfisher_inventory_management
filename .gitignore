@@ -18,3 +18,8 @@ app_env/
 backup.json
 *.sqlite3
 db.sqlite3
+
+# Local/test uploads
+supplychain_test/media/
+# Local E2E proof artifacts
+supplychain_test/e2e_artifacts/

@@ -441,3 +441,37 @@ class RequisitionViewsAdditionalCoverageTests(ViewCoverageBase):
         with patch("supplychain.views.requisition_views.messages"):
             response = view.post(no_perm, store_req.pk)
             self.assertEqual(response.status_code, 302)
+
+
+class PdfExportViewCoverageTests(ViewCoverageBase):
+    def test_visible_table_pdf_export_returns_download(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("supplychain:table-pdf-export"), {
+            "title": "Filtered Inventory",
+            "subtitle": "Search: View Product",
+            "headers": '["Product", "Qty"]',
+            "rows": '[["View Product", "3.00"]]',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_inventory_record_pdf_export_returns_download(self):
+        StockTransaction.objects.create(
+            product=self.product,
+            transaction_type=StockTransaction.RECEIVE,
+            quantity=Decimal("5.00"),
+            source_type=StockTransaction.SRC_BULK_UPLOAD,
+            source_id=1,
+            created_by=self.user,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("supplychain:record-pdf-export", args=["inventory", self.product.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("inventory-", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))

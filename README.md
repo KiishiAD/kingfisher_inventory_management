@@ -44,3 +44,26 @@ It provides a structured workflow that streamlines the movement of goods and app
 The system follows a modular design, separating procurement, inventory, and finance workflows.  
 Environment-specific settings, credentials, and deployment scripts are not included in this repository.  
 
+---
+
+## Local Development
+
+From the Django project directory:
+
+```bash
+cd supplychain_test
+python3 manage.py migrate
+python3 manage.py runserver
+```
+
+Development defaults use SQLite and safe placeholder email credentials, so the app and test suite can run without production secrets. To exercise real email delivery locally, set `EMAIL_HOST_USER` and `EMAIL_HOST_PASSWORD` in the environment first.
+
+## Tests
+
+```bash
+cd supplychain_test
+python3 manage.py test
+```
+
+The automated suite covers core accounts, inventory, purchase order, receiving, requisition, payment, and utility flows.
+

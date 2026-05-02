@@ -3,7 +3,7 @@ from .models import (
     UnitOfMeasure, Category, Supplier, Product,
     Requisition, RequisitionItem, RequisitionApproval,
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderApproval,
-    Receiving, ReceivingItem, InvoiceLineApproval,
+    Receiving, ReceivingItem, InvoiceLineApproval, ReceivingWorkflowHistory,
     Payment,
     StockTransaction, LowStockAlert, Supplier_destination_sub_category,Destination, Profile
 )
@@ -112,3 +112,43 @@ class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'phone_number')
     search_fields = ('user__username', 'phone_number')
 
+
+# ----------------------------------------------------------------------
+# Receiving Workflow History — read-only
+# ----------------------------------------------------------------------
+@admin.register(ReceivingWorkflowHistory)
+class ReceivingWorkflowHistoryAdmin(admin.ModelAdmin):
+    """Read-only admin for inspection/debugging."""
+
+    list_display = (
+        "id",
+        "receiving",
+        "action_type",
+        "label",
+        "actor_display",
+        "occurred_at",
+    )
+    list_filter = ("action_type", "occurred_at")
+    search_fields = ("receiving__id", "label", "actor_display")
+    readonly_fields = (
+        "receiving",
+        "action_type",
+        "label",
+        "details",
+        "actor",
+        "actor_display",
+        "occurred_at",
+        "idempotency_key",
+        "metadata",
+        "created_at",
+    )
+    ordering = ("-occurred_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

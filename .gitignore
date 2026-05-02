@@ -23,3 +23,4 @@ db.sqlite3
 supplychain_test/media/
 # Local E2E proof artifacts
 supplychain_test/e2e_artifacts/
+.worktrees/

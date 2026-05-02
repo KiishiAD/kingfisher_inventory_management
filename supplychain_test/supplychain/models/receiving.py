@@ -1,6 +1,7 @@
 from decimal import Decimal
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
+from django.utils import timezone
 
 from .purchase import PurchaseOrder, PurchaseOrderItem
 from .master_data import TimeStampedModel
@@ -214,3 +215,169 @@ class InvoiceLineApproval(models.Model):
     def __str__(self):
         status = "Approved" if self.approved else "Denied" if self.approved is False else "Queried"
         return f"{status} {self.receiving_item} by {self.accountant}"
+
+
+# ----------------------------------------------------------------------
+# Receiving Workflow History — manager (must be defined before the model)
+# ----------------------------------------------------------------------
+
+
+class ReceivingWorkflowHistoryManager(models.Manager):
+    """
+    Provides create_event() — the primary write interface for workflow history.
+
+    Uses get_or_create on the idempotency constraint so that retries of the
+    same action produce the same row rather than duplicates.
+    """
+
+    def create_event(
+        self,
+        receiving,
+        action_type,
+        label,
+        details="",
+        actor=None,
+        occurred_at=None,
+        idempotency_key="",
+        metadata=None,
+    ):
+        """
+        Create or retrieve an existing workflow event.
+
+        Args:
+            receiving: Receiving instance (or pk)
+            action_type: One of ReceivingWorkflowHistory.ACTION_* constants
+            label: Client-facing event label string
+            details: Client-facing event detail string
+            actor: User instance or None
+            occurred_at: datetime; defaults to now()
+            idempotency_key: unique key within (receiving, action_type)
+            metadata: dict of hidden side-effect summaries
+
+        Returns:
+            (ReceivingWorkflowHistory, created: bool)
+        """
+        if occurred_at is None:
+            occurred_at = timezone.now()
+
+        actor_display = ""
+        if actor:
+            parts = []
+            if actor.get_full_name():
+                parts.append(actor.get_full_name())
+            elif actor.get_username():
+                parts.append(actor.get_username())
+            actor_display = " ".join(parts)
+
+        defaults = {
+            "label": label,
+            "details": details,
+            "actor": actor,
+            "actor_display": actor_display,
+            "occurred_at": occurred_at,
+            "metadata": metadata or {},
+        }
+
+        obj, created = self.get_or_create(
+            receiving=receiving,
+            action_type=action_type,
+            idempotency_key=idempotency_key,
+            defaults=defaults,
+        )
+        return obj
+
+
+# ----------------------------------------------------------------------
+# Receiving Workflow History — model
+# ----------------------------------------------------------------------
+
+
+class ReceivingWorkflowHistory(models.Model):
+    """
+    Append-only, client-facing business event log for Receiving records.
+
+    Each row represents one discrete workflow action (goods received, approved,
+    denied, sent to COO, etc.).  Actor is nullable for backfill and system
+    events.  Idempotency is guaranteed by the unique constraint on
+    (receiving, action_type, idempotency_key).
+    """
+
+    # Custom manager with idempotent event creation
+    objects = ReceivingWorkflowHistoryManager()
+
+    # ------------------------------------------------------------------
+    # Action type constants
+    # ------------------------------------------------------------------
+    ACTION_CREATED = "CREATED"
+    ACTION_GOODS_RECEIVED = "GOODS_RECEIVED"
+    ACTION_ACCOUNTING_APPROVED = "ACCOUNTING_APPROVED"
+    ACTION_ACCOUNTING_DENIED = "ACCOUNTING_DENIED"
+    ACTION_SENT_TO_COO = "SENT_TO_COO"
+    ACTION_COO_APPROVED = "COO_APPROVED"
+    ACTION_COO_DENIED = "COO_DENIED"
+
+    ACTION_TYPE_CHOICES = [
+        (ACTION_CREATED, "Created"),
+        (ACTION_GOODS_RECEIVED, "Goods Received"),
+        (ACTION_ACCOUNTING_APPROVED, "Accounting Approved"),
+        (ACTION_ACCOUNTING_DENIED, "Accounting Denied"),
+        (ACTION_SENT_TO_COO, "Sent to COO"),
+        (ACTION_COO_APPROVED, "COO Approved"),
+        (ACTION_COO_DENIED, "COO Denied"),
+    ]
+
+    # ------------------------------------------------------------------
+    # Fields
+    # ------------------------------------------------------------------
+    receiving = models.ForeignKey(
+        Receiving,
+        on_delete=models.CASCADE,
+        related_name="workflow_history",
+    )
+
+    action_type = models.CharField(
+        max_length=30,
+        choices=ACTION_TYPE_CHOICES,
+    )
+
+    # Client-facing narrative
+    label = models.CharField(max_length=255)
+    details = models.TextField(blank=True, default="")
+
+    # Nullable actor — null for backfill / system-initiated events
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="receiving_workflow_events",
+    )
+
+    # Snapshotted so historical entries stay readable
+    actor_display = models.CharField(max_length=255, default="")
+
+    # Business-occurrence time (may differ from created_at for backfill)
+    occurred_at = models.DateTimeField()
+
+    # Idempotency key scoped to receiving + action_type
+    idempotency_key = models.CharField(max_length=100)
+
+    # Hidden side-effect summaries (stock IDs, payment IDs, etc.)
+    # Not exposed in client-facing timeline output
+    metadata = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["receiving", "action_type", "idempotency_key"],
+                name="unique_receiving_action_idempotency",
+            ),
+        ]
+        ordering = [models.F("occurred_at").asc(), "pk"]
+        verbose_name = "Receiving Workflow History"
+        verbose_name_plural = "Receiving Workflow Histories"
+
+    def __str__(self):
+        return f"{self.label} — {self.receiving}"

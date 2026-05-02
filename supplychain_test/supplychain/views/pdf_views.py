@@ -14,6 +14,7 @@ from django.views import View
 
 from ..models import Payment, Product, PurchaseOrder, Receiving, Requisition, StockTransaction
 from ..pdf_exports import decode_table_payload, render_key_value_pdf, render_table_pdf
+from ..services.receiving_history import get_receiving_timeline
 from ..utils import build_workitem_timeline, build_workitem_timeline_for_po
 
 
@@ -199,6 +200,7 @@ class RecordPdfExportView(LoginRequiredMixin, View):
         items = receiving.items.select_related("po_item__product").all()
         po = receiving.purchase_order
         timeline = build_workitem_timeline_for_po(po)
+        workflow_history = get_receiving_timeline(receiving)
 
         return {
             "title": f"Receiving #{receiving.id}",
@@ -220,6 +222,7 @@ class RecordPdfExportView(LoginRequiredMixin, View):
             ],
             "tables": [
                 ("Items", ["Product", "SKU", "PO Qty", "Actual Qty", "Unit Cost", "Accounting Notes"], [[i.po_item.product, getattr(i.po_item.product, "sku", ""), i.po_item.quantity, i.actual_quantity, i.po_item.unit_cost, i.accounting_notes] for i in items]),
+                ("Workflow History", ["When", "Event", "Who", "Details"], [[e.get("when", ""), e.get("label", ""), e.get("actor_display", "") or str(e.get("who", "")), e.get("details", "")] for e in workflow_history]),
                 ("Timeline", ["When", "Event"], [[t.get("timestamp", ""), t.get("label", t)] for t in timeline]),
             ],
         }

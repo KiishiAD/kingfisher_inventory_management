@@ -1,7 +1,12 @@
 from .master_data import *
 from .requisition import *
 from .purchase import *
-from .receiving import *
+from .receiving import (
+    Receiving,
+    ReceivingItem,
+    InvoiceLineApproval,
+    ReceivingWorkflowHistory,
+)
 from .payment import *
 from .inventory import *
 
@@ -11,6 +16,6 @@ __all__ = [
     'TimeStampedModel', 'UnitOfMeasure', 'Category', 'Supplier', 'Supplier_destination_sub_category', 'Product', 'Destination',
     'Requisition', 'RequisitionItem', 'RequisitionApproval',
     'PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApproval',
-    'Receiving', 'ReceivingItem', 'InvoiceLineApproval',
+    'Receiving', 'ReceivingItem', 'InvoiceLineApproval', 'ReceivingWorkflowHistory',
     'Payment', 'StockTransaction', 'LowStockAlert', 'Profile'
 ]

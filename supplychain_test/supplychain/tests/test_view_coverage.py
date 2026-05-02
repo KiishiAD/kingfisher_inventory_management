@@ -21,6 +21,7 @@ from supplychain.models import (
     PurchaseOrderItem,
     Receiving,
     ReceivingItem,
+    ReceivingWorkflowHistory,
     Requisition,
     RequisitionItem,
     StockTransaction,
@@ -494,6 +495,35 @@ class PdfExportViewCoverageTests(ViewCoverageBase):
         self.assertIn("View Supplier", text)
         self.assertIn("Approved", text)
         self.assertIn("42", text)
+
+    def test_receiving_record_pdf_contains_workflow_history_table(self):
+        """Receiving PDF must include a Workflow History table with When|Event|Who|Details columns."""
+        from pypdf import PdfReader
+        from io import BytesIO
+        from datetime import datetime
+
+        # self.receiving already exists from ViewCoverageBase setup.
+        # Use the create_event manager method for correct field names.
+        ReceivingWorkflowHistory.objects.create_event(
+            receiving=self.receiving,
+            action_type=ReceivingWorkflowHistory.ACTION_GOODS_RECEIVED,
+            label="Goods Received",
+            actor=self.user,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("supplychain:record-pdf-export", args=["receiving", self.receiving.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+        self.assertIn("Workflow History", text)
+        self.assertIn("When", text)
+        self.assertIn("Event", text)
+        self.assertIn("Who", text)
+        self.assertIn("Details", text)
+
 
 class RecordCsvExportViewCoverageTests(ViewCoverageBase):
     def test_purchase_order_record_csv_export_includes_line_data(self):

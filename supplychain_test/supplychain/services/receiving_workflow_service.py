@@ -186,11 +186,16 @@ class ReceivingWorkflowService:
             return receiving
 
     @classmethod
-    def approve_coo(cls, receiving_id: int, acting_user):
+    def approve_coo(cls, receiving_id: int, acting_user, notes: str = ""):
         """
         COO approves a receiving.
 
         PENDING_COO → REVIWED
+
+        Args:
+            receiving_id: the receiving pk
+            acting_user: the COO user performing the action
+            notes: optional COO decision notes (stored on the Receiving record)
 
         Raises:
             ReceivingNotFoundError
@@ -219,7 +224,8 @@ class ReceivingWorkflowService:
             receiving.status = Receiving.REVIWED
             receiving.coo_decision_by = acting_user
             receiving.coo_decision_at = timezone.now()
-            receiving.save(update_fields=["status", "coo_decision_by", "coo_decision_at"])
+            receiving.coo_decision_notes = notes
+            receiving.save(update_fields=["status", "coo_decision_by", "coo_decision_at", "coo_decision_notes"])
 
             # Create pending payment
             po = receiving.purchase_order
@@ -299,9 +305,15 @@ class ReceivingWorkflowService:
             return receiving
 
     @classmethod
-    def deny_coo(cls, receiving_id: int, acting_user, reason: str):
+    def deny_coo(cls, receiving_id: int, acting_user, reason: str, notes: str = ""):
         """
         COO denies a receiving (with a reason).
+
+        Args:
+            receiving_id: the receiving pk
+            acting_user: the COO user performing the action
+            reason: client-facing denial reason (written to history details)
+            notes: optional COO decision notes (stored on the Receiving record)
 
         Raises:
             ReceivingNotFoundError
@@ -330,10 +342,12 @@ class ReceivingWorkflowService:
             receiving.status = Receiving.DENIED
             receiving.coo_decision_by = acting_user
             receiving.coo_decision_at = timezone.now()
+            receiving.coo_decision_notes = notes
             receiving.save(update_fields=[
                 "status",
                 "coo_decision_by",
                 "coo_decision_at",
+                "coo_decision_notes",
             ])
 
             ReceivingWorkflowHistory.objects.create_event(

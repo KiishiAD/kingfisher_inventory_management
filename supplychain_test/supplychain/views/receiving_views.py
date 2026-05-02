@@ -17,7 +17,11 @@ from ..forms import (
     ReceivingReviewNotesForm,
 )
 from ..models import Receiving, Payment
-from ..utils import build_workitem_timeline_for_po, record_receiving_as_stock
+from ..utils import build_workitem_timeline_for_po
+from ..services.receiving_workflow_service import (
+    ReceivingWorkflowService,
+    InvalidStatusTransitionError,
+)
 
 
 class ReceivingListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -342,41 +346,28 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 receiving.reviewed_at = timezone.now()
 
                 if accounting_action == "DENY":
-                    receiving.status = getattr(Receiving, "DENIED", "DENIED")
-                    receiving.save()
-                    messages.error(request, "Accounting denied this receiving.")
+                    reason = review_form.cleaned_data.get("review_notes", "").strip() or "Denied by accounting."
+                    try:
+                        ReceivingWorkflowService.deny_accounting(receiving.pk, request.user, reason=reason)
+                        messages.error(request, "Accounting denied this receiving.")
+                    except InvalidStatusTransitionError as e:
+                        messages.error(request, str(e))
                     return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
                 if accounting_action == "SEND_COO":
-                    if self._is_pending_coo(receiving):
-                        receiving.save()
-                        messages.info(request, "Already sent to COO and awaiting decision.")
-                        return redirect("supplychain:receiving-detail", pk=receiving.pk)
-
-                    receiving.sent_to_coo_by = request.user
-                    receiving.sent_to_coo_at = timezone.now()
-                    receiving.save()
-                    messages.warning(request, "Sent to COO for approval/denial (status remains Pending Accounting Review).")
+                    try:
+                        ReceivingWorkflowService.send_to_coo(receiving.pk, request.user)
+                        messages.warning(request, "Sent to COO for approval/denial (status remains Pending Accounting Review).")
+                    except InvalidStatusTransitionError as e:
+                        messages.info(request, str(e))
                     return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
-                # APPROVE
-                if self._requires_coo_approval(receiving):
-                    if not self._is_pending_coo(receiving):
-                        receiving.sent_to_coo_by = request.user
-                        receiving.sent_to_coo_at = timezone.now()
-                    receiving.save()
-                    messages.warning(request, "Oversupply above 0.50 detected. Sent to COO for approval/denial.")
-                else:
-                    receiving.status = Receiving.REVIWED
-                    receiving.save()
-
-                    # auto-create pending payment
-                    self._ensure_pending_payment(po, request.user)
-
-                    # ATOMIC: post stock INSIDE this transaction (no on_commit)
-                    record_receiving_as_stock(receiving.pk, request.user.pk)
-
+                # APPROVE — delegate to service
+                try:
+                    ReceivingWorkflowService.clear_for_payment(receiving.pk, request.user)
                     messages.success(request, "Accounting approved. Cleared for payment.")
+                except InvalidStatusTransitionError as e:
+                    messages.warning(request, str(e))
 
             return redirect("supplychain:receiving-detail", pk=receiving.pk)
 
@@ -401,25 +392,18 @@ class ReceivingDetailView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 })
 
             with transaction.atomic():
-                receiving.coo_decision_by = request.user
-                receiving.coo_decision_at = timezone.now()
-                receiving.coo_decision_notes = coo_notes
-
                 if coo_action == "APPROVE":
-                    receiving.status = Receiving.REVIWED
-                    receiving.save()
-
-                    # auto-create pending payment
-                    self._ensure_pending_payment(po, request.user)
-
-                    # ATOMIC: post stock INSIDE this transaction (no on_commit)
-                    record_receiving_as_stock(receiving.pk, request.user.pk)
-
-                    messages.success(request, "COO approved. Cleared for payment.")
-                else:
-                    receiving.status = getattr(Receiving, "DENIED", "DENIED")
-                    receiving.save()
-                    messages.error(request, "COO denied this receiving.")
+                    try:
+                        ReceivingWorkflowService.approve_coo(receiving.pk, request.user, notes=coo_notes)
+                        messages.success(request, "COO approved. Cleared for payment.")
+                    except InvalidStatusTransitionError as e:
+                        messages.warning(request, str(e))
+                else:  # DENY
+                    try:
+                        ReceivingWorkflowService.deny_coo(receiving.pk, request.user, reason=coo_notes, notes=coo_notes)
+                        messages.error(request, "COO denied this receiving.")
+                    except InvalidStatusTransitionError as e:
+                        messages.warning(request, str(e))
 
             return redirect("supplychain:receiving-detail", pk=receiving.pk)
 

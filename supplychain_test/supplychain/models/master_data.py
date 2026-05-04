@@ -6,6 +6,8 @@ from decimal import Decimal
 import uuid
 from django.db.models.functions import Lower
 
+from supplychain.tenant_utils import TenantManager
+
 
 ### Master Data
 
@@ -36,6 +38,14 @@ class Category(TimeStampedModel):
 
 
 class Supplier(TimeStampedModel):
+    objects = TenantManager()
+
+    organisation = models.ForeignKey(
+        "Organisation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=200)
     contact_email = models.EmailField(blank=True)
     phone_number = models.CharField(max_length=50, blank=True)
@@ -78,6 +88,15 @@ class Product(TimeStampedModel):
                 name="uniq_product_sku",
             )
         ]
+
+    objects = TenantManager()
+
+    organisation = models.ForeignKey(
+        "Organisation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
 
     # allow blank so the model can generate it; keep unique + non-null in DB
     sku = models.CharField(max_length=64, unique=True, blank=True)

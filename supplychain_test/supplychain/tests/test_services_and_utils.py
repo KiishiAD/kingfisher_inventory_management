@@ -110,15 +110,15 @@ class ProductBulkUploadServiceTests(TestCase):
         self.assertEqual(bulk._norm_name("  A   B  "), "A B")
 
     def test_get_or_create_uom_rules(self):
-        uom = UnitOfMeasure.objects.create(code="KG", name="KG")
-        same = bulk._get_or_create_uom("KG", "Kilogram")
+        uom = UnitOfMeasure.objects.create(code="TSTKG", name="TSTKG")
+        same = bulk._get_or_create_uom("TSTKG", "TestKilogram")
         same.refresh_from_db()
         self.assertEqual(same, uom)
-        self.assertEqual(same.name, "Kilogram")
+        self.assertEqual(same.name, "TestKilogram")
 
-        UnitOfMeasure.objects.create(code="L", name="Litre")
+        UnitOfMeasure.objects.create(code="TSTL", name="TestLitre")
         with self.assertRaisesMessage(ValueError, "already exists"):
-            bulk._get_or_create_uom("LTR", "Litre")
+            bulk._get_or_create_uom("LTR", "TestLitre")
 
     def test_import_products_df_create_update_lists_stock_and_errors(self):
         actor = make_user(email="actor@example.com")
@@ -168,10 +168,10 @@ class ProductBulkUploadServiceTests(TestCase):
         with self.assertRaisesMessage(ValueError, "Missing required"):
             bulk.import_products_df(pd.DataFrame({"name": ["x"]}), upload_id=1)
 
-        uom = UnitOfMeasure.objects.create(code="EA", name="Each")
+        uom = UnitOfMeasure.objects.create(code="TSTEA", name="TestEach")
         Product.objects.create(name="Known", uom=uom, unit_cost=Decimal("1.00"))
         result = bulk.import_products_df(
-            pd.DataFrame([{"name": "Known", "unit_cost": "1", "uom_code": "EA", "stock_level": "0"}]),
+            pd.DataFrame([{"name": "Known", "unit_cost": "1", "uom_code": "TSTEA", "stock_level": "0"}]),
             upload_id=2,
         )
         self.assertIn("Product already exists", result["errors"][0]["message"])

@@ -25,23 +25,23 @@ User = get_user_model()
 
 class UnitOfMeasureModelTests(TestCase):
     def test_str_returns_name_and_code(self):
-        uom = UnitOfMeasure.objects.create(code="KG", name="Kilogram")
-        self.assertEqual(str(uom), "Kilogram (KG)")
+        uom = UnitOfMeasure.objects.create(code="XXX", name="TestUnit")
+        self.assertEqual(str(uom), "TestUnit (XXX)")
 
     def test_unique_code_and_name_enforced(self):
-        UnitOfMeasure.objects.create(code="L", name="Liter")
+        UnitOfMeasure.objects.create(code="VV", name="Volume")
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                UnitOfMeasure.objects.create(code="L", name="SomethingElse")
+                UnitOfMeasure.objects.create(code="VV", name="SomethingElse")
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                UnitOfMeasure.objects.create(code="XX", name="Liter")
+                UnitOfMeasure.objects.create(code="XX", name="Volume")
 
 
 class CategoryModelTests(TestCase):
     def test_str(self):
-        c = Category.objects.create(name="Beverages")
-        self.assertEqual(str(c), "Beverages")
+        c = Category.objects.create(name="CustomTest")
+        self.assertEqual(str(c), "CustomTest")
 
     def test_unique_name(self):
         Category.objects.create(name="Staples")
@@ -92,6 +92,60 @@ class ProductModelTests(TestCase):
         Product.objects.create(name="ProtectedProd", unit_cost=Decimal("3.00"), uom=uom)
         with self.assertRaises(ProtectedError):
             uom.delete()
+
+
+class SeedReferenceDataTests(TestCase):
+    """Tests that global reference data exists after migrations are applied."""
+
+    EXPECTED_UOMS = [
+        ("EA", "Each"),
+        ("KG", "Kilogram"),
+        ("G", "Gram"),
+        ("L", "Litre"),
+        ("ML", "Millilitre"),
+        ("M", "Metre"),
+        ("CM", "Centimetre"),
+        ("PK", "Pack"),
+        ("BX", "Box"),
+        ("CT", "Carton"),
+        ("RL", "Roll"),
+        ("PR", "Pair"),
+        ("DOZ", "Dozen"),
+        ("T", "Tonne"),
+    ]
+
+    EXPECTED_CATEGORIES = [
+        "Electronics",
+        "Office Supplies",
+        "Furniture",
+        "IT Hardware",
+        "Cleaning Supplies",
+        "Stationery",
+        "Beverages",
+        "Food Items",
+        "Consumables",
+        "Tools & Equipment",
+        "Packaging Materials",
+        "Personal Protective Equipment",
+    ]
+
+    def test_seed_uoms_exist(self):
+        """All expected UOMs should be present after migrations."""
+        for code, name in self.EXPECTED_UOMS:
+            with self.subTest(code=code):
+                uom = UnitOfMeasure.objects.get(code=code)
+                self.assertEqual(uom.name, name)
+
+    def test_seed_categories_exist(self):
+        """All expected Categories should be present after migrations."""
+        for name in self.EXPECTED_CATEGORIES:
+            with self.subTest(category=name):
+                Category.objects.get(name=name)
+
+    def test_total_seed_count(self):
+        """Total seeded UOMs and Categories should match expectations."""
+        self.assertEqual(UnitOfMeasure.objects.count(), len(self.EXPECTED_UOMS))
+        self.assertEqual(Category.objects.count(), len(self.EXPECTED_CATEGORIES))
 
 
 class ProfileModelTests(TestCase):

@@ -9,6 +9,7 @@ from .receiving import (
 )
 from .payment import *
 from .inventory import *
+from .organisation import Organisation, OrganisationMembership
 
 # Explicit export list to keep namespace clean and so its clear what is available
 # for import * statements.
@@ -17,5 +18,6 @@ __all__ = [
     'Requisition', 'RequisitionItem', 'RequisitionApproval',
     'PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApproval',
     'Receiving', 'ReceivingItem', 'InvoiceLineApproval', 'ReceivingWorkflowHistory',
-    'Payment', 'StockTransaction', 'LowStockAlert', 'Profile'
+    'Payment', 'StockTransaction', 'LowStockAlert', 'Profile',
+    'Organisation', 'OrganisationMembership',
 ]

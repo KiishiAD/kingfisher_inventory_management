@@ -14,17 +14,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          show-progress: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Run Django tests
+      - name: Capture Django test result
         working-directory: supplychain_test
         env:
           DJANGO_ENV: testing
-        run: python manage.py test
+        run: |
+          set +e
+          python manage.py test --verbosity 2 > ../test-output.txt 2>&1
+          echo $? > ../test-exit.txt
+          exit 0
+      - name: Upload Django test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-test-output
+          path: |
+            test-output.txt
+            test-exit.txt
       - name: Validate Render demo settings
         working-directory: supplychain_test
         env:
@@ -34,3 +48,9 @@ jobs:
         run: |
           python manage.py check --deploy
           python manage.py collectstatic --noinput
+      - name: Enforce Django test result
+        run: |
+          if [ "$(cat test-exit.txt)" != "0" ]; then
+            tail -n 150 test-output.txt
+            exit 1
+          fi

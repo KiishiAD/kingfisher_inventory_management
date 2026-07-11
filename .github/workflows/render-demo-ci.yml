@@ -1,0 +1,35 @@
+name: Render demo validation
+
+on:
+  push:
+    branches:
+      - deploy/render-demo
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Django tests
+        working-directory: supplychain_test
+        env:
+          DJANGO_ENV: testing
+        run: python manage.py test
+      - name: Validate Render demo settings
+        working-directory: supplychain_test
+        env:
+          DJANGO_ENV: demo
+          SECRET_KEY: ci-demo-secret-key
+          RENDER_EXTERNAL_HOSTNAME: kingfisher-demo-ci.onrender.com
+        run: |
+          python manage.py check --deploy
+          python manage.py collectstatic --noinput

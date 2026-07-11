@@ -1,20 +1,19 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-WORKDIR /app/supplychain_test
+WORKDIR /app
 
-# system libs: postgres client libs + (optional) pillow runtime libs
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-  && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-prod.txt /app/requirements-prod.txt
-RUN pip install --no-cache-dir -r /app/requirements-prod.txt
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-COPY . /app
+COPY supplychain_test/ ./
 
 EXPOSE 8000
-
-CMD ["bash", "-lc", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn supplychain_test.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile - --log-level info --capture-output"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn supplychain_test.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60"]

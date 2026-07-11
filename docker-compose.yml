@@ -1,30 +1,18 @@
 services:
   web:
     build: .
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DJANGO_SETTINGS_MODULE: supplychain_test.settings.production
-      DJANGO_ENV: production
-    expose:
-      - "8000"
-    volumes:
-      - static_volume:/vol/web/static
-
-  caddy:
-    image: caddy:2.8.4
+      DJANGO_ENV: development
+      DEBUG: "true"
+      SECRET_KEY: ${SECRET_KEY:-unsafe-development-key-change-me}
+      APP_BASE_URL: http://localhost:8000
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
     ports:
-      - "80:80"
-      - "443:443"
+      - "8000:8000"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - static_volume:/srv/static:ro
-      - caddy_config:/config
-    depends_on:
-      - web
-
-volumes:
-  caddy_data:
-  caddy_config:
-  static_volume:
-  
+      - ./supplychain_test:/app
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"

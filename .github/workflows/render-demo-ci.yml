@@ -1,0 +1,69 @@
+name: Render demo validation
+
+on:
+  push:
+    branches:
+      - deploy/render-demo
+  pull_request:
+    branches:
+      - main
+      - refactor/open-source-ready
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Capture Django test result
+        working-directory: supplychain_test
+        env:
+          DJANGO_ENV: testing
+        run: |
+          set +e
+          python manage.py test --verbosity 2 > ../test-output.txt 2>&1
+          echo $? > ../test-exit.txt
+          exit 0
+      - name: Capture Render demo validation
+        working-directory: supplychain_test
+        env:
+          DJANGO_ENV: demo
+          SECRET_KEY: ci-demo-secret-key
+          RENDER_EXTERNAL_HOSTNAME: kingfisher-demo-ci.onrender.com
+        run: |
+          set +e
+          {
+            python manage.py check --deploy
+            python manage.py collectstatic --noinput
+          } > ../render-output.txt 2>&1
+          echo $? > ../render-exit.txt
+          exit 0
+      - name: Upload validation output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kingfisher-validation-output
+          path: |
+            test-output.txt
+            test-exit.txt
+            render-output.txt
+            render-exit.txt
+      - name: Enforce validation results
+        run: |
+          if [ "$(cat render-exit.txt)" != "0" ]; then
+            echo "Render demo validation failed"
+            tail -n 150 render-output.txt
+            exit 1
+          fi
+          if [ "$(cat test-exit.txt)" != "0" ]; then
+            echo "Django tests failed"
+            tail -n 150 test-output.txt
+            exit 1
+          fi

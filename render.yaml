@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: kingfisher-demo-kiishi
+    runtime: python
+    plan: free
+    region: frankfurt
+    repo: https://github.com/KiishiAD/kingfisher_inventory_management.git
+    branch: deploy/render-demo
+    buildCommand: pip install -r requirements.txt && cd supplychain_test && python manage.py collectstatic --noinput
+    preDeployCommand: cd supplychain_test && python manage.py migrate --noinput && python create_demo_user.py
+    startCommand: cd supplychain_test && gunicorn supplychain_test.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    healthCheckPath: /accounts/login/
+    autoDeployTrigger: commit
+    envVars:
+      - key: DJANGO_ENV
+        value: demo
+      - key: PYTHON_VERSION
+        value: 3.12.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kingfisher-demo-db
+          property: connectionString
+      - key: DEMO_USERNAME
+        value: demo
+      - key: DEMO_PASSWORD
+        value: "KingfisherDemo-2026!"
+      - key: DEMO_EMAIL
+        value: demo@kingfisher.local
+      - key: WEB_CONCURRENCY
+        value: 2
+
+databases:
+  - name: kingfisher-demo-db
+    plan: free
+    region: frankfurt
+    databaseName: kingfisher_demo
+    user: kingfisher_demo
